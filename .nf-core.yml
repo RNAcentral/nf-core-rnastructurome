@@ -1,0 +1,16 @@
+repository_type: pipeline
+
+nf_core_version: 3.5.2
+
+lint: {}
+
+template:
+  org: nf-core
+  name: rnastructurome
+  description: This pipeline analyses chemical-based high-throughput RNA structure
+    probing data
+  author: RNAcentral
+  version: 1.0.0dev
+  force: true
+  outdir: .
+  is_nfcore: true

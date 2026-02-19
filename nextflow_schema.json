@@ -20,7 +20,7 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row. See [usage docs](https://nf-co.re/rnastructurome/usage#samplesheet-input).",
+                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample` and `fastq_1` columns (with optional `fastq_2` for paired-end). `method`, `principle`, and `organism` are optional and can also be provided as global command-line flags.",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {
@@ -79,6 +79,31 @@
                     "fa_icon": "fas fa-ban",
                     "hidden": true,
                     "default": "s3://ngi-igenomes/igenomes/"
+                }
+            }
+        },
+        "sample_metadata_options": {
+            "title": "Sample metadata options",
+            "type": "object",
+            "fa_icon": "fas fa-tags",
+            "description": "Global fallback metadata values used when the corresponding column is missing or empty in the input CSV.",
+            "properties": {
+                "sample_id": {
+                    "type": "string",
+                    "description": "Fallback sample ID for rows missing `sample_id`.",
+                    "pattern": "^\\S+$"
+                },
+                "method": {
+                    "type": "string",
+                    "description": "Fallback probing method for rows missing `method`."
+                },
+                "principle": {
+                    "type": "string",
+                    "description": "Fallback probing principle for rows missing `principle`."
+                },
+                "organism": {
+                    "type": "string",
+                    "description": "Fallback organism for rows missing `organism`."
                 }
             }
         },
@@ -246,6 +271,9 @@
         },
         {
             "$ref": "#/$defs/reference_genome_options"
+        },
+        {
+            "$ref": "#/$defs/sample_metadata_options"
         },
         {
             "$ref": "#/$defs/institutional_config_options"

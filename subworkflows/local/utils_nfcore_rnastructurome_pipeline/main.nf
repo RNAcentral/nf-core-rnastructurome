@@ -98,17 +98,25 @@ workflow PIPELINE_INITIALISATION {
     validateInputParameters()
 
     //
-    // Create channel from input file provided through params.input
+    // Create channel from input file provided through `input`
     //
 
     channel
-        .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
+        .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
         .map {
             meta, fastq_1, fastq_2 ->
+                def resolved_meta = meta + [
+                    sample_id     : meta.sample_id ?: params.sample_id,
+                    library_layout: fastq_2 ? 'PAIRED' : 'SINGLE',
+                    method        : meta.method ?: params.method,
+                    principle     : meta.principle ?: params.principle,
+                    organism      : meta.organism ?: params.organism
+                ]
+
                 if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
+                    return [ resolved_meta.id, resolved_meta + [ single_end:true ], [ fastq_1 ] ]
                 } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
+                    return [ resolved_meta.id, resolved_meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
                 }
         }
         .groupTuple()

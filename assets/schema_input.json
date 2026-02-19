@@ -26,6 +26,18 @@
                 "exists": true,
                 "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
                 "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+            },
+            "method": {
+                "type": "string",
+                "meta": ["method"]
+            },
+            "principle": {
+                "type": "string",
+                "meta": ["principle"]
+            },
+            "organism": {
+                "type": "string",
+                "meta": ["organism"]
             }
         },
         "required": ["sample", "fastq_1"]

@@ -35,9 +35,9 @@
                 "type": "string",
                 "meta": ["principle"]
             },
-            "organism": {
+            "genome_build": {
                 "type": "string",
-                "meta": ["organism"]
+                "meta": ["genome_build"]
             }
         },
         "required": ["sample", "fastq_1"]

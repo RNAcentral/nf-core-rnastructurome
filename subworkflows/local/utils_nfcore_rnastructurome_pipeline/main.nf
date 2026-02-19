@@ -110,7 +110,7 @@ workflow PIPELINE_INITIALISATION {
                     library_layout: fastq_2 ? 'PAIRED' : 'SINGLE',
                     method        : meta.method ?: params.method,
                     principle     : meta.principle ?: params.principle,
-                    organism      : meta.organism ?: params.organism
+                    genome_build  : meta.genome_build ?: params.genome_build ?: params.genome
                 ]
 
                 if (!fastq_2) {

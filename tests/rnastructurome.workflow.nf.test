@@ -1,0 +1,74 @@
+nextflow_workflow {
+
+    name "Test Workflow RNASTRUCTUROME"
+    script "../workflows/rnastructurome.nf"
+    config "tests/nextflow.config"
+    workflow "RNASTRUCTUROME"
+    tag "workflows"
+    tag "rnastructurome"
+
+    test("Routes RT-stop to bowtie and MaP to bowtie2") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'rtstop_sample', sample_id:'rtstop_sample', principle:'RT-stop', genome_build:'hg38', single_end:true ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'map_sample', sample_id:'map_sample', principle:'MaP', genome_build:'mm10', single_end:true ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.mapped_bam.size() == 2 },
+                { assert workflow.out.mapped_bam.collect { entry -> entry[0].principle }.toSet() == ['RT-stop', 'MaP'] as Set }
+            )
+        }
+    }
+
+    test("Fails when genome_build is missing") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'missing_build', sample_id:'missing_build', principle:'RT-stop', single_end:true ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("Missing genome_build") }
+            )
+        }
+    }
+}

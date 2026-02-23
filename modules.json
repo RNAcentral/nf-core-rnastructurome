@@ -79,6 +79,16 @@
                         "branch": "master",
                         "git_sha": "fe93fde0845f907fc91ad7cc7d797930408824df",
                         "installed_by": ["modules"]
+                    },
+                    "umitools/dedup": {
+                        "branch": "master",
+                        "git_sha": "a3c1fdaa26ab74f7c77fead65f0f6d34b0dc9d1d",
+                        "installed_by": ["modules"]
+                    },
+                    "umitools/extract": {
+                        "branch": "master",
+                        "git_sha": "8f2ec534d0418bf724cfd5f053176a9c500fae78",
+                        "installed_by": ["modules"]
                     }
                 }
             },

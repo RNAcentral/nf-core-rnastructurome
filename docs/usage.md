@@ -52,6 +52,28 @@ TREATMENT_REP3,AEG588A6_S6_L004_R1_001.fastq.gz,
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
 
+### Cutadapt behavior by principle
+
+Cutadapt settings depend on the sample `principle` (`RT-stop` or `MaP`):
+
+| Principle | 5' quality trimming (`--cutadapt-5quality`) | 3' quality trimming (`--cutadapt-3quality`) | Notes |
+| --------- | ------------------------------------------- | ------------------------------------------- | ----- |
+| `RT-stop` | Forced to `0`                               | Default `20`                                 | 5' quality trimming is intentionally disabled for RT-stop data. |
+| `MaP`     | Default `20`                                | Default `20`                                 | Can be overridden with CLI parameters. |
+
+Adapter trimming is optional and uses this precedence:
+
+1. Per-sample values from the samplesheet (`adapter_5p`, `adapter_3p`)
+2. Global parameters (`--cutadapt_adapter_5p`, `--cutadapt_adapter_3p`)
+
+If no adapters are specified, adapter trimming is skipped and only quality/length trimming is applied.
+
+Additional clipping controls are configurable (optional):
+
+- `--cutadapt-len` (default: `25`): minimum read length kept after clipping.
+- `--cutadapt-min-align` (default: `1`): minimum adapter overlap in nt to trigger adapter trimming.
+- `--cutadapt-trim-N` (default: enabled): trims terminal `N` bases. Set `--cutadapt-trim-N false` to disable.
+
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:

@@ -13,6 +13,10 @@
                 "errorMessage": "Sample name must be provided and cannot contain spaces",
                 "meta": ["id"]
             },
+            "sample_id": {
+                "type": "string",
+                "meta": ["sample_id"]
+            },
             "fastq_1": {
                 "type": "string",
                 "format": "file-path",
@@ -38,6 +42,18 @@
             "genome_build": {
                 "type": "string",
                 "meta": ["genome_build"]
+            },
+            "adapter_3p": {
+                "type": "string",
+                "meta": ["adapter_3p"]
+            },
+            "adapter_5p": {
+                "type": "string",
+                "meta": ["adapter_5p"]
+            },
+            "umi_pattern": {
+                "type": "string",
+                "meta": ["umi_pattern"]
             }
         },
         "required": ["sample", "fastq_1"]

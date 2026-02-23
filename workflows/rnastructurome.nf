@@ -3,7 +3,8 @@
     IMPORT MODULES / SUBWORKFLOWS / FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-include { FASTQC                 } from '../modules/nf-core/fastqc/main'
+include { FASTQC as FASTQC_PRE   } from '../modules/nf-core/fastqc/main'
+include { FASTQC as FASTQC_POST  } from '../modules/nf-core/fastqc/main'
 include { CUTADAPT as CUTADAPT_RTSTOP } from '../modules/nf-core/cutadapt/main'
 include { CUTADAPT as CUTADAPT_MAP    } from '../modules/nf-core/cutadapt/main'
 include { BOWTIE_BUILD          } from '../modules/nf-core/bowtie/build/main'
@@ -38,8 +39,18 @@ workflow RNASTRUCTUROME {
         [meta, reads]
     }
 
+    ch_samplesheet_checked.into { ch_pretrim_fastqc_input; ch_samplesheet_for_branching }
+
+    //
+    // MODULE: Run FastQC on raw reads (pre-trim)
+    //
+    FASTQC_PRE (
+        ch_pretrim_fastqc_input
+    )
+    ch_multiqc_files = ch_multiqc_files.mix(FASTQC_PRE.out.zip.collect { fastqc_zip -> fastqc_zip[1] })
+
     // Branch by probing principle so RT-stop and MaP can use different default cutadapt args
-    def principle_branches = ch_samplesheet_checked.branch { meta, reads ->
+    def principle_branches = ch_samplesheet_for_branching.branch { meta, reads ->
         rtstop: (meta.principle ?: '').toLowerCase() == 'rt-stop'
         map:    (meta.principle ?: '').toLowerCase() == 'map'
     }
@@ -58,6 +69,14 @@ workflow RNASTRUCTUROME {
     ch_trimmed_reads = CUTADAPT_RTSTOP.out.reads.mix(CUTADAPT_MAP.out.reads)
     ch_multiqc_files = ch_multiqc_files.mix(CUTADAPT_RTSTOP.out.log.collect { cutadapt_log -> cutadapt_log[1] })
     ch_multiqc_files = ch_multiqc_files.mix(CUTADAPT_MAP.out.log.collect { cutadapt_log -> cutadapt_log[1] })
+
+    //
+    // MODULE: Run FastQC on trimmed reads (post-trim)
+    //
+    FASTQC_POST (
+        ch_trimmed_reads
+    )
+    ch_multiqc_files = ch_multiqc_files.mix(FASTQC_POST.out.zip.collect { fastqc_zip -> fastqc_zip[1] })
 
     ch_rtstop_genome_build_fasta = principle_branches.rtstop
         .map { meta, reads ->
@@ -156,14 +175,8 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE_ALIGN.out.log.collect { bowtie_log -> bowtie_log[1] })
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { bowtie2_log -> bowtie2_log[1] })
 
-    //
-    // MODULE: Run FastQC
-    //
-    FASTQC (
-        ch_trimmed_reads
-    )
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect { fastqc_zip -> fastqc_zip[1] })
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+    ch_versions = ch_versions.mix(FASTQC_PRE.out.versions.first())
+    ch_versions = ch_versions.mix(FASTQC_POST.out.versions.first())
     ch_versions = ch_versions.mix(BOWTIE_BUILD.out.versions)
     ch_versions = ch_versions.mix(BOWTIE_ALIGN.out.versions)
 

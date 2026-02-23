@@ -20,7 +20,7 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample` and `fastq_1` columns (with optional `fastq_2` for paired-end). `method`, `principle`, and `genome_build` are optional and can also be provided as global command-line flags.",
+                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample` and `fastq_1` columns (with optional `fastq_2` for paired-end). `sample_id`, `method`, `principle`, `genome_build`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {

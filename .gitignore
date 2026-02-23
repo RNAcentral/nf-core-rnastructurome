@@ -8,3 +8,14 @@ testing*
 *.pyc
 null/
 assets/rnastruct00001_samplesheet.csv
+
+# nf-test artifacts
+.nf-test/
+.nf-test.log
+.nf-test*
+
+# Optional Nextflow run reports created in project root
+report.html
+timeline.html
+trace.txt
+dag.dot

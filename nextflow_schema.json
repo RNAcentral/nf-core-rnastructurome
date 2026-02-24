@@ -104,6 +104,56 @@
                 "genome_build": {
                     "type": "string",
                     "description": "Fallback genome build key (e.g. `hg38`) for rows missing `genome_build`."
+                },
+                "umi_pattern": {
+                    "type": "string",
+                    "description": "Fallback UMI pattern for rows missing `umi_pattern`. Supplying a pattern enables umi_tools extract before cutadapt."
+                }
+            }
+        },
+        "read_trimming_options": {
+            "title": "Read trimming options",
+            "type": "object",
+            "fa_icon": "fas fa-cut",
+            "description": "Cutadapt trimming parameters.",
+            "properties": {
+                "cutadapt_adapter_5p": {
+                    "type": "string",
+                    "description": "Global fallback 5' adapter sequence(s), comma-separated."
+                },
+                "cutadapt_adapter_3p": {
+                    "type": "string",
+                    "description": "Global fallback 3' adapter sequence(s), comma-separated."
+                },
+                "cutadapt_quality_only": {
+                    "type": "boolean",
+                    "description": "If true, skip adapter trimming and apply quality/length trimming only.",
+                    "default": false
+                },
+                "cutadapt_5quality": {
+                    "type": "integer",
+                    "description": "Base quality threshold for 5' trimming (used for MaP; RT-stop is forced to 0).",
+                    "default": 20
+                },
+                "cutadapt_3quality": {
+                    "type": "integer",
+                    "description": "Base quality threshold for 3' trimming.",
+                    "default": 20
+                },
+                "cutadapt_len": {
+                    "type": "integer",
+                    "description": "Minimum read length retained after trimming.",
+                    "default": 25
+                },
+                "cutadapt_min_align": {
+                    "type": "integer",
+                    "description": "Minimum adapter overlap required for trimming.",
+                    "default": 1
+                },
+                "cutadapt_trim_n": {
+                    "type": "boolean",
+                    "description": "Trim terminal N bases.",
+                    "default": true
                 }
             }
         },
@@ -274,6 +324,9 @@
         },
         {
             "$ref": "#/$defs/sample_metadata_options"
+        },
+        {
+            "$ref": "#/$defs/read_trimming_options"
         },
         {
             "$ref": "#/$defs/institutional_config_options"

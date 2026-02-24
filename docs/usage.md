@@ -74,6 +74,22 @@ Additional clipping controls are configurable (optional):
 - `--cutadapt-min-align` (default: `1`): minimum adapter overlap in nt to trigger adapter trimming.
 - `--cutadapt-trim-N` (default: enabled): trims terminal `N` bases. Set `--cutadapt-trim-N false` to disable.
 
+### Optional UMI extraction
+
+Enable UMI extraction before cutadapt by providing a UMI pattern.
+
+When enabled, each sample must have a UMI pattern available. Pattern precedence is:
+
+1. Per-sample `umi_pattern` in the samplesheet
+2. Global `--umi_pattern` fallback
+
+The pipeline passes this pattern to `umi_tools extract` as `--bc-pattern`.
+
+Pattern handling:
+
+- If `umi_pattern` contains only `N`, `C`, `X`, the pipeline uses `umi_tools` string mode (`--bc-pattern`).
+- If `umi_pattern` contains IUPAC degenerate bases (for example `D`), the pipeline automatically switches to regex mode (`--extract-method=regex`) and converts the pattern accordingly (e.g. `D -> [AGT]`).
+
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:

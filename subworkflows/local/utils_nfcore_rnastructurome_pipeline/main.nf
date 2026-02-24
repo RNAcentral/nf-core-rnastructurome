@@ -113,7 +113,7 @@ workflow PIPELINE_INITIALISATION {
                     genome_build  : meta.genome_build ?: params.genome_build ?: params.genome,
                     adapter_3p    : meta.adapter_3p,
                     adapter_5p    : meta.adapter_5p,
-                    umi_pattern   : meta.umi_pattern
+                    umi_pattern   : meta.umi_pattern ?: params.umi_pattern
                 ]
 
                 if (!fastq_2) {

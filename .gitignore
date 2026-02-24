@@ -1,6 +1,7 @@
 .nextflow*
 work/
 data/
+testdata/
 results/
 .DS_Store
 testing/
@@ -19,3 +20,4 @@ report.html
 timeline.html
 trace.txt
 dag.dot
+conf/local.config

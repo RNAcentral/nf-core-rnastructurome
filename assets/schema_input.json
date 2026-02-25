@@ -54,6 +54,20 @@
             "umi_pattern": {
                 "type": "string",
                 "meta": ["umi_pattern"]
+            },
+            "condition": {
+                "type": "string",
+                "enum": ["treated", "untreated", "denatured"],
+                "meta": ["condition"],
+                "description": "Sample condition for rf-norm grouping (treated / untreated / denatured). Samples sharing the same 'group' value with different conditions are normalised together by rf-norm.",
+                "help_text": "TODO (rnacentral-probing-metadata-main): merge_metadata.py must be updated to populate this column from the YAML 'conditions' field. Until then, samples without a condition are treated as 'treated'."
+            },
+            "group": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "meta": ["group"],
+                "description": "Group key linking treated / untreated / denatured samples for rf-norm (e.g. cell-line name). All samples with the same group value are normalised together.",
+                "help_text": "TODO (rnacentral-probing-metadata-main): merge_metadata.py must be updated to populate this column (e.g. derived from sample_name by stripping the condition suffix). Defaults to sample_id at runtime if absent."
             }
         },
         "required": ["sample", "fastq_1"]

@@ -56,10 +56,10 @@ An [example samplesheet](../assets/samplesheet.csv) has been provided with the p
 
 Cutadapt settings depend on the sample `principle` (`RT-stop` or `MaP`):
 
-| Principle | 5' quality trimming (`--cutadapt-5quality`) | 3' quality trimming (`--cutadapt-3quality`) | Notes |
-| --------- | ------------------------------------------- | ------------------------------------------- | ----- |
-| `RT-stop` | Forced to `0`                               | Default `20`                                 | 5' quality trimming is intentionally disabled for RT-stop data. |
-| `MaP`     | Default `20`                                | Default `20`                                 | Can be overridden with CLI parameters. |
+| Principle | 5' quality trimming (`--cutadapt-5quality`) | 3' quality trimming (`--cutadapt-3quality`) | Notes                                                           |
+| --------- | ------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------- |
+| `RT-stop` | Forced to `0`                               | Default `20`                                | 5' quality trimming is intentionally disabled for RT-stop data. |
+| `MaP`     | Default `20`                                | Default `20`                                | Can be overridden with CLI parameters.                          |
 
 Adapter trimming is optional and uses this precedence:
 

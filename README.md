@@ -21,7 +21,7 @@
 
 ## Introduction
 
-**nf-core/rnastructurome** is a bioinformatics pipeline that ...
+**nf-core/rnastructurome** is a bioinformatics pipeline for the analysis of chemical-based high-throughput RNA structure probing data. It accepts FASTQ files from SHAPE or DMS experiments using either the **RT-stop** or **mutational profiling (MaP)** principle, and processes them from raw reads through alignment and deduplication to per-base reactivity scores and RNA secondary structure predictions using the [RNAFramework](https://rnaframework.readthedocs.io) toolkit.
 
 <!-- TODO nf-core:
    Complete this sentence with a 2-3 sentence summary of what types of data the pipeline ingests, a brief overview of the

@@ -2,7 +2,12 @@ repository_type: pipeline
 
 nf_core_version: 3.5.2
 
-lint: {}
+lint:
+  files_unchanged:
+    - assets/email_template.html
+    - assets/nf-core-rnastructurome_logo_light.png
+    - docs/images/nf-core-rnastructurome_logo_light.png
+    - docs/images/nf-core-rnastructurome_logo_dark.png
 
 template:
   org: nf-core

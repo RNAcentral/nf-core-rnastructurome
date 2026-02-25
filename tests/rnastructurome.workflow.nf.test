@@ -38,7 +38,10 @@ nextflow_workflow {
                 { assert workflow.success },
                 { assert workflow.out.mapped_bam.size() == 2 },
                 { assert workflow.out.mapped_bam.collect { entry -> entry[0].principle }.toSet() == ['RT-stop', 'MaP'] as Set },
-                { assert snapshot(workflow.out.versions).match("versions") }
+                { assert snapshot(
+                    workflow.out.mapped_bam,
+                    path("${outputDir}/pipeline_info/nf_core_rnastructurome_software_mqc_versions.yml")
+                ).match() }
             )
         }
     }

@@ -21,31 +21,14 @@ include { SAMTOOLS_STATS        } from '../modules/nf-core/samtools/stats/main'
 include { SAMTOOLS_FLAGSTAT     } from '../modules/nf-core/samtools/flagstat/main'
 include { SAMTOOLS_IDXSTATS     } from '../modules/nf-core/samtools/idxstats/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
+include { SAMTOOLS_FAIDX        } from '../modules/local/samtools/faidx/main'
+include { RNAFRAMEWORK_RFCOUNT  } from '../modules/local/rnaframework/count/main'
+include { RNAFRAMEWORK_RFNORM   } from '../modules/local/rnaframework/norm/main'
+include { RNAFRAMEWORK_RFFOLD   } from '../modules/local/rnaframework/fold/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_rnastructurome_pipeline'
-
-process SAMTOOLS_FAIDX_LOCAL {
-    tag "${meta.id}"
-    label 'process_low'
-
-    conda "${projectDir}/modules/nf-core/samtools/index/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/samtools:1.22.1--h96c455f_0' :
-        'biocontainers/samtools:1.22.1--h96c455f_0' }"
-
-    input:
-    tuple val(meta), path(fasta)
-
-    output:
-    tuple val(meta), path(fasta), path("*.fai"), emit: fasta_fai
-
-    script:
-    """
-    samtools faidx ${fasta}
-    """
-}
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -238,11 +221,14 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE_ALIGN.out.log.collect { bowtie_log -> bowtie_log[1] })
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { bowtie2_log -> bowtie2_log[1] })
 
-    SAMTOOLS_FAIDX_LOCAL (
+    //
+    // MODULE: Index reference FASTA for coordinate-aware samtools sort
+    //
+    SAMTOOLS_FAIDX (
         ch_all_genome_build_fasta
     )
 
-    ch_reference_fasta_fai_keyed = SAMTOOLS_FAIDX_LOCAL.out.fasta_fai
+    ch_reference_fasta_fai_keyed = SAMTOOLS_FAIDX.out.fasta_fai
         .map { meta, fasta, fai -> [ meta.id.toString(), [meta, fasta, fai] ] }
 
     ch_sorted_inputs = ch_mapped_bam
@@ -347,12 +333,93 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_FLAGSTAT.out.flagstat.collect { flagstat_file -> flagstat_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_IDXSTATS.out.idxstats.collect { idxstats_file -> idxstats_file[1] })
 
-    ch_processed_bam = ch_dedup_bam
+    //
+    // MODULE: rf-count — per-base RT-stop or mutation counts from deduplicated BAM
+    //
+    ch_rfcount_with_fasta = ch_markdup_bam_bai
+        .map { meta, bam, bai ->
+            def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
+            [ genome_build, [meta, bam, bai] ]
+        }
+        .join(ch_reference_fasta_keyed)
+        .map { genome_build, bam_bai_tuple, fasta_tuple ->
+            [ bam_bai_tuple, fasta_tuple ]
+        }
 
+    RNAFRAMEWORK_RFCOUNT (
+        ch_rfcount_with_fasta.map { bam_bai_tuple, fasta_tuple -> bam_bai_tuple },
+        ch_rfcount_with_fasta.map { bam_bai_tuple, fasta_tuple -> fasta_tuple }
+    )
+
+    //
+    // MODULE: rf-norm — normalise RC files to per-base reactivities (XML)
+    //
+    // Group RC files by 'group' key (defaults to sample_id) then join by condition.
+    // TODO (rnacentral-probing-metadata-main): merge_metadata.py must populate
+    // 'condition' (treated/untreated/denatured) and 'group' columns in the
+    // generated samplesheet CSVs so that rf-norm can correctly pair samples.
+    ch_rc_by_group = RNAFRAMEWORK_RFCOUNT.out.rc
+        .map { meta, rc ->
+            def group     = (meta.group ?: meta.sample_id ?: meta.id).toString()
+            def condition = (meta.condition ?: 'treated').toLowerCase()
+            [ group, condition, meta, rc ]
+        }
+
+    ch_treated   = ch_rc_by_group
+        .filter  { group, condition, meta, rc -> condition == 'treated' }
+        .map     { group, condition, meta, rc -> [ group, rc ] }
+        .groupTuple()
+
+    ch_untreated = ch_rc_by_group
+        .filter  { group, condition, meta, rc -> condition == 'untreated' }
+        .map     { group, condition, meta, rc -> [ group, rc ] }
+
+    ch_denatured = ch_rc_by_group
+        .filter  { group, condition, meta, rc -> condition == 'denatured' }
+        .map     { group, condition, meta, rc -> [ group, rc ] }
+
+    // Borrow principle/genome_build from the first sample in each group for group-level meta
+    ch_group_meta = ch_rc_by_group
+        .map     { group, condition, meta, rc -> [ group, meta ] }
+        .groupTuple()
+        .map     { group, metas -> [ group, metas[0] ] }
+
+    ch_norm_input = ch_treated
+        .join(ch_group_meta)
+        .join(ch_untreated, remainder: true)
+        .join(ch_denatured, remainder: true)
+        .map { group, treated_rcs, base_meta, untreated_rc, denatured_rc ->
+            def gmeta = base_meta + [ id: group ]
+            [ gmeta, treated_rcs, untreated_rc ?: [], denatured_rc ?: [] ]
+        }
+
+    RNAFRAMEWORK_RFNORM (
+        ch_norm_input
+    )
+
+    //
+    // MODULE: rf-fold — predict RNA secondary structures from reactivity XML
+    //
+    RNAFRAMEWORK_RFFOLD (
+        RNAFRAMEWORK_RFNORM.out.xml
+    )
+
+    //
+    // Collect software versions from all modules.
+    // Modules using `path "versions.yml"` (old pattern) must be mixed in explicitly.
+    // Modules using `topic: versions` (new pattern) are collected automatically by
+    // channel.topic("versions") below and do NOT need to be listed here.
+    //   topic-pattern: CUTADAPT_*, BOWTIE2_*, UMITOOLS_*, all SAMTOOLS_* modules
+    //   file-pattern:  FASTQC, BOWTIE_BUILD/ALIGN, local modules
+    //
     ch_versions = ch_versions.mix(FASTQC_PRE.out.versions.first())
     ch_versions = ch_versions.mix(FASTQC_POST.out.versions.first())
     ch_versions = ch_versions.mix(BOWTIE_BUILD.out.versions)
     ch_versions = ch_versions.mix(BOWTIE_ALIGN.out.versions)
+    ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions.first())
+    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT.out.versions.first())
+    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
+    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
 
     //
     // Collate and save software versions
@@ -424,8 +491,9 @@ workflow RNASTRUCTUROME {
         []
     )
 
-    emit:multiqc_report = MULTIQC.out.report.toList() // channel: /path/to/multiqc_report.html
-    mapped_bam     = ch_processed_bam            // channel: [ val(meta), path(bam) ]
+    emit:
+    multiqc_report = MULTIQC.out.report.toList() // channel: /path/to/multiqc_report.html
+    mapped_bam     = ch_dedup_bam                // channel: [ val(meta), path(bam) ]
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
 
 }

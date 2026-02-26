@@ -1,0 +1,6 @@
+name: rnaframework_fold
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bioconda::rnaframework=2.9.6

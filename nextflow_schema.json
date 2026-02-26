@@ -158,6 +158,142 @@
                 }
             }
         },
+        "alignment_options": {
+            "title": "Alignment options",
+            "type": "object",
+            "fa_icon": "fas fa-map",
+            "description": "Bowtie/Bowtie2 mapping options.",
+            "properties": {
+                "bowtie_mapping_params": {
+                    "type": "string",
+                    "description": "Additional aligner options appended to Bowtie/Bowtie2 commands."
+                },
+                "bowtie_manual_only": {
+                    "type": "boolean",
+                    "description": "Use only options from `--bowtie_mapping_params` and ignore other Bowtie/Bowtie2 tuning flags.",
+                    "default": false
+                },
+                "bowtie_k": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Report up to this number of alignments per read (`-k`)."
+                },
+                "bowtie_all": {
+                    "type": "boolean",
+                    "description": "Report all valid alignments (`-a`).",
+                    "default": false
+                },
+                "bowtie_norc": {
+                    "type": "boolean",
+                    "description": "Map only to sense strand (`--norc`).",
+                    "default": false
+                },
+                "bowtie_trim5": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Trim this many bases from 5' read end (`--trim5`).",
+                    "default": 0
+                },
+                "bowtie_trim3": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Trim this many bases from 3' read end (`--trim3`).",
+                    "default": 0
+                },
+                "bowtie_index": {
+                    "type": "string",
+                    "description": "Optional path to a prebuilt Bowtie index (currently not consumed by workflow logic)."
+                },
+                "bowtie_seedlen": {
+                    "type": "integer",
+                    "minimum": 3,
+                    "description": "Seed length (`-l`/`-L`) used by Bowtie/Bowtie2."
+                },
+                "bowtie_n": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3,
+                    "description": "Bowtie v1 `-n` seed mismatch mode value.",
+                    "default": 2
+                },
+                "bowtie_v": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3,
+                    "description": "Bowtie v1 `-v` mismatch mode value."
+                },
+                "bowtie_max": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Bowtie v1 `-m` maximum reportable alignments per read before suppression.",
+                    "default": 1
+                },
+                "bowtie_chunkmbs": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Bowtie v1 `--chunkmbs` memory chunk size.",
+                    "default": 128
+                },
+                "bowtie2_N": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Bowtie2 `-N` seed mismatches.",
+                    "default": 0
+                },
+                "bowtie2_D": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Bowtie2 `-D` max seed extension attempts.",
+                    "default": 15
+                },
+                "bowtie2_R": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Bowtie2 `-R` max re-seeding attempts.",
+                    "default": 2
+                },
+                "bowtie2_mp": {
+                    "type": "string",
+                    "pattern": "^\\d+,\\d+$",
+                    "description": "Bowtie2 `--mp` mismatch penalties as `max,min`.",
+                    "default": "6,2"
+                },
+                "bowtie2_dpad": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Bowtie2 `--dpad` padding around DP table.",
+                    "default": 15
+                },
+                "bowtie2_rdg": {
+                    "type": "string",
+                    "pattern": "^\\d+,\\d+$",
+                    "description": "Bowtie2 `--rdg` read gap penalties as `open,extend`.",
+                    "default": "5,3"
+                },
+                "bowtie2_rfg": {
+                    "type": "string",
+                    "pattern": "^\\d+,\\d+$",
+                    "description": "Bowtie2 `--rfg` reference gap penalties as `open,extend`.",
+                    "default": "5,3"
+                },
+                "bowtie2_softclip": {
+                    "type": "boolean",
+                    "description": "Enable Bowtie2 local alignment mode (`--local`).",
+                    "default": false
+                },
+                "bowtie2_ma": {
+                    "type": "integer",
+                    "description": "Bowtie2 `--ma` match bonus used with `--local`.",
+                    "default": 2
+                },
+                "bowtie2_dovetail": {
+                    "type": "boolean",
+                    "description": "Allow dovetailing mates (`--dovetail`).",
+                    "default": false
+                }
+            }
+        },
         "institutional_config_options": {
             "title": "Institutional config options",
             "type": "object",
@@ -328,6 +464,9 @@
         },
         {
             "$ref": "#/$defs/read_trimming_options"
+        },
+        {
+            "$ref": "#/$defs/alignment_options"
         },
         {
             "$ref": "#/$defs/institutional_config_options"

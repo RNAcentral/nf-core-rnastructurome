@@ -2,6 +2,7 @@ process RNAFRAMEWORK_RFFOLD {
     tag "$meta.id"
     label 'process_high'
 
+    conda "${moduleDir}/environment.yml"
     container 'dincarnato/rnaframework:2.9.6'
 
     input:

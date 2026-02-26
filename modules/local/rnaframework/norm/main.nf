@@ -2,6 +2,7 @@ process RNAFRAMEWORK_RFNORM {
     tag "$meta.id"
     label 'process_medium'
 
+    conda "${moduleDir}/environment.yml"
     container 'dincarnato/rnaframework:2.9.6'
 
     input:

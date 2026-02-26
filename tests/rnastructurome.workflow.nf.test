@@ -75,4 +75,40 @@ nextflow_workflow {
             )
         }
     }
+
+    test("Accepts manual Bowtie/Bowtie2 mapping params") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+                params.bowtie_manual_only = true
+                params.bowtie_mapping_params = '-k 1'
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'rtstop_manual', sample_id:'rtstop_manual', principle:'RT-stop', genome_build:'hg38', single_end:true ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'map_manual', sample_id:'map_manual', principle:'MaP', genome_build:'mm10', single_end:true ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.mapped_bam.size() == 2 }
+            )
+        }
+    }
 }

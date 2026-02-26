@@ -134,7 +134,7 @@ workflow RNASTRUCTUROME {
                 error("Missing genome_build for sample '${meta.id}'. Set genome_build in samplesheet or provide --genome_build/--genome.")
             }
             def genome_fasta = params.genomes?.containsKey(genome_build) ? params.genomes[genome_build]?.fasta : null
-            def fasta_path = genome_fasta ?: params.fasta
+            def fasta_path = params.fasta ?: genome_fasta
             if (!fasta_path) {
                 error("No FASTA configured for genome_build '${genome_build}'. Add params.genomes['${genome_build}'].fasta or provide --fasta.")
             }
@@ -156,7 +156,7 @@ workflow RNASTRUCTUROME {
                 error("Missing genome_build for sample '${meta.id}'. Set genome_build in samplesheet or provide --genome_build/--genome.")
             }
             def genome_fasta = params.genomes?.containsKey(genome_build) ? params.genomes[genome_build]?.fasta : null
-            def fasta_path = genome_fasta ?: params.fasta
+            def fasta_path = params.fasta ?: genome_fasta
             if (!fasta_path) {
                 error("No FASTA configured for genome_build '${genome_build}'. Add params.genomes['${genome_build}'].fasta or provide --fasta.")
             }

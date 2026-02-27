@@ -1,0 +1,47 @@
+name: rnaframework_rffold
+description: Predict RNA secondary structure from normalized RNAframework reactivity XML
+keywords:
+  - rnaframework
+  - structure
+  - folding
+  - reactivity
+tools:
+  - rnaframework:
+      description: |
+        RNAFramework is a toolkit for processing and analysing RNA structure probing data.
+      homepage: https://rnaframework-docs.readthedocs.io/
+      documentation: https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/
+      licence: ["GPL-3.0-or-later"]
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing group/sample information
+          e.g. [ id:'group1' ]
+    - xml:
+        type: file
+        description: RNAframework normalized reactivity XML file(s)
+        pattern: "*.{xml}"
+        ontologies: []
+output:
+  structures:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing group/sample information
+            e.g. [ id:'group1' ]
+      - "*":
+          type: directory
+          description: RNAframework structure prediction output directory
+          pattern: "*"
+          ontologies: []
+  versions:
+    - "versions.yml":
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+        ontologies: []
+authors:
+  - "@vicbeg"
+maintainers:
+  - "@vicbeg"

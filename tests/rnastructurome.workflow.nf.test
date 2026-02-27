@@ -111,4 +111,42 @@ nextflow_workflow {
             )
         }
     }
+
+    test("Accepts rf-count parameter overrides") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+                params.rfcount_img = true
+                params.rfcount_trim_5prime = 2
+                params.rfcount_primary_only = true
+                params.rfcount_map_sort_by_read_name = true
+                params.rfcount_map_discard_shorter = 5
+                params.rfcount_map_min_quality = 25
+                params.rfcount_map_collapse_consecutive = true
+                params.rfcount_map_max_collapse_distance = 3
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'map_rfcount', sample_id:'map_rfcount', principle:'MaP', genome_build:'hg38', single_end:true ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.mapped_bam.size() == 1 }
+            )
+        }
+    }
 }

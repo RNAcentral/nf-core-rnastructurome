@@ -90,6 +90,41 @@ Pattern handling:
 - If `umi_pattern` contains only `N`, `C`, `X`, the pipeline uses `umi_tools` string mode (`--bc-pattern`).
 - If `umi_pattern` contains IUPAC degenerate bases (for example `D`), the pipeline automatically switches to regex mode (`--extract-method=regex`) and converts the pattern accordingly (e.g. `D -> [AGT]`).
 
+### RNAframework rf-count options
+
+The pipeline exposes these `rf-count` flags:
+
+- `--rfcount_img` (default: `true`): enables statistics plots (`-g`).
+- `--rfcount_trim_5prime` (default: `0`): number of 5' bases trimmed in `rf-count` (`-t5`).
+- `--rfcount_mask_file` (optional): path to mask file (`--mask-file`).
+- `--rfcount_primary_only` (default: `false`): primary alignments only (`--primary-only`).
+- `--rfcount_paired_only` (default: `false`): paired-end reads where both mates map (`--paired-only`).
+- `--rfcount_properly_paired` (default: `false`): paired-end reads mapped in proper pairs (`--properly-paired`).
+- `--rfcount_map_sort_by_read_name` (default: `false`): in mutation mode, pre-sort read pairs by read name (`--sort-by-read-name`).
+- `--rfcount_map_discard_shorter` (default: `1`): in mutation mode, discard reads shorter than this length (`--discard-shorter`).
+- `--rfcount_map_min_quality` (default: `20`): in mutation mode, minimum base quality for mutation calls (`--min-quality`).
+- `--rfcount_map_collapse_consecutive` (default: `true`): in mutation mode, collapse consecutive mutations (`--collapse-consecutive`).
+- `--rfcount_map_max_collapse_distance` (default: `2`): max distance for mutation collapsing (`--max-collapse-distance`).
+- `--rnaframework_container` (default: `docker.io/rnastructurome/rnaframework:2.9.6-r1`): container image used for local RNAframework modules.
+- `--rnaframework_r_path` (default: `/usr/bin/R`): path to `R` inside the RNAframework container for `rf-count -g`.
+
+Paired-end default behavior:
+
+- If a sample is paired-end and neither `--rfcount_paired_only` nor `--rfcount_properly_paired` is set, the pipeline uses `--properly-paired` by default.
+- `--rfcount_paired_only` and `--rfcount_properly_paired` are mutually exclusive; set only one.
+
+Reference FASTA behavior:
+
+- `rf-count -f` is always populated from the pipeline FASTA (`--fasta` or genome-config FASTA); no separate `rf-count` FASTA flag is required.
+- Mutation-mode options above are applied only for MaP samples (`principle=MaP`), where `rf-count` runs with `-m`.
+- In MaP mutation mode (`-m`), `--rfcount_trim_5prime` (`-t5`) has no effect (RNAframework behavior).
+
+Build the default local RNAframework+R image before running with Docker:
+
+```bash
+docker build --platform linux/amd64 -t docker.io/rnastructurome/rnaframework:2.9.6-r1 docker/rnaframework-r
+```
+
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:

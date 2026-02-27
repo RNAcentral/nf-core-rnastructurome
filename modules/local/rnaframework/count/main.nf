@@ -10,7 +10,7 @@ process RNAFRAMEWORK_RFCOUNT {
     tuple val(meta_ref), path(fasta)
 
     output:
-    tuple val(meta), path("*.rc"), emit: rc
+    tuple val(meta), path("*_rfcount/*.rc"), emit: rc
     path "versions.yml"          , emit: versions
 
     when:
@@ -19,11 +19,18 @@ process RNAFRAMEWORK_RFCOUNT {
     script:
     def args   = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def fallback_fasta = params.fasta ?: (meta_ref?.genome_build && params.genomes?.containsKey(meta_ref.genome_build) ? params.genomes[meta_ref.genome_build]?.fasta : '')
+    def outdir = "${prefix}_rfcount"
     """
+    FASTA_PATH="${fasta}"
+    if [[ ! -f "\${FASTA_PATH}" && -n "${fallback_fasta}" ]]; then
+        FASTA_PATH="${fallback_fasta}"
+    fi
+
     rf-count \\
         -p ${task.cpus} \\
-        -f ${fasta} \\
-        -o ./ \\
+        -f "\${FASTA_PATH}" \\
+        -o ${outdir} \\
         -ow \\
         ${args} \\
         "${prefix}:${bam}"
@@ -36,8 +43,10 @@ process RNAFRAMEWORK_RFCOUNT {
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def outdir = "${prefix}_rfcount"
     """
-    touch ${prefix}.rc
+    mkdir -p ${outdir}
+    touch ${outdir}/${prefix}.rc
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

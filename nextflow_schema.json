@@ -294,6 +294,102 @@
                 }
             }
         },
+        "rnaframework_options": {
+            "title": "RNAframework options",
+            "type": "object",
+            "fa_icon": "fas fa-wave-square",
+            "description": "rf-count/rf-norm/rf-fold options.",
+            "allOf": [
+                {
+                    "not": {
+                        "properties": {
+                            "rfcount_paired_only": {
+                                "const": true
+                            },
+                            "rfcount_properly_paired": {
+                                "const": true
+                            }
+                        },
+                        "required": [
+                            "rfcount_paired_only",
+                            "rfcount_properly_paired"
+                        ]
+                    }
+                }
+            ],
+            "properties": {
+                "rfcount_img": {
+                    "type": "boolean",
+                    "description": "Enable rf-count plot generation (`-g`).",
+                    "default": true
+                },
+                "rfcount_trim_5prime": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Trim this many bases from the 5' read end for rf-count (`-t5`).",
+                    "default": 0
+                },
+                "rfcount_mask_file": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Path to rf-count mask file (`--mask-file`)."
+                },
+                "rfcount_primary_only": {
+                    "type": "boolean",
+                    "description": "Use only primary alignments in rf-count (`--primary-only`).",
+                    "default": false
+                },
+                "rfcount_paired_only": {
+                    "type": "boolean",
+                    "description": "For paired-end samples, use only reads with both mates mapped (`--paired-only`).",
+                    "default": false
+                },
+                "rfcount_properly_paired": {
+                    "type": "boolean",
+                    "description": "For paired-end samples, use only properly paired reads (`--properly-paired`).",
+                    "default": false
+                },
+                "rfcount_map_sort_by_read_name": {
+                    "type": "boolean",
+                    "description": "In mutation mode (`-m`), pre-sort paired-end reads by read name (`--sort-by-read-name`).",
+                    "default": false
+                },
+                "rfcount_map_discard_shorter": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "In mutation mode (`-m`), discard reads shorter than this value (`--discard-shorter`).",
+                    "default": 1
+                },
+                "rfcount_map_min_quality": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "In mutation mode (`-m`), minimum Phred+33 base quality for mutations (`--min-quality`).",
+                    "default": 20
+                },
+                "rfcount_map_collapse_consecutive": {
+                    "type": "boolean",
+                    "description": "In mutation mode (`-m`), collapse consecutive mutations/indels (`--collapse-consecutive`).",
+                    "default": true
+                },
+                "rfcount_map_max_collapse_distance": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "In mutation mode with collapsing enabled, max distance to collapse (`--max-collapse-distance`).",
+                    "default": 2
+                },
+                "rnaframework_container": {
+                    "type": "string",
+                    "description": "Container image used for local RNAframework modules.",
+                    "default": "docker.io/rnastructurome/rnaframework:2.9.6-r1"
+                },
+                "rnaframework_r_path": {
+                    "type": "string",
+                    "description": "Path to R executable inside the RNAframework container (used when `--rfcount_img` is enabled).",
+                    "default": "/usr/bin/R"
+                }
+            }
+        },
         "institutional_config_options": {
             "title": "Institutional config options",
             "type": "object",
@@ -467,6 +563,9 @@
         },
         {
             "$ref": "#/$defs/alignment_options"
+        },
+        {
+            "$ref": "#/$defs/rnaframework_options"
         },
         {
             "$ref": "#/$defs/institutional_config_options"

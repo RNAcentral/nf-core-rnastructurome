@@ -29,7 +29,7 @@ workflow PIPELINE_INITIALISATION {
     take:
     version           // boolean: Display version and exit
     validate_params   // boolean: Boolean whether to validate parameters against the schema at runtime
-    monochrome_logs   // boolean: Do not use coloured log outputs
+    _monochrome_logs  // boolean: Do not use coloured log outputs
     nextflow_cli_args //   array: List of positional nextflow CLI args
     outdir            //  string: The output directory where the results will be saved
     input             //  string: Path to input samplesheet
@@ -251,7 +251,7 @@ def toolCitationText() {
             "RNAFramework (Incarnato et al. 2018),",
             "MultiQC (Ewels et al. 2016)",
             "."
-        ].findAll { it }.join(' ').trim()
+        ].findAll { entry -> entry }.join(' ').trim()
 
     return citation_text
 }
@@ -266,7 +266,7 @@ def toolBibliographyText() {
             "<li>Danecek P, et al. (2021). Twelve years of SAMtools and BCFtools. GigaScience, 10(2), giab008. doi: 10.1093/gigascience/giab008</li>",
             "<li>Incarnato D, et al. (2018). RNA Framework: an all-in-one toolkit for the analysis of RNA structures and post-transcriptional modifications. Nucleic Acids Research, 46(W1), W121–W127. doi: 10.1093/nar/gky486</li>",
             "<li>Ewels P, et al. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics, 32(19), 3047–3048. doi: 10.1093/bioinformatics/btw354</li>"
-        ].findAll { it }.join(' ').trim()
+        ].findAll { entry -> entry }.join(' ').trim()
 
     return reference_text
 }

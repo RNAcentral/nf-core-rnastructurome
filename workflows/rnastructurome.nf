@@ -21,7 +21,7 @@ include { SAMTOOLS_STATS        } from '../modules/nf-core/samtools/stats/main'
 include { SAMTOOLS_FLAGSTAT     } from '../modules/nf-core/samtools/flagstat/main'
 include { SAMTOOLS_IDXSTATS     } from '../modules/nf-core/samtools/idxstats/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
-include { SAMTOOLS_FAIDX        } from '../modules/local/samtools/faidx/main'
+include { SAMTOOLS_FAIDX        } from '../modules/nf-core/samtools/faidx/main'
 include { RNAFRAMEWORK_RFCOUNT  } from '../modules/local/rnaframework/count/main'
 include { RNAFRAMEWORK_RFNORM   } from '../modules/local/rnaframework/norm/main'
 include { RNAFRAMEWORK_RFFOLD   } from '../modules/local/rnaframework/fold/main'
@@ -64,13 +64,13 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC_PRE.out.zip.collect { fastqc_zip -> fastqc_zip[1] })
 
     // Branch by probing principle so RT-stop and MaP can use different default cutadapt args
-    def principle_branches = ch_samplesheet_for_branching.branch { meta, reads ->
+    def principle_branches = ch_samplesheet_for_branching.branch { meta, _reads ->
         rtstop: (meta.principle ?: '').toLowerCase() == 'rt-stop'
         map:    (meta.principle ?: '').toLowerCase() == 'map'
     }
 
     def ch_reads_for_umi = principle_branches.rtstop.mix(principle_branches.map)
-    def ch_reads_without_umi = ch_reads_for_umi.filter { meta, reads ->
+    def ch_reads_without_umi = ch_reads_for_umi.filter { meta, _reads ->
         !((meta.umi_pattern ?: '').toString().trim())
     }
 
@@ -79,7 +79,7 @@ workflow RNASTRUCTUROME {
     )
 
     def ch_reads_after_umi = ch_reads_without_umi.mix(UMITOOLS_EXTRACT.out.reads)
-    def reads_for_cutadapt = ch_reads_after_umi.branch { meta, reads ->
+    def reads_for_cutadapt = ch_reads_after_umi.branch { meta, _reads ->
         rtstop: (meta.principle ?: '').toLowerCase() == 'rt-stop'
         map:    (meta.principle ?: '').toLowerCase() == 'map'
     }
@@ -111,7 +111,7 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC_POST.out.zip.collect { fastqc_zip -> fastqc_zip[1] })
 
     ch_rtstop_genome_build_fasta = principle_branches.rtstop
-        .map { meta, reads ->
+        .map { meta, _reads ->
             def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
             if (!genome_build) {
                 error("Missing genome_build for sample '${meta.id}'. Set genome_build in samplesheet or provide --genome_build/--genome.")
@@ -133,7 +133,7 @@ workflow RNASTRUCTUROME {
         }
 
     ch_map_genome_build_fasta = principle_branches.map
-        .map { meta, reads ->
+        .map { meta, _reads ->
             def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
             if (!genome_build) {
                 error("Missing genome_build for sample '${meta.id}'. Set genome_build in samplesheet or provide --genome_build/--genome.")
@@ -189,7 +189,7 @@ workflow RNASTRUCTUROME {
             [ genome_build, [meta, reads] ]
         }
         .join(ch_bowtie_index_keyed)
-        .map { genome_build, reads_tuple, index_tuple -> [ reads_tuple, index_tuple ] }
+        .map { _genome_build, reads_tuple, index_tuple -> [ reads_tuple, index_tuple ] }
 
     ch_map_align_inputs = CUTADAPT_MAP.out.reads
         .map { meta, reads ->
@@ -198,21 +198,21 @@ workflow RNASTRUCTUROME {
         }
         .join(ch_bowtie2_index_keyed)
         .join(ch_reference_fasta_keyed)
-        .map { genome_build, reads_tuple, index_tuple, fasta_tuple -> [ reads_tuple, index_tuple, fasta_tuple ] }
+        .map { _genome_build, reads_tuple, index_tuple, fasta_tuple -> [ reads_tuple, index_tuple, fasta_tuple ] }
 
     //
     // MODULE: Align RT-stop with Bowtie v1 and MaP with Bowtie2
     //
     BOWTIE_ALIGN (
-        ch_rtstop_align_inputs.map { reads_tuple, index_tuple -> reads_tuple },
-        ch_rtstop_align_inputs.map { reads_tuple, index_tuple -> index_tuple },
+        ch_rtstop_align_inputs.map { reads_tuple, _index_tuple -> reads_tuple },
+        ch_rtstop_align_inputs.map { _reads_tuple, index_tuple -> index_tuple },
         false
     )
 
     BOWTIE2_ALIGN (
-        ch_map_align_inputs.map { reads_tuple, index_tuple, fasta_tuple -> reads_tuple },
-        ch_map_align_inputs.map { reads_tuple, index_tuple, fasta_tuple -> index_tuple },
-        ch_map_align_inputs.map { reads_tuple, index_tuple, fasta_tuple -> fasta_tuple },
+        ch_map_align_inputs.map { reads_tuple, _index_tuple, _fasta_tuple -> reads_tuple },
+        ch_map_align_inputs.map { _reads_tuple, index_tuple, _fasta_tuple -> index_tuple },
+        ch_map_align_inputs.map { _reads_tuple, _index_tuple, fasta_tuple -> fasta_tuple },
         false,
         false
     )
@@ -222,14 +222,19 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { bowtie2_log -> bowtie2_log[1] })
 
     //
-    // MODULE: Index reference FASTA for coordinate-aware samtools sort
+    // MODULE: Index reference FASTA for samtools markdup reference input
     //
     SAMTOOLS_FAIDX (
-        ch_all_genome_build_fasta
+        ch_all_genome_build_fasta.map { meta, fasta -> [meta, fasta, []] },
+        false
     )
 
-    ch_reference_fasta_fai_keyed = SAMTOOLS_FAIDX.out.fasta_fai
-        .map { meta, fasta, fai -> [ meta.id.toString(), [meta, fasta, fai] ] }
+    ch_reference_fasta_fai_keyed = SAMTOOLS_FAIDX.out.fai
+        .map { meta, fai -> [ meta.id.toString(), [meta, fai] ] }
+        .join(ch_reference_fasta_keyed)
+        .map { genome_build, fai_tuple, fasta_tuple ->
+            [ genome_build, [fasta_tuple[0], fasta_tuple[1], fai_tuple[1]] ]
+        }
 
     ch_sorted_inputs = ch_mapped_bam
         .map { meta, bam ->
@@ -240,13 +245,13 @@ workflow RNASTRUCTUROME {
             [ genome_build, [meta, bam] ]
         }
         .join(ch_reference_fasta_keyed)
-        .map { genome_build, bam_tuple, fasta_tuple ->
+        .map { _genome_build, bam_tuple, fasta_tuple ->
             [ bam_tuple, fasta_tuple ]
         }
 
     SAMTOOLS_SORT (
-        ch_sorted_inputs.map { bam_tuple, fasta_tuple -> bam_tuple },
-        ch_sorted_inputs.map { bam_tuple, fasta_tuple -> fasta_tuple },
+        ch_sorted_inputs.map { bam_tuple, _fasta_tuple -> bam_tuple },
+        ch_sorted_inputs.map { _bam_tuple, fasta_tuple -> fasta_tuple },
         false
     )
 
@@ -257,11 +262,11 @@ workflow RNASTRUCTUROME {
     ch_sorted_bam_bai = SAMTOOLS_SORT.out.bam
         .map { meta, bam -> [ meta.id.toString(), [meta, bam] ] }
         .join(SAMTOOLS_INDEX_SORT.out.bai.map { meta, bai -> [ meta.id.toString(), [meta, bai] ] })
-        .map { sample_id, bam_tuple, bai_tuple ->
+        .map { _sample_id, bam_tuple, bai_tuple ->
             [ bam_tuple[0], bam_tuple[1], bai_tuple[1] ]
         }
 
-    def dedup_branches = ch_sorted_bam_bai.branch { meta, bam, bai ->
+    def dedup_branches = ch_sorted_bam_bai.branch { meta, _bam, _bai ->
         umi:     (meta.umi_pattern ?: '').toString().trim()
         non_umi: !((meta.umi_pattern ?: '').toString().trim())
     }
@@ -272,7 +277,7 @@ workflow RNASTRUCTUROME {
     )
 
     ch_markdup_inputs = dedup_branches.non_umi
-        .map { meta, bam, bai ->
+        .map { meta, bam, _bai ->
             def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
             if (!genome_build) {
                 error("Missing genome_build for sample '${meta.id}' while preparing samtools markdup input.")
@@ -280,13 +285,13 @@ workflow RNASTRUCTUROME {
             [ genome_build, [meta, bam] ]
         }
         .join(ch_reference_fasta_fai_keyed)
-        .map { genome_build, bam_tuple, fasta_fai_tuple ->
+        .map { _genome_build, bam_tuple, fasta_fai_tuple ->
             [ bam_tuple, fasta_fai_tuple ]
         }
 
     SAMTOOLS_MARKDUP (
-        ch_markdup_inputs.map { bam_tuple, fasta_fai_tuple -> bam_tuple },
-        ch_markdup_inputs.map { bam_tuple, fasta_fai_tuple -> fasta_fai_tuple }
+        ch_markdup_inputs.map { bam_tuple, _fasta_fai_tuple -> bam_tuple },
+        ch_markdup_inputs.map { _bam_tuple, fasta_fai_tuple -> fasta_fai_tuple }
     )
 
     ch_dedup_bam = UMITOOLS_DEDUP.out.bam.mix(SAMTOOLS_MARKDUP.out.bam)
@@ -299,7 +304,7 @@ workflow RNASTRUCTUROME {
     ch_markdup_bam_bai = ch_dedup_bam
         .map { meta, bam -> [ meta.id.toString(), [meta, bam] ] }
         .join(SAMTOOLS_INDEX_FINAL.out.bai.map { meta, bai -> [ meta.id.toString(), [meta, bai] ] })
-        .map { sample_id, bam_tuple, bai_tuple ->
+        .map { _sample_id, bam_tuple, bai_tuple ->
             [ bam_tuple[0], bam_tuple[1], bai_tuple[1] ]
         }
 
@@ -312,13 +317,13 @@ workflow RNASTRUCTUROME {
             [ genome_build, [meta, bam, bai] ]
         }
         .join(ch_reference_fasta_keyed)
-        .map { genome_build, bam_bai_tuple, fasta_tuple ->
+        .map { _genome_build, bam_bai_tuple, fasta_tuple ->
             [ bam_bai_tuple, fasta_tuple ]
         }
 
     SAMTOOLS_STATS (
-        ch_stats_inputs.map { bam_bai_tuple, fasta_tuple -> bam_bai_tuple },
-        ch_stats_inputs.map { bam_bai_tuple, fasta_tuple -> fasta_tuple }
+        ch_stats_inputs.map { bam_bai_tuple, _fasta_tuple -> bam_bai_tuple },
+        ch_stats_inputs.map { _bam_bai_tuple, fasta_tuple -> fasta_tuple }
     )
 
     SAMTOOLS_FLAGSTAT (
@@ -342,13 +347,13 @@ workflow RNASTRUCTUROME {
             [ genome_build, [meta, bam, bai] ]
         }
         .join(ch_reference_fasta_keyed)
-        .map { genome_build, bam_bai_tuple, fasta_tuple ->
+        .map { _genome_build, bam_bai_tuple, fasta_tuple ->
             [ bam_bai_tuple, fasta_tuple ]
         }
 
     RNAFRAMEWORK_RFCOUNT (
-        ch_rfcount_with_fasta.map { bam_bai_tuple, fasta_tuple -> bam_bai_tuple },
-        ch_rfcount_with_fasta.map { bam_bai_tuple, fasta_tuple -> fasta_tuple }
+        ch_rfcount_with_fasta.map { bam_bai_tuple, _fasta_tuple -> bam_bai_tuple },
+        ch_rfcount_with_fasta.map { _bam_bai_tuple, fasta_tuple -> fasta_tuple }
     )
 
     //
@@ -366,21 +371,21 @@ workflow RNASTRUCTUROME {
         }
 
     ch_treated   = ch_rc_by_group
-        .filter  { group, condition, meta, rc -> condition == 'treated' }
-        .map     { group, condition, meta, rc -> [ group, rc ] }
+        .filter  { _group, condition, _meta, _rc -> condition == 'treated' }
+        .map     { group, _condition, _meta, rc -> [ group, rc ] }
         .groupTuple()
 
     ch_untreated = ch_rc_by_group
-        .filter  { group, condition, meta, rc -> condition == 'untreated' }
-        .map     { group, condition, meta, rc -> [ group, rc ] }
+        .filter  { _group, condition, _meta, _rc -> condition == 'untreated' }
+        .map     { group, _condition, _meta, rc -> [ group, rc ] }
 
     ch_denatured = ch_rc_by_group
-        .filter  { group, condition, meta, rc -> condition == 'denatured' }
-        .map     { group, condition, meta, rc -> [ group, rc ] }
+        .filter  { _group, condition, _meta, _rc -> condition == 'denatured' }
+        .map     { group, _condition, _meta, rc -> [ group, rc ] }
 
     // Borrow principle/genome_build from the first sample in each group for group-level meta
     ch_group_meta = ch_rc_by_group
-        .map     { group, condition, meta, rc -> [ group, meta ] }
+        .map     { group, _condition, meta, _rc -> [ group, meta ] }
         .groupTuple()
         .map     { group, metas -> [ group, metas[0] ] }
 
@@ -416,7 +421,6 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(FASTQC_POST.out.versions.first())
     ch_versions = ch_versions.mix(BOWTIE_BUILD.out.versions)
     ch_versions = ch_versions.mix(BOWTIE_ALIGN.out.versions)
-    ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())

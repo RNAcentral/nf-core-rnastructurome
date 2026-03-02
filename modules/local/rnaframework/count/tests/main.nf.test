@@ -36,7 +36,8 @@ nextflow_process {
         then {
             assertAll(
                 { assert process.success },
-                { assert process.out.rc.size() == 1 }
+                { assert process.out.rc.size() == 1 },
+                { assert process.out.rci.size() == 1 }
             )
         }
     }

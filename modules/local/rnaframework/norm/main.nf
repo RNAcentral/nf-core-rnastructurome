@@ -6,7 +6,7 @@ process RNAFRAMEWORK_RFNORM {
     container 'dincarnato/rnaframework:2.9.6'
 
     input:
-    tuple val(meta), path(treated), path(untreated), path(denatured)
+    tuple val(meta), path(treated), path(untreated), path(denatured), path(rci_files)
 
     output:
     tuple val(meta), path("${prefix}_norm/*.xml"), emit: xml

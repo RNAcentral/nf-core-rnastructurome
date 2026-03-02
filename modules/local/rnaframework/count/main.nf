@@ -11,6 +11,7 @@ process RNAFRAMEWORK_RFCOUNT {
 
     output:
     tuple val(meta), path("*_rfcount/*.rc"), emit: rc
+    tuple val(meta), path("*_rfcount/*.rc.rci"), optional: true, emit: rci
     path "versions.yml"          , emit: versions
 
     when:
@@ -47,6 +48,7 @@ process RNAFRAMEWORK_RFCOUNT {
     """
     mkdir -p ${outdir}
     touch ${outdir}/${prefix}.rc
+    touch ${outdir}/${prefix}.rc.rci
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

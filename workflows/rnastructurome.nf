@@ -56,7 +56,7 @@ workflow RNASTRUCTUROME {
     def ch_samplesheet_for_branching = ch_samplesheet_checked
 
     //
-    // MODULE: Run FastQC on raw reads (pre-trim)
+    // MODULE: fastqc (pre-trim) — quality control on raw reads
     //
     FASTQC_PRE (
         ch_pretrim_fastqc_input
@@ -74,6 +74,9 @@ workflow RNASTRUCTUROME {
         !((meta.umi_pattern ?: '').toString().trim())
     }
 
+    //
+    // MODULE: umi_tools extract — extract UMIs from reads
+    //
     UMITOOLS_EXTRACT (
         ch_reads_for_umi
     )
@@ -88,12 +91,15 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(UMITOOLS_EXTRACT.out.log.collect { umi_log -> umi_log[1] })
 
     //
-    // MODULE: Run cutadapt
+    // MODULE: cutadapt (RT-stop) — trim RT-stop reads
     //
     CUTADAPT_RTSTOP (
         ch_rtstop_reads_for_cutadapt
     )
 
+    //
+    // MODULE: cutadapt (MaP) — trim MaP reads
+    //
     CUTADAPT_MAP (
         ch_map_reads_for_cutadapt
     )
@@ -103,7 +109,7 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(CUTADAPT_MAP.out.log.collect { cutadapt_log -> cutadapt_log[1] })
 
     //
-    // MODULE: Run FastQC on trimmed reads (post-trim)
+    // MODULE: fastqc (post-trim) — quality control on trimmed reads
     //
     FASTQC_POST (
         ch_trimmed_reads
@@ -169,12 +175,15 @@ workflow RNASTRUCTUROME {
         }
 
     //
-    // MODULE: Build Bowtie/Bowtie2 indices
+    // MODULE: bowtie-build — build Bowtie v1 indices for RT-stop alignment
     //
     BOWTIE_BUILD (
         ch_rtstop_genome_build_fasta
     )
 
+    //
+    // MODULE: bowtie2-build — build Bowtie2 indices for MaP alignment
+    //
     BOWTIE2_BUILD (
         ch_map_genome_build_fasta
     )
@@ -201,7 +210,7 @@ workflow RNASTRUCTUROME {
         .map { _genome_build, reads_tuple, index_tuple, fasta_tuple -> [ reads_tuple, index_tuple, fasta_tuple ] }
 
     //
-    // MODULE: Align RT-stop with Bowtie v1 and MaP with Bowtie2
+    // MODULE: bowtie align — align RT-stop reads with Bowtie v1
     //
     BOWTIE_ALIGN (
         ch_rtstop_align_inputs.map { reads_tuple, _index_tuple -> reads_tuple },
@@ -209,6 +218,9 @@ workflow RNASTRUCTUROME {
         false
     )
 
+    //
+    // MODULE: bowtie2 align — align MaP reads with Bowtie2
+    //
     BOWTIE2_ALIGN (
         ch_map_align_inputs.map { reads_tuple, _index_tuple, _fasta_tuple -> reads_tuple },
         ch_map_align_inputs.map { _reads_tuple, index_tuple, _fasta_tuple -> index_tuple },
@@ -222,7 +234,7 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { bowtie2_log -> bowtie2_log[1] })
 
     //
-    // MODULE: Index reference FASTA for samtools markdup reference input
+    // MODULE: samtools faidx — index reference FASTA for markdup
     //
     SAMTOOLS_FAIDX (
         ch_all_genome_build_fasta.map { meta, fasta -> [meta, fasta, []] },
@@ -249,12 +261,18 @@ workflow RNASTRUCTUROME {
             [ bam_tuple, fasta_tuple ]
         }
 
+    //
+    // MODULE: samtools sort — coordinate-sort mapped BAMs
+    //
     SAMTOOLS_SORT (
         ch_sorted_inputs.map { bam_tuple, _fasta_tuple -> bam_tuple },
         ch_sorted_inputs.map { _bam_tuple, fasta_tuple -> fasta_tuple },
         false
     )
 
+    //
+    // MODULE: samtools index (sorted) — index sorted BAMs
+    //
     SAMTOOLS_INDEX_SORT (
         SAMTOOLS_SORT.out.bam
     )
@@ -271,6 +289,9 @@ workflow RNASTRUCTUROME {
         non_umi: !((meta.umi_pattern ?: '').toString().trim())
     }
 
+    //
+    // MODULE: umi_tools dedup — deduplicate UMI-tagged BAMs
+    //
     UMITOOLS_DEDUP (
         dedup_branches.umi,
         false
@@ -289,6 +310,9 @@ workflow RNASTRUCTUROME {
             [ bam_tuple, fasta_fai_tuple ]
         }
 
+    //
+    // MODULE: samtools markdup — deduplicate non-UMI BAMs
+    //
     SAMTOOLS_MARKDUP (
         ch_markdup_inputs.map { bam_tuple, _fasta_fai_tuple -> bam_tuple },
         ch_markdup_inputs.map { _bam_tuple, fasta_fai_tuple -> fasta_fai_tuple }
@@ -297,6 +321,9 @@ workflow RNASTRUCTUROME {
     ch_dedup_bam = UMITOOLS_DEDUP.out.bam.mix(SAMTOOLS_MARKDUP.out.bam)
     ch_multiqc_files = ch_multiqc_files.mix(UMITOOLS_DEDUP.out.log.collect { dedup_log -> dedup_log[1] })
 
+    //
+    // MODULE: samtools index (final) — index deduplicated BAMs
+    //
     SAMTOOLS_INDEX_FINAL (
         ch_dedup_bam
     )
@@ -321,15 +348,24 @@ workflow RNASTRUCTUROME {
             [ bam_bai_tuple, fasta_tuple ]
         }
 
+    //
+    // MODULE: samtools stats — collect alignment statistics
+    //
     SAMTOOLS_STATS (
         ch_stats_inputs.map { bam_bai_tuple, _fasta_tuple -> bam_bai_tuple },
         ch_stats_inputs.map { _bam_bai_tuple, fasta_tuple -> fasta_tuple }
     )
 
+    //
+    // MODULE: samtools flagstat — collect flag statistics
+    //
     SAMTOOLS_FLAGSTAT (
         ch_markdup_bam_bai
     )
 
+    //
+    // MODULE: samtools idxstats — collect per-reference mapping statistics
+    //
     SAMTOOLS_IDXSTATS (
         ch_markdup_bam_bai
     )
@@ -337,6 +373,96 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_STATS.out.stats.collect { stats_file -> stats_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_FLAGSTAT.out.flagstat.collect { flagstat_file -> flagstat_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_IDXSTATS.out.idxstats.collect { idxstats_file -> idxstats_file[1] })
+
+    //
+    // Collate pre-RNAFramework software versions so MultiQC can run in parallel
+    // with rf-count/rf-norm/rf-fold instead of waiting for the full workflow.
+    //
+    ch_versions_for_multiqc_files = channel.empty()
+    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(FASTQC_PRE.out.versions.first())
+    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(FASTQC_POST.out.versions.first())
+    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(BOWTIE_BUILD.out.versions)
+    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(BOWTIE_ALIGN.out.versions)
+
+    ch_versions_for_multiqc_tuples = channel.empty()
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(UMITOOLS_EXTRACT.out.versions_umitools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(UMITOOLS_DEDUP.out.versions_umitools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(CUTADAPT_RTSTOP.out.versions_cutadapt)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(CUTADAPT_MAP.out.versions_cutadapt)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_BUILD.out.versions_bowtie2)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_ALIGN.out.versions_bowtie2)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_ALIGN.out.versions_samtools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_ALIGN.out.versions_pigz)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_FAIDX.out.versions_samtools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_SORT.out.versions_samtools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_INDEX_SORT.out.versions_samtools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_MARKDUP.out.versions_samtools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_INDEX_FINAL.out.versions_samtools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_STATS.out.versions_samtools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_FLAGSTAT.out.versions_samtools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_IDXSTATS.out.versions_samtools)
+
+    def ch_versions_for_multiqc_yaml = softwareVersionsToYAML(ch_versions_for_multiqc_files)
+        .mix(
+            ch_versions_for_multiqc_tuples
+        .map { process, tool, version ->
+            [ process[process.lastIndexOf(':')+1..-1], "  ${tool}: ${version}" ]
+        }
+        .groupTuple(by:0)
+        .map { process, tool_versions ->
+            tool_versions.unique().sort()
+            "${process}:\n${tool_versions.join('\n')}"
+        }
+        )
+        .collectFile(
+            storeDir: "${params.outdir}/pipeline_info",
+            name: 'nf_core_' + 'rnastructurome_software_' + 'mqc_' + 'versions_pre_rnaframework.yml',
+            sort: true,
+            newLine: true
+        )
+
+    //
+    // MODULE: multiqc — aggregate pipeline quality control reports
+    //
+    ch_multiqc_config        = channel.fromPath(
+        "$projectDir/assets/multiqc_config.yml", checkIfExists: true)
+    ch_multiqc_custom_config = params.multiqc_config ?
+        channel.fromPath(params.multiqc_config, checkIfExists: true) :
+        channel.empty()
+    ch_multiqc_logo          = params.multiqc_logo ?
+        channel.fromPath(params.multiqc_logo, checkIfExists: true) :
+        channel.empty()
+
+    summary_params      = paramsSummaryMap(
+        workflow, parameters_schema: "nextflow_schema.json")
+    ch_workflow_summary = channel.value(paramsSummaryMultiqc(summary_params))
+    ch_multiqc_files = ch_multiqc_files.mix(
+        ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
+    ch_multiqc_custom_methods_description = params.multiqc_methods_description ?
+        file(params.multiqc_methods_description, checkIfExists: true) :
+        file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
+    ch_methods_description                = channel.value(
+        methodsDescriptionText(ch_multiqc_custom_methods_description))
+
+    ch_multiqc_files = ch_multiqc_files.mix(ch_versions_for_multiqc_yaml)
+    ch_multiqc_files = ch_multiqc_files.mix(
+        ch_methods_description.collectFile(
+            name: 'methods_description_mqc.yaml',
+            sort: true
+        )
+    )
+
+    MULTIQC (
+        ch_multiqc_files.collect(),
+        ch_multiqc_config.toList(),
+        ch_multiqc_custom_config.toList(),
+        ch_multiqc_logo.toList(),
+        [],
+        []
+    )
+
+    def ch_multiqc_done = MULTIQC.out.report
+        .map { report -> [ 'multiqc_done', report ] }
 
     //
     // MODULE: rf-count — per-base RT-stop or mutation counts from deduplicated BAM
@@ -348,7 +474,11 @@ workflow RNASTRUCTUROME {
         }
         .join(ch_reference_fasta_keyed)
         .map { _genome_build, bam_bai_tuple, fasta_tuple ->
-            [ bam_bai_tuple, fasta_tuple ]
+            [ 'multiqc_done', [ bam_bai_tuple, fasta_tuple ] ]
+        }
+        .join(ch_multiqc_done)
+        .map { _gate, rfcount_input, _multiqc_report ->
+            rfcount_input
         }
 
     RNAFRAMEWORK_RFCOUNT (
@@ -359,43 +489,94 @@ workflow RNASTRUCTUROME {
     //
     // MODULE: rf-norm — normalise RC files to per-base reactivities (XML)
     //
-    // Group RC files by 'group' key (defaults to sample_id) then join by condition.
-    // TODO (rnacentral-probing-metadata-main): merge_metadata.py must populate
-    // 'condition' (treated/untreated/denatured) and 'group' columns in the
-    // generated samplesheet CSVs so that rf-norm can correctly pair samples.
-    ch_rc_by_group = RNAFRAMEWORK_RFCOUNT.out.rc
-        .map { meta, rc ->
-            def group     = (meta.group ?: meta.sample_id ?: meta.id).toString()
+
+    ch_rc_with_rci = RNAFRAMEWORK_RFCOUNT.out.rc
+        .map { meta, rc -> [ meta.id.toString(), meta, rc ] }
+        .join(
+            RNAFRAMEWORK_RFCOUNT.out.rci
+                .map { meta, rci -> [ meta.id.toString(), rci ] },
+            remainder: true
+        )
+        .map { _sample_id, meta, rc, rci -> [ meta, rc, rci ?: [] ] }
+
+    ch_rc_by_group = ch_rc_with_rci
+        .map { meta, rc, rci ->
+            if (!meta.cell_line || !meta.replicate) {
+                error("Missing cell_line or replicate for sample '${meta.id}'. rf-norm requires both columns to pair samples safely.")
+            }
+            def group = "${meta.cell_line}__${meta.replicate}".toString()
             def condition = (meta.condition ?: 'treated').toLowerCase()
-            [ group, condition, meta, rc ]
+            [ group, condition, meta, rc, rci ]
         }
 
     ch_treated   = ch_rc_by_group
-        .filter  { _group, condition, _meta, _rc -> condition == 'treated' }
-        .map     { group, _condition, _meta, rc -> [ group, rc ] }
+        .filter  { _group, condition, _meta, _rc, _rci -> condition == 'treated' }
+        .map     { group, _condition, _meta, rc, _rci -> [ group, rc ] }
         .groupTuple()
 
     ch_untreated = ch_rc_by_group
-        .filter  { _group, condition, _meta, _rc -> condition == 'untreated' }
-        .map     { group, _condition, _meta, rc -> [ group, rc ] }
+        .filter  { _group, condition, _meta, _rc, _rci -> condition == 'untreated' }
+        .map     { group, _condition, _meta, rc, _rci -> [ group, rc ] }
 
     ch_denatured = ch_rc_by_group
-        .filter  { _group, condition, _meta, _rc -> condition == 'denatured' }
-        .map     { group, _condition, _meta, rc -> [ group, rc ] }
+        .filter  { _group, condition, _meta, _rc, _rci -> condition == 'denatured' }
+        .map     { group, _condition, _meta, rc, _rci -> [ group, rc ] }
 
-    // Borrow principle/genome_build from the first sample in each group for group-level meta
-    ch_group_meta = ch_rc_by_group
-        .map     { group, _condition, meta, _rc -> [ group, meta ] }
+    // Stage any available .rci sidecars alongside RC files so rf-norm can auto-discover them.
+    ch_group_rci = ch_rc_by_group
+        .filter  { _group, _condition, _meta, _rc, rci -> rci }
+        .map     { group, _condition, _meta, _rc, rci -> [ group, rci ] }
         .groupTuple()
-        .map     { group, metas -> [ group, metas[0] ] }
+
+    // Enforce rf-norm pairing rules explicitly:
+    // - treated may run on its own
+    // - untreated requires a matching treated sample
+    // - denatured requires matching treated and untreated samples
+    ch_group_meta = ch_rc_by_group
+        .map     { group, condition, meta, _rc, _rci -> [ group, [ condition: condition, meta: meta ] ] }
+        .groupTuple()
+        .map     { group, entries ->
+            def conditions = entries.collect { entry -> entry.condition }.toSet()
+            if (!conditions.contains('treated') && conditions.contains('untreated')) {
+                def offendingConditions = entries
+                    .findAll { entry -> entry.condition == 'untreated' }
+                    .collect { entry -> "${entry.meta.id} (${entry.condition})" }
+                    .sort()
+                    .join(', ')
+                error("rf-norm requires a treated sample for cell_line/replicate group '${group}'. Invalid samples: ${offendingConditions}")
+            }
+            if (conditions.contains('denatured') && (!conditions.contains('treated') || !conditions.contains('untreated'))) {
+                def offendingConditions = entries
+                    .findAll { entry -> entry.condition == 'denatured' }
+                    .collect { entry -> "${entry.meta.id} (${entry.condition})" }
+                    .sort()
+                    .join(', ')
+                error("rf-norm requires treated and untreated samples for denatured controls in cell_line/replicate group '${group}'. Invalid samples: ${offendingConditions}")
+            }
+            [ group, entries[0].meta ]
+        }
 
     ch_norm_input = ch_treated
         .join(ch_group_meta)
         .join(ch_untreated, remainder: true)
         .join(ch_denatured, remainder: true)
-        .map { group, treated_rcs, base_meta, untreated_rc, denatured_rc ->
-            def gmeta = base_meta + [ id: group ]
-            [ gmeta, treated_rcs, untreated_rc ?: [], denatured_rc ?: [] ]
+        .join(ch_group_rci, remainder: true)
+        .map { group, treated_rcs, base_meta, untreated_rc, denatured_rc, rci_files ->
+            def hasUntreated = untreated_rc ? true : false
+            def hasDenatured = denatured_rc ? true : false
+            def principle = (base_meta.principle ?: '').toLowerCase()
+            def scoringMethod = principle == 'map'
+                ? (hasUntreated ? 3 : 4)
+                : (hasUntreated ? 1 : 2)
+            def normMethod = scoringMethod == 2 ? 2 : 3
+            def gmeta = base_meta + [
+                id                    : group,
+                rfnorm_has_untreated  : hasUntreated,
+                rfnorm_has_denatured  : hasDenatured,
+                rfnorm_scoring_method : scoringMethod,
+                rfnorm_norm_method    : normMethod
+            ]
+            [ gmeta, treated_rcs, untreated_rc ?: [], denatured_rc ?: [], rci_files ?: [] ]
         }
 
     RNAFRAMEWORK_RFNORM (
@@ -452,52 +633,13 @@ workflow RNASTRUCTUROME {
             name: 'nf_core_'  +  'rnastructurome_software_'  + 'mqc_'  + 'versions.yml',
             sort: true,
             newLine: true
-        ).set { ch_collated_versions }
-
-
-    //
-    // MODULE: MultiQC
-    //
-    ch_multiqc_config        = channel.fromPath(
-        "$projectDir/assets/multiqc_config.yml", checkIfExists: true)
-    ch_multiqc_custom_config = params.multiqc_config ?
-        channel.fromPath(params.multiqc_config, checkIfExists: true) :
-        channel.empty()
-    ch_multiqc_logo          = params.multiqc_logo ?
-        channel.fromPath(params.multiqc_logo, checkIfExists: true) :
-        channel.empty()
-
-    summary_params      = paramsSummaryMap(
-        workflow, parameters_schema: "nextflow_schema.json")
-    ch_workflow_summary = channel.value(paramsSummaryMultiqc(summary_params))
-    ch_multiqc_files = ch_multiqc_files.mix(
-        ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
-    ch_multiqc_custom_methods_description = params.multiqc_methods_description ?
-        file(params.multiqc_methods_description, checkIfExists: true) :
-        file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
-    ch_methods_description                = channel.value(
-        methodsDescriptionText(ch_multiqc_custom_methods_description))
-
-    ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
-    ch_multiqc_files = ch_multiqc_files.mix(
-        ch_methods_description.collectFile(
-            name: 'methods_description_mqc.yaml',
-            sort: true
         )
-    )
 
-    MULTIQC (
-        ch_multiqc_files.collect(),
-        ch_multiqc_config.toList(),
-        ch_multiqc_custom_config.toList(),
-        ch_multiqc_logo.toList(),
-        [],
-        []
-    )
 
     emit:
     multiqc_report = MULTIQC.out.report.toList() // channel: /path/to/multiqc_report.html
     mapped_bam     = ch_dedup_bam                // channel: [ val(meta), path(bam) ]
+    normalized_xml = RNAFRAMEWORK_RFNORM.out.xml // channel: [ val(meta), path(xml) ]
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
 
 }

@@ -65,6 +65,52 @@ nextflow run nf-core/rnastructurome \
    --outdir <OUTDIR>
 ```
 
+For `rf-norm`, the samplesheet must include `cell_line`, `condition`, and `replicate` columns so samples are paired correctly during normalisation.
+
+The minimum required samplesheet columns are `sample`, `fastq_1`, `cell_line`, `condition`, and `replicate`.
+
+- Samples are grouped by identical `cell_line` and `replicate`.
+- `treated` may be analysed on its own.
+- `untreated` requires a matching `treated` sample with the same `cell_line` and `replicate`.
+- `denatured` requires matching `treated` and `untreated` samples with the same `cell_line` and `replicate`.
+
+`rf-norm` defaults are selected automatically from the probing principle and available controls:
+
+- `RT-stop` with matching `untreated`: Ding scoring (`-sm 1`) with Box-plot normalisation (`-nm 3`)
+- `RT-stop` without `untreated`: Rouskin scoring (`-sm 2`) with 90% Winsorizing (`-nm 2`)
+- `MaP` with matching `untreated` and optional `denatured`: Siegfried scoring (`-sm 3`) with Box-plot normalisation (`-nm 3`)
+- `MaP` without `untreated`: Zubradt scoring (`-sm 4`) with Box-plot normalisation (`-nm 3`)
+
+Additional `rf-norm` parameters exposed by the pipeline:
+
+- `--rfnorm_remap_reactivities`: remap normalized reactivities to the 0-1 range.
+- `--rfnorm_reactive_bases <string>`: set the reactive bases used for normalization windows, e.g. `AC` for DMS.
+- `--rfnorm_norm_window <int>`: set the normalization window size.
+- `--rfnorm_window_offset <int>`: set the normalization window offset.
+- `--rfnorm_dynamic_window <int>`: use dynamic normalization windows with at least this many reactive bases.
+- `--rfnorm_norm_independent`: normalize each reactive base independently.
+- `--rfnorm_norm_factor <float[,float]>`: supply a fixed normalization factor for all transcripts. For 90% Winsorizing, provide two comma-separated values.
+- `--rfnorm_raw`: score raw reactivities without applying normalization.
+- `--rfnorm_pseudocount <float>`: set the Ding pseudocount.
+- `--rfnorm_max_score <float>`: set the Ding maximum score.
+- `--rfnorm_ignore_lower_than_untreated`: set reactivities lower than untreated to zero for Ding/Siegfried methods.
+- `--rfnorm_max_untreated_mut <float>`: set the Siegfried untreated mutation cutoff.
+- `--rfnorm_max_mutation_rate <float>`: set the MaP mutation-rate cutoff.
+- `--rfnorm_mean_coverage <float>`: discard transcripts below this mean coverage.
+- `--rfnorm_median_coverage <float>`: discard transcripts below this median coverage.
+- `--rfnorm_nan <int>`: report positions below this coverage as NaN. Default: `10`.
+- `--rfnorm_img`: generate rf-norm plots. This automatically uses `--rnaframework_r_path` to locate `R` inside the RNAframework container.
+
+If `--rfnorm_reactive_bases` is not provided, the pipeline sets `AC` automatically for samples with `method=DMS`. All other methods fall back to the RNAFramework default (`N`, all bases).
+
+Example:
+
+```csv
+sample,fastq_1,cell_line,condition,replicate
+HEK293T_treated_rep1,HEK293T_treated_rep1.fastq.gz,HEK293T,treated,1
+HEK293T_untreated_rep1,HEK293T_untreated_rep1.fastq.gz,HEK293T,untreated,1
+```
+
 > [!WARNING]
 > Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files).
 

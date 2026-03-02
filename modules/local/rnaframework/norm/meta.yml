@@ -33,6 +33,11 @@ input:
         description: Optional denatured control rc files
         pattern: "*.{rc}"
         ontologies: []
+    - rci_files:
+        type: file
+        description: Optional staged RNAframework rc index sidecar files for automatic rf-norm discovery
+        pattern: "*.{rci}"
+        ontologies: []
 output:
   xml:
     - - meta:

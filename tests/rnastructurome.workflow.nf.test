@@ -149,4 +149,221 @@ nextflow_workflow {
             )
         }
     }
+
+    test("Groups rf-norm inputs by matching cell_line and replicate") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'hek_treated_rep2', sample_id:'hek_treated_rep2', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep2', condition:'treated' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'hek_untreated_rep2', sample_id:'hek_untreated_rep2', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep2', condition:'untreated' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.normalized_xml.size() == 2 },
+                { assert workflow.out.normalized_xml.collect { entry -> entry[0].id }.toSet() == ['hek293T__rep1', 'hek293T__rep2'] as Set },
+                { assert workflow.out.normalized_xml.collect { entry -> entry[0].rfnorm_scoring_method }.toSet() == [1] as Set },
+                { assert workflow.out.normalized_xml.collect { entry -> entry[0].rfnorm_norm_method }.toSet() == [3] as Set }
+            )
+        }
+    }
+
+    test("Selects RT-stop treated-only rf-norm defaults") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_treated_only', sample_id:'hek_treated_only', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.normalized_xml.size() == 1 },
+                { assert workflow.out.normalized_xml[0][0].rfnorm_scoring_method == 2 },
+                { assert workflow.out.normalized_xml[0][0].rfnorm_norm_method == 2 }
+            )
+        }
+    }
+
+    test("Selects MaP rf-norm defaults from available controls") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'map_treated_rep1', sample_id:'map_treated_rep1', principle:'MaP', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'map_untreated_rep1', sample_id:'map_untreated_rep1', principle:'MaP', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'map_denatured_rep1', sample_id:'map_denatured_rep1', principle:'MaP', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'denatured' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'map_treated_rep2', sample_id:'map_treated_rep2', principle:'MaP', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep2', condition:'treated' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.normalized_xml.size() == 2 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep1' }[0].rfnorm_scoring_method == 3 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep1' }[0].rfnorm_norm_method == 3 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep1' }[0].rfnorm_has_denatured },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep2' }[0].rfnorm_scoring_method == 4 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep2' }[0].rfnorm_norm_method == 3 },
+                { assert !workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep2' }[0].rfnorm_has_untreated }
+            )
+        }
+    }
+
+    test("Fails rf-norm grouping when cell_line or replicate is missing") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'missing_norm_key', sample_id:'missing_norm_key', principle:'RT-stop', genome_build:'hg38', single_end:true, condition:'treated' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("Missing cell_line or replicate") }
+            )
+        }
+    }
+
+    test("Fails rf-norm when untreated lacks matching treated sample") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("rf-norm requires a treated sample") },
+                { assert workflow.errorMessage.contains("hek_untreated_rep1 (untreated)") }
+            )
+        }
+    }
+
+    test("Fails rf-norm when denatured lacks matching treated and untreated samples") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_denatured_rep1', sample_id:'hek_denatured_rep1', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'denatured' ],
+                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("rf-norm requires treated and untreated samples for denatured controls") },
+                { assert workflow.errorMessage.contains("hek_denatured_rep1 (denatured)") }
+            )
+        }
+    }
 }

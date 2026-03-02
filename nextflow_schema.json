@@ -20,7 +20,7 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample` and `fastq_1` columns (with optional `fastq_2` for paired-end). `sample_id`, `method`, `principle`, `genome_build`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
+                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample`, `fastq_1`, `cell_line`, `condition`, and `replicate` columns, with optional `fastq_2` for paired-end data. `sample_id`, `method`, `principle`, `genome_build`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {
@@ -79,6 +79,13 @@
                     "fa_icon": "fas fa-ban",
                     "hidden": true,
                     "default": "s3://ngi-igenomes/igenomes/"
+                },
+                "genomes": {
+                    "type": "object",
+                    "description": "Internal iGenomes reference map loaded from config.",
+                    "fa_icon": "fas fa-ban",
+                    "hidden": true,
+                    "additionalProperties": true
                 }
             }
         },
@@ -378,6 +385,93 @@
                     "description": "In mutation mode with collapsing enabled, max distance to collapse (`--max-collapse-distance`).",
                     "default": 2
                 },
+                "rfnorm_remap_reactivities": {
+                    "type": "boolean",
+                    "description": "Remap normalized reactivities to the 0-1 range according to Zarringhalam et al. (`--remap-reactivities`).",
+                    "default": false
+                },
+                "rfnorm_reactive_bases": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z]+$",
+                    "description": "Reactive bases used for normalization window selection (`--reactive-bases`), e.g. `AC` for DMS."
+                },
+                "rfnorm_norm_window": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Normalization window size (`--norm-window`)."
+                },
+                "rfnorm_window_offset": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Normalization window offset (`--window-offset`)."
+                },
+                "rfnorm_dynamic_window": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Dynamically resize normalization windows to include at least this many reactive bases (`--dynamic-window`)."
+                },
+                "rfnorm_norm_independent": {
+                    "type": "boolean",
+                    "description": "Normalize each reactive base independently (`--norm-independent`).",
+                    "default": false
+                },
+                "rfnorm_norm_factor": {
+                    "type": "string",
+                    "description": "Use a fixed normalization factor for all transcripts (`--norm-factor`). For 90% Winsorizing provide two comma-separated values for the 5th and 95th percentiles."
+                },
+                "rfnorm_raw": {
+                    "type": "boolean",
+                    "description": "Score raw reactivities without applying normalization (`--raw`).",
+                    "default": false
+                },
+                "rfnorm_pseudocount": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Pseudocount used by Ding scoring (`--pseudocount`)."
+                },
+                "rfnorm_max_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Maximum score used by Ding scoring (`--max-score`)."
+                },
+                "rfnorm_ignore_lower_than_untreated": {
+                    "type": "boolean",
+                    "description": "Set reactivities lower than untreated to zero for Ding or Siegfried scoring (`--ignore-lower-than-untreated`).",
+                    "default": false
+                },
+                "rfnorm_max_untreated_mut": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Maximum untreated mutation rate threshold for Siegfried scoring (`--max-untreated-mut`)."
+                },
+                "rfnorm_max_mutation_rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Maximum mutation rate threshold for MaP scoring methods (`--max-mutation-rate`)."
+                },
+                "rfnorm_mean_coverage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Discard transcripts with mean coverage below this threshold (`--mean-coverage`).",
+                    "default": 0
+                },
+                "rfnorm_median_coverage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Discard transcripts with median coverage below this threshold (`--median-coverage`).",
+                    "default": 0
+                },
+                "rfnorm_nan": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Positions with read coverage below this threshold are reported as NaN (`--nan`).",
+                    "default": 10
+                },
+                "rfnorm_img": {
+                    "type": "boolean",
+                    "description": "Enable rf-norm plot generation (`--img`). Requires R inside the RNAframework container.",
+                    "default": false
+                },
                 "rnaframework_container": {
                     "type": "string",
                     "description": "Container image used for local RNAframework modules.",
@@ -385,7 +479,7 @@
                 },
                 "rnaframework_r_path": {
                     "type": "string",
-                    "description": "Path to R executable inside the RNAframework container (used when `--rfcount_img` is enabled).",
+                    "description": "Path to R executable inside the RNAframework container (used when `--rfcount_img` or `--rfnorm_img` is enabled).",
                     "default": "/usr/bin/R"
                 }
             }

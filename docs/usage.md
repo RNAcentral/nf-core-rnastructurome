@@ -10,7 +10,7 @@
 
 ## Samplesheet input
 
-You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row as shown in the examples below.
+You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. At minimum it must be a comma-separated file with the columns `sample`, `fastq_1`, `cell_line`, `condition`, and `replicate`, plus a header row as shown in the examples below.
 
 ```bash
 --input '[path to samplesheet file]'
@@ -21,36 +21,52 @@ You will need to create a samplesheet with information about the samples you wou
 The `sample` identifiers have to be the same when you have re-sequenced the same sample more than once e.g. to increase sequencing depth. The pipeline will concatenate the raw reads before performing any downstream analysis. Below is an example for the same sample sequenced across 3 lanes:
 
 ```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz
+sample,fastq_1,fastq_2,cell_line,condition,replicate
+CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz,HEK293T,treated,1
+CONTROL_REP1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz,HEK293T,treated,1
+CONTROL_REP1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz,HEK293T,treated,1
 ```
 
 ### Full samplesheet
 
-The pipeline will auto-detect whether a sample is single- or paired-end using the information provided in the samplesheet. The samplesheet can have as many columns as you desire, however, there is a strict requirement for the first 3 columns to match those defined in the table below.
+The pipeline will auto-detect whether a sample is single- or paired-end using the information provided in the samplesheet. The samplesheet can have as many columns as you desire, however, there is a strict requirement for the columns `sample`, `fastq_1`, `cell_line`, `condition`, and `replicate` to be present.
 
 A final samplesheet file consisting of both single- and paired-end data may look something like the one below. This is for 6 samples, where `TREATMENT_REP3` has been sequenced twice.
 
 ```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP2,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.fastq.gz
-CONTROL_REP3,AEG588A3_S3_L002_R1_001.fastq.gz,AEG588A3_S3_L002_R2_001.fastq.gz
-TREATMENT_REP1,AEG588A4_S4_L003_R1_001.fastq.gz,
-TREATMENT_REP2,AEG588A5_S5_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L004_R1_001.fastq.gz,
+sample,fastq_1,fastq_2,cell_line,condition,replicate
+CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz,HEK293T,treated,1
+CONTROL_REP2,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.fastq.gz,HEK293T,treated,2
+CONTROL_REP3,AEG588A3_S3_L002_R1_001.fastq.gz,AEG588A3_S3_L002_R2_001.fastq.gz,HEK293T,treated,3
+TREATMENT_REP1,AEG588A4_S4_L003_R1_001.fastq.gz,,HEK293T,untreated,1
+TREATMENT_REP2,AEG588A5_S5_L003_R1_001.fastq.gz,,HEK293T,untreated,2
+TREATMENT_REP3,AEG588A6_S6_L003_R1_001.fastq.gz,,HEK293T,untreated,3
+TREATMENT_REP3,AEG588A6_S6_L004_R1_001.fastq.gz,,HEK293T,untreated,3
 ```
 
-| Column    | Description                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
-| `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-| `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+| Column      | Description                                                                                                                                                                            |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sample`    | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
+| `fastq_1`   | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                           |
+| `fastq_2`   | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                           |
+| `cell_line` | Cell-line identifier used to pair samples for `rf-norm`.                                                                                                                               |
+| `condition` | Sample condition for `rf-norm`. Allowed values are `treated`, `untreated`, and `denatured`.                                                                                           |
+| `replicate` | Replicate identifier used to pair samples for `rf-norm`.                                                                                                                               |
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
+
+For `rf-norm`, samples are grouped by identical `cell_line` and `replicate` values.
+
+- `treated` may be analysed on its own.
+- `untreated` requires a matching `treated` sample with the same `cell_line` and `replicate`.
+- `denatured` requires matching `treated` and `untreated` samples with the same `cell_line` and `replicate`.
+
+`rf-norm` defaults are selected automatically from the probing principle and available controls:
+
+- `RT-stop` with matching `untreated`: Ding scoring (`-sm 1`) with Box-plot normalisation (`-nm 3`)
+- `RT-stop` without `untreated`: Rouskin scoring (`-sm 2`) with 90% Winsorizing (`-nm 2`)
+- `MaP` with matching `untreated` and optional `denatured`: Siegfried scoring (`-sm 3`) with Box-plot normalisation (`-nm 3`)
+- `MaP` without `untreated`: Zubradt scoring (`-sm 4`) with Box-plot normalisation (`-nm 3`)
 
 ### Cutadapt behavior by principle
 
@@ -124,6 +140,36 @@ Build the default local RNAframework+R image before running with Docker:
 ```bash
 docker build --platform linux/amd64 -t docker.io/rnastructurome/rnaframework:2.9.6-r1 docker/rnaframework-r
 ```
+
+### RNAframework rf-norm options
+
+The pipeline exposes these `rf-norm` flags:
+
+- `--rfnorm_remap_reactivities` (default: `false`): remaps normalized reactivities to the 0-1 range (`--remap-reactivities`).
+- `--rfnorm_reactive_bases` (optional): reactive bases used for normalization windows (`--reactive-bases`), e.g. `AC` for DMS.
+- `--rfnorm_norm_window` (optional): normalization window size (`--norm-window`).
+- `--rfnorm_window_offset` (optional): normalization window offset (`--window-offset`).
+- `--rfnorm_dynamic_window` (optional): dynamically resize normalization windows to include at least this many reactive bases (`--dynamic-window`).
+- `--rfnorm_norm_independent` (default: `false`): normalize each reactive base independently (`--norm-independent`).
+- `--rfnorm_norm_factor` (optional): use a fixed normalization factor for all transcripts (`--norm-factor`). For 90% Winsorizing, provide two comma-separated values for the 5th and 95th percentiles.
+- `--rfnorm_raw` (default: `false`): score raw reactivities without normalization (`--raw`).
+- `--rfnorm_pseudocount` (optional): Ding scoring pseudocount (`--pseudocount`).
+- `--rfnorm_max_score` (optional): Ding scoring maximum score (`--max-score`).
+- `--rfnorm_ignore_lower_than_untreated` (default: `false`): set reactivities lower than untreated to zero for Ding/Siegfried methods (`--ignore-lower-than-untreated`).
+- `--rfnorm_max_untreated_mut` (optional): maximum untreated mutation rate for Siegfried scoring (`--max-untreated-mut`).
+- `--rfnorm_max_mutation_rate` (optional): maximum mutation rate for MaP scoring methods (`--max-mutation-rate`).
+- `--rfnorm_mean_coverage` (default: `0`): discard transcripts below this mean coverage (`--mean-coverage`).
+- `--rfnorm_median_coverage` (default: `0`): discard transcripts below this median coverage (`--median-coverage`).
+- `--rfnorm_nan` (default: `10`): positions below this coverage are reported as NaN (`--nan`).
+- `--rfnorm_img` (default: `false`): enables rf-norm plots of raw reactivity data across samples (`--img`).
+- `--rnaframework_r_path` (default: `/usr/bin/R`): path to `R` inside the RNAframework container for both `rf-count -g` and `rf-norm -g`.
+
+Notes:
+
+- If `--rfnorm_reactive_bases` is not provided, the pipeline sets `AC` automatically for `method=DMS`. All other methods fall back to the RNAFramework default (`N`, all bases).
+- `--rfnorm_img` automatically appends `-R ${params.rnaframework_r_path}` so `R` must be available in the RNAframework container.
+- `--rfnorm_dynamic_window` is most useful together with `--rfnorm_reactive_bases` for base-specific chemistries such as DMS.
+- The pipeline still selects `rf-norm` scoring (`-sm`) and normalization (`-nm`) defaults automatically from `principle` plus the available treated / untreated / denatured controls.
 
 ## Running the pipeline
 

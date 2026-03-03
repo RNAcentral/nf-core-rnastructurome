@@ -5,6 +5,7 @@
 */
 include { FASTQC as FASTQC_PRE   } from '../modules/nf-core/fastqc/main'
 include { FASTQC as FASTQC_POST  } from '../modules/nf-core/fastqc/main'
+include { CAT_FASTQ              } from '../modules/nf-core/cat/fastq/main'
 include { CUTADAPT as CUTADAPT_RTSTOP } from '../modules/nf-core/cutadapt/main'
 include { CUTADAPT as CUTADAPT_MAP    } from '../modules/nf-core/cutadapt/main'
 include { UMITOOLS_EXTRACT       } from '../modules/nf-core/umitools/extract/main'
@@ -52,8 +53,15 @@ workflow RNASTRUCTUROME {
         [meta, reads]
     }
 
-    def ch_pretrim_fastqc_input = ch_samplesheet_checked
-    def ch_samplesheet_for_branching = ch_samplesheet_checked
+    //
+    // MODULE: cat/fastq — merge resequenced FASTQ files per sample before QC
+    //
+    CAT_FASTQ (
+        ch_samplesheet_checked
+    )
+
+    def ch_pretrim_fastqc_input = CAT_FASTQ.out.reads
+    def ch_samplesheet_for_branching = CAT_FASTQ.out.reads
 
     //
     // MODULE: fastqc (pre-trim) — quality control on raw reads
@@ -385,6 +393,7 @@ workflow RNASTRUCTUROME {
     ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(BOWTIE_ALIGN.out.versions)
 
     ch_versions_for_multiqc_tuples = channel.empty()
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(CAT_FASTQ.out.versions_cat)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(UMITOOLS_EXTRACT.out.versions_umitools)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(UMITOOLS_DEDUP.out.versions_umitools)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(CUTADAPT_RTSTOP.out.versions_cutadapt)

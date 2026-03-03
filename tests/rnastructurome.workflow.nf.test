@@ -46,6 +46,42 @@ nextflow_workflow {
         }
     }
 
+    test("Concatenates resequenced paired-end FASTQs before preprocessing") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.genome = null
+                params.genome_build = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'reseq_rtstop', sample_id:'reseq_rtstop', principle:'RT-stop', genome_build:'hg38', single_end:false ],
+                        [
+                            file('tests/data/test_single.fastq', checkIfExists: true),
+                            file('tests/data/test_single.fastq', checkIfExists: true),
+                            file('tests/data/test_single.fastq', checkIfExists: true),
+                            file('tests/data/test_single.fastq', checkIfExists: true)
+                        ]
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.mapped_bam.size() == 1 },
+                { assert path("${outputDir}/pipeline_info/nf_core_rnastructurome_software_mqc_versions.yml").text.contains('CAT_FASTQ') }
+            )
+        }
+    }
+
     test("Fails when genome_build is missing") {
 
         options "-stub"

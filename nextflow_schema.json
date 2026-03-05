@@ -327,7 +327,7 @@
             "properties": {
                 "rfcount_img": {
                     "type": "boolean",
-                    "description": "Enable rf-count plot generation (`-g`).",
+                    "description": "Deprecated: rf-count plot generation (`-g`) is always enabled.",
                     "default": true
                 },
                 "rfcount_trim_5prime": {
@@ -469,8 +469,86 @@
                 },
                 "rfnorm_img": {
                     "type": "boolean",
-                    "description": "Enable rf-norm plot generation (`--img`). Requires R inside the RNAframework container.",
+                    "description": "Deprecated: rf-norm plot generation (`--img`) is always enabled.",
+                    "default": true
+                },
+                "rffold_img": {
+                    "type": "boolean",
+                    "description": "Deprecated: rf-fold graphical structure reports (`-g`) are always enabled.",
+                    "default": true
+                },
+                "rffold_ct": {
+                    "type": "boolean",
+                    "description": "Write CT format structures with rf-fold (`-ct`). Disabled by default to keep dot-bracket output.",
                     "default": false
+                },
+                "rffold_window": {
+                    "type": "boolean",
+                    "description": "Enable windowed folding in rf-fold (`-w`).",
+                    "default": false
+                },
+                "rffold_auto_window_min_len": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Automatically enable rf-fold windowed mode (`-w`) when any input XML transcript length is at least this value, unless `--rffold_window` is already set.",
+                    "default": 10000
+                },
+                "rffold_unconstrained": {
+                    "type": "boolean",
+                    "description": "Fold without reactivity constraints in rf-fold (`-u`).",
+                    "default": false
+                },
+                "rffold_vienna_no_lonely_pairs": {
+                    "type": "boolean",
+                    "description": "Pass ViennaRNA no-lonely-pairs mode to rf-fold (`-vnlp`).",
+                    "default": false
+                },
+                "rffold_vienna_constrained": {
+                    "type": "boolean",
+                    "description": "Use ViennaRNA hard constraints with rf-fold (`-vc`).",
+                    "default": false
+                },
+                "rffold_vienna_max_bp_span": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Maximal base-pair span for ViennaRNA in rf-fold (`-vmd`)."
+                },
+                "rffold_vienna_bp_span": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Minimal base-pair span for ViennaRNA in rf-fold (`-vms`)."
+                },
+                "rffold_only_common": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Only fold transcripts covered in at least this number of XML experiments (`-oc`)."
+                },
+                "rffold_fold_constraint_file": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Constraint file for allowed base-pairing positions (`-fc`)."
+                },
+                "rffold_unpaired_constraint_file": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Constraint file for required unpaired positions (`-uc`)."
+                },
+                "rffold_dotplot": {
+                    "type": "boolean",
+                    "description": "Generate dot plots from rf-fold (`-d`).",
+                    "default": false
+                },
+                "rffold_shannon_entropy": {
+                    "type": "boolean",
+                    "description": "Compute and report Shannon entropy in rf-fold (`-sh`).",
+                    "default": false
+                },
+                "rffold_vienna_rnaplot": {
+                    "type": "string",
+                    "description": "Path to ViennaRNA `RNAplot` binary for SVG structure plots in rf-fold (`-vrp`).",
+                    "default": "/usr/bin/RNAplot"
                 },
                 "rnaframework_container": {
                     "type": "string",
@@ -479,7 +557,7 @@
                 },
                 "rnaframework_r_path": {
                     "type": "string",
-                    "description": "Path to R executable inside the RNAframework container (used when `--rfcount_img` or `--rfnorm_img` is enabled).",
+                    "description": "Path to R executable inside the RNAframework container (used by rf-count, rf-norm, and rf-fold plotting).",
                     "default": "/usr/bin/R"
                 }
             }

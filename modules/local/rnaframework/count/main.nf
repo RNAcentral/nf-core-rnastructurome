@@ -12,6 +12,7 @@ process RNAFRAMEWORK_RFCOUNT {
     output:
     tuple val(meta), path("*_rfcount/*.rc"), emit: rc
     tuple val(meta), path("*_rfcount/*.rc.rci"), optional: true, emit: rci
+    tuple val(meta), path("*_rfcount/plots/*.pdf"), optional: true, emit: plots
     path "versions.yml"          , emit: versions
 
     when:

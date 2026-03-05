@@ -62,6 +62,17 @@ output:
           description: Optional RNAframework raw count index sidecar file
           pattern: "*.{rci}"
           ontologies: []
+  plots:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test', principle:'RT-stop' ]
+      - "*.pdf":
+          type: file
+          description: Optional RNAframework rf-count plots
+          pattern: "*.{pdf}"
+          ontologies: []
   versions:
     - "versions.yml":
         type: file

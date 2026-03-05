@@ -54,7 +54,9 @@ workflow NFCORE_RNASTRUCTUROME {
         samplesheet
     )
     emit:
-    multiqc_report = RNASTRUCTUROME.out.multiqc_report // channel: /path/to/multiqc_report.html
+    multiqc_report  = RNASTRUCTUROME.out.multiqc_report  // channel: /path/to/multiqc_report.html
+    normalized_xml  = RNASTRUCTUROME.out.normalized_xml  // channel: [ val(meta), path(xml) ]
+    fold_structures = RNASTRUCTUROME.out.fold_structures // channel: [ val(meta), path(dir) ]
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

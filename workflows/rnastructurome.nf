@@ -595,8 +595,42 @@ workflow RNASTRUCTUROME {
     //
     // MODULE: rf-fold — predict RNA secondary structures from reactivity XML
     //
+    // Fold across all available replicate XMLs per experimental group.
+    // Group key intentionally excludes replicate so biological replicates can
+    // be folded together when present.
+    ch_fold_input = RNAFRAMEWORK_RFNORM.out.xml
+        .map { meta, xml ->
+            if (!meta.cell_line) {
+                error("Missing cell_line for sample '${meta.id}'. rf-fold replicate grouping requires cell_line.")
+            }
+            def fold_group = [
+                meta.cell_line,
+                (meta.principle ?: 'unknown').toString().toLowerCase(),
+                (meta.method ?: 'unknown').toString().toLowerCase(),
+                (meta.rfnorm_scoring_method ?: 'na').toString(),
+                (meta.rfnorm_norm_method ?: 'na').toString()
+            ].join('__')
+            [ fold_group, [ meta, xml ] ]
+        }
+        .groupTuple()
+        .map { fold_group, entries ->
+            def metas = entries.collect { it[0] }
+            def xmls = entries.collect { it[1] }
+            def base = metas[0]
+            def replicates = metas.collect { (it.replicate ?: 'na').toString() }.unique().sort()
+            def sampleIds = metas.collect { (it.id ?: 'na').toString() }.unique().sort()
+            def foldMeta = base + [
+                id                 : fold_group,
+                fold_group         : fold_group,
+                fold_replicates    : replicates.join(','),
+                fold_source_ids    : sampleIds.join(','),
+                fold_xml_count     : xmls.size()
+            ]
+            [ foldMeta, xmls ]
+        }
+
     RNAFRAMEWORK_RFFOLD (
-        RNAFRAMEWORK_RFNORM.out.xml
+        ch_fold_input
     )
 
     //
@@ -646,10 +680,11 @@ workflow RNASTRUCTUROME {
 
 
     emit:
-    multiqc_report = MULTIQC.out.report.toList() // channel: /path/to/multiqc_report.html
-    mapped_bam     = ch_dedup_bam                // channel: [ val(meta), path(bam) ]
-    normalized_xml = RNAFRAMEWORK_RFNORM.out.xml // channel: [ val(meta), path(xml) ]
-    versions       = ch_versions                 // channel: [ path(versions.yml) ]
+    multiqc_report   = MULTIQC.out.report.toList()        // channel: /path/to/multiqc_report.html
+    mapped_bam       = ch_dedup_bam                       // channel: [ val(meta), path(bam) ]
+    normalized_xml   = RNAFRAMEWORK_RFNORM.out.xml        // channel: [ val(meta), path(xml) ]
+    fold_structures  = RNAFRAMEWORK_RFFOLD.out.structures // channel: [ val(meta), path(dir) ]
+    versions         = ch_versions                        // channel: [ path(versions.yml) ]
 
 }
 

@@ -10,7 +10,7 @@ nextflow_process {
     tag "rnaframework/fold"
     config "./nextflow.config"
 
-    test("rffold - stub") {
+    test("rffold - stub single input") {
 
         options "-stub"
 
@@ -23,6 +23,35 @@ nextflow_process {
                 input[0] = Channel.of([
                     [ id:'group1' ],
                     file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.structures.size() == 1 }
+            )
+        }
+    }
+
+    test("rffold - stub multiple inputs") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_args = ''
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group_multi' ],
+                    [
+                        file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true),
+                        file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta.fai', checkIfExists: true)
+                    ]
                 ])
                 """
             }

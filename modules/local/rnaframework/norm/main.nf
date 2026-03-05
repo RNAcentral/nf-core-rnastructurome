@@ -10,6 +10,7 @@ process RNAFRAMEWORK_RFNORM {
 
     output:
     tuple val(meta), path("${prefix}_norm/*.xml"), emit: xml
+    tuple val(meta), path("${prefix}_norm/plots/*.pdf"), optional: true, emit: plots
     path "versions.yml"                           , emit: versions
 
     when:

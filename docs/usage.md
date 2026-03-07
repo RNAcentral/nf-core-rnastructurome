@@ -23,20 +23,34 @@ High-level workflow:
 nextflow run main.nf \
   -profile docker \
   --input samplesheet.csv \
-  --fasta reference.fa \
+  --fasta transcripts.fa \
   --outdir results
 ```
 
 If resuming after an interruption or fix:
 
 ```bash
-nextflow run main.nf -profile docker --input samplesheet.csv --fasta reference.fa --outdir results -resume
+nextflow run main.nf -profile docker --input samplesheet.csv --fasta transcripts.fa --outdir results -resume
 ```
 
 ## Required inputs
 
 1. A samplesheet (`--input`)
-2. A reference FASTA (`--fasta`) or a genome configuration that resolves to FASTA
+2. A transcript reference FASTA (`--fasta`) or a genome configuration that resolves to transcript FASTA
+
+Reference resolution behavior:
+
+- If `--fasta` is set, that file is used directly and should be a transcript FASTA.
+- If `--fasta` is not set, the pipeline first tries transcript FASTA keys in `params.genomes[genome_build]`:
+  - `transcript_fasta`
+  - `transcriptome`
+  - `cdna`
+- If no transcript FASTA path is configured, it falls back to Ensembl auto-download by species:
+  - Uses `params.genomes[genome_build].ensembl_species` when defined, then `--ensembl_species_map` aliases, otherwise treats `genome_build` itself as Ensembl species if it matches `genus_species` (e.g. `homo_sapiens`, `saccharomyces_cerevisiae`).
+  - Downloads both `cdna.all.fa.gz` and `ncrna.fa.gz` from Ensembl FTP and merges them into one transcript FASTA used for mapping and RNAframework.
+- Ensembl source can be tuned with:
+  - `--ensembl_release` (`current` by default; accepts values like `114` or `release-114`)
+  - `--ensembl_base_url` (default `https://ftp.ensembl.org/pub`)
 
 ## Samplesheet input
 
@@ -176,14 +190,12 @@ Default behavior:
 - Dot-bracket output is default (CT is optional).
 - Graphical fold reports are always enabled (`-g -R`).
 - RNAplot overlays are enabled via `-vrp` (default `/usr/bin/RNAplot`).
-- Dotplot generation is controlled by `--rffold_dotplot` (default `false`).
-- Windowed folding is auto-enabled for long targets when transcript length is at least `--rffold_auto_window_min_len` (default `10000`), unless `--rffold_window` is explicitly set.
+- Dotplot generation is controlled by `--rffold_dotplot` (default `true`).
 
 Supported pipeline options and mapped flags:
 
 - `--rffold_ct` -> `-ct`
 - `--rffold_window` -> `-w`
-- `--rffold_auto_window_min_len` -> auto-add `-w` for long XML targets
 - `--rffold_unconstrained` -> `-i`
 - `--rffold_vienna_no_lonely_pairs` -> `-nlp`
 - `--rffold_vienna_constrained` -> `-hc`

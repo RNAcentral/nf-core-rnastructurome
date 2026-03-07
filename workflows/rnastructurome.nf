@@ -26,6 +26,7 @@ include { SAMTOOLS_FAIDX        } from '../modules/nf-core/samtools/faidx/main'
 include { RNAFRAMEWORK_RFCOUNT  } from '../modules/local/rnaframework/count/main'
 include { RNAFRAMEWORK_RFNORM   } from '../modules/local/rnaframework/norm/main'
 include { RNAFRAMEWORK_RFFOLD   } from '../modules/local/rnaframework/fold/main'
+include { ENSEMBL_TRANSCRIPTOME } from '../modules/local/ensembl/transcriptome/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -124,63 +125,73 @@ workflow RNASTRUCTUROME {
     )
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC_POST.out.zip.collect { fastqc_zip -> fastqc_zip[1] })
 
-    ch_rtstop_genome_build_fasta = principle_branches.rtstop
+    def resolveGenomeBuild = { meta ->
+        def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
+        if (!genome_build) {
+            error("Missing genome_build for sample '${meta.id}'. Set genome_build in samplesheet or provide --genome_build/--genome.")
+        }
+        genome_build
+    }
+
+    ch_reference_requests = ch_samplesheet_for_branching
         .map { meta, _reads ->
-            def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
-            if (!genome_build) {
-                error("Missing genome_build for sample '${meta.id}'. Set genome_build in samplesheet or provide --genome_build/--genome.")
+            def genome_build = resolveGenomeBuild(meta)
+            if (params.fasta) {
+                return [ genome_build, "path::${params.fasta.toString()}" ]
             }
-            def genome_fasta = params.genomes?.containsKey(genome_build) ? params.genomes[genome_build]?.fasta : null
-            def fasta_path = params.fasta ?: genome_fasta
-            if (!fasta_path) {
-                error("No FASTA configured for genome_build '${genome_build}'. Add params.genomes['${genome_build}'].fasta or provide --fasta.")
+
+            def genome_entry = params.genomes?.containsKey(genome_build) ? params.genomes[genome_build] : null
+            def transcript_fasta = genome_entry?.transcript_fasta ?: genome_entry?.transcriptome ?: genome_entry?.cdna
+            if (transcript_fasta) {
+                return [ genome_build, "path::${transcript_fasta.toString()}" ]
             }
-            [ genome_build, fasta_path.toString() ]
+
+            def ensembl_species = genome_entry?.ensembl_species ?: params.ensembl_species_map?.get(genome_build) ?: (genome_build ==~ /[a-z]+_[a-z0-9_]+/ ? genome_build : null)
+            if (!ensembl_species) {
+                error("No transcript FASTA resolved for genome_build '${genome_build}'. Provide --fasta with a transcript FASTA, set params.genomes['${genome_build}'].transcript_fasta (or transcriptome/cdna), or set params.genomes['${genome_build}'].ensembl_species.")
+            }
+            [ genome_build, "ensembl::${ensembl_species.toLowerCase()}" ]
         }
         .groupTuple()
-        .map { genome_build, fasta_paths ->
-            def unique_fasta_paths = fasta_paths.unique()
-            if (unique_fasta_paths.size() != 1) {
-                error("Multiple FASTA paths were resolved for genome_build '${genome_build}': ${unique_fasta_paths.join(', ')}")
+        .map { genome_build, resolutions ->
+            def unique_resolutions = resolutions.unique()
+            if (unique_resolutions.size() != 1) {
+                error("Multiple transcript reference resolutions were detected for genome_build '${genome_build}': ${unique_resolutions.join(', ')}")
             }
-            [ [ id: genome_build, genome_build: genome_build ], file(unique_fasta_paths[0], checkIfExists: true) ]
+            [ genome_build, unique_resolutions[0] ]
         }
+
+    ch_reference_local = ch_reference_requests
+        .filter { _genome_build, resolution -> resolution.startsWith('path::') }
+        .map { genome_build, resolution ->
+            def fasta_path = resolution - 'path::'
+            [ [ id: genome_build, genome_build: genome_build ], file(fasta_path, checkIfExists: true) ]
+        }
+
+    ch_reference_ensembl_input = ch_reference_requests
+        .filter { _genome_build, resolution -> resolution.startsWith('ensembl::') }
+        .map { genome_build, resolution ->
+            def ensembl_species = resolution - 'ensembl::'
+            [ [ id: genome_build, genome_build: genome_build, ensembl_species: ensembl_species ], ensembl_species ]
+        }
+
+    ENSEMBL_TRANSCRIPTOME (
+        ch_reference_ensembl_input
+    )
+    ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
+
+    ch_all_genome_build_fasta = ch_reference_local.mix(ENSEMBL_TRANSCRIPTOME.out.fasta)
+    ch_reference_fasta_keyed = ch_all_genome_build_fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+
+    ch_rtstop_genome_build_fasta = principle_branches.rtstop
+        .map { meta, _reads -> [ resolveGenomeBuild(meta), true ] }
+        .join(ch_reference_fasta_keyed)
+        .map { _genome_build, _flag, ref_tuple -> ref_tuple }
 
     ch_map_genome_build_fasta = principle_branches.map
-        .map { meta, _reads ->
-            def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
-            if (!genome_build) {
-                error("Missing genome_build for sample '${meta.id}'. Set genome_build in samplesheet or provide --genome_build/--genome.")
-            }
-            def genome_fasta = params.genomes?.containsKey(genome_build) ? params.genomes[genome_build]?.fasta : null
-            def fasta_path = params.fasta ?: genome_fasta
-            if (!fasta_path) {
-                error("No FASTA configured for genome_build '${genome_build}'. Add params.genomes['${genome_build}'].fasta or provide --fasta.")
-            }
-            [ genome_build, fasta_path.toString() ]
-        }
-        .groupTuple()
-        .map { genome_build, fasta_paths ->
-            def unique_fasta_paths = fasta_paths.unique()
-            if (unique_fasta_paths.size() != 1) {
-                error("Multiple FASTA paths were resolved for genome_build '${genome_build}': ${unique_fasta_paths.join(', ')}")
-            }
-            [ [ id: genome_build, genome_build: genome_build ], file(unique_fasta_paths[0], checkIfExists: true) ]
-        }
-
-    ch_all_genome_build_fasta = ch_rtstop_genome_build_fasta
-        .mix(ch_map_genome_build_fasta)
-        .map { meta, fasta ->
-            [ meta.id.toString(), fasta.toString() ]
-        }
-        .groupTuple()
-        .map { genome_build, fasta_paths ->
-            def unique_fasta_paths = fasta_paths.unique()
-            if (unique_fasta_paths.size() != 1) {
-                error("Multiple FASTA paths were resolved for genome_build '${genome_build}': ${unique_fasta_paths.join(', ')}")
-            }
-            [ [ id: genome_build, genome_build: genome_build ], file(unique_fasta_paths[0], checkIfExists: true) ]
-        }
+        .map { meta, _reads -> [ resolveGenomeBuild(meta), true ] }
+        .join(ch_reference_fasta_keyed)
+        .map { _genome_build, _flag, ref_tuple -> ref_tuple }
 
     //
     // MODULE: bowtie-build — build Bowtie v1 indices for RT-stop alignment
@@ -198,7 +209,6 @@ workflow RNASTRUCTUROME {
 
     ch_bowtie_index_keyed = BOWTIE_BUILD.out.index.map { meta, index -> [ meta.id.toString(), [meta, index] ] }
     ch_bowtie2_index_keyed = BOWTIE2_BUILD.out.index.map { meta, index -> [ meta.id.toString(), [meta, index] ] }
-    ch_reference_fasta_keyed = ch_all_genome_build_fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
 
     ch_rtstop_align_inputs = CUTADAPT_RTSTOP.out.reads
         .map { meta, reads ->
@@ -383,8 +393,7 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_IDXSTATS.out.idxstats.collect { idxstats_file -> idxstats_file[1] })
 
     //
-    // Collate pre-RNAFramework software versions so MultiQC can run in parallel
-    // with rf-count/rf-norm/rf-fold instead of waiting for the full workflow.
+    // Collect software versions for MultiQC.
     //
     ch_versions_for_multiqc_files = channel.empty()
     ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(FASTQC_PRE.out.versions.first())
@@ -411,68 +420,6 @@ workflow RNASTRUCTUROME {
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_FLAGSTAT.out.versions_samtools)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_IDXSTATS.out.versions_samtools)
 
-    def ch_versions_for_multiqc_yaml = softwareVersionsToYAML(ch_versions_for_multiqc_files)
-        .mix(
-            ch_versions_for_multiqc_tuples
-        .map { process, tool, version ->
-            [ process[process.lastIndexOf(':')+1..-1], "  ${tool}: ${version}" ]
-        }
-        .groupTuple(by:0)
-        .map { process, tool_versions ->
-            tool_versions.unique().sort()
-            "${process}:\n${tool_versions.join('\n')}"
-        }
-        )
-        .collectFile(
-            storeDir: "${params.outdir}/pipeline_info",
-            name: 'nf_core_' + 'rnastructurome_software_' + 'mqc_' + 'versions_pre_rnaframework.yml',
-            sort: true,
-            newLine: true
-        )
-
-    //
-    // MODULE: multiqc — aggregate pipeline quality control reports
-    //
-    ch_multiqc_config        = channel.fromPath(
-        "$projectDir/assets/multiqc_config.yml", checkIfExists: true)
-    ch_multiqc_custom_config = params.multiqc_config ?
-        channel.fromPath(params.multiqc_config, checkIfExists: true) :
-        channel.empty()
-    ch_multiqc_logo          = params.multiqc_logo ?
-        channel.fromPath(params.multiqc_logo, checkIfExists: true) :
-        channel.empty()
-
-    summary_params      = paramsSummaryMap(
-        workflow, parameters_schema: "nextflow_schema.json")
-    ch_workflow_summary = channel.value(paramsSummaryMultiqc(summary_params))
-    ch_multiqc_files = ch_multiqc_files.mix(
-        ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
-    ch_multiqc_custom_methods_description = params.multiqc_methods_description ?
-        file(params.multiqc_methods_description, checkIfExists: true) :
-        file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
-    ch_methods_description                = channel.value(
-        methodsDescriptionText(ch_multiqc_custom_methods_description))
-
-    ch_multiqc_files = ch_multiqc_files.mix(ch_versions_for_multiqc_yaml)
-    ch_multiqc_files = ch_multiqc_files.mix(
-        ch_methods_description.collectFile(
-            name: 'methods_description_mqc.yaml',
-            sort: true
-        )
-    )
-
-    MULTIQC (
-        ch_multiqc_files.collect(),
-        ch_multiqc_config.toList(),
-        ch_multiqc_custom_config.toList(),
-        ch_multiqc_logo.toList(),
-        [],
-        []
-    )
-
-    def ch_multiqc_done = MULTIQC.out.report
-        .map { report -> [ 'multiqc_done', report ] }
-
     //
     // MODULE: rf-count — per-base RT-stop or mutation counts from deduplicated BAM
     //
@@ -483,11 +430,7 @@ workflow RNASTRUCTUROME {
         }
         .join(ch_reference_fasta_keyed)
         .map { _genome_build, bam_bai_tuple, fasta_tuple ->
-            [ 'multiqc_done', [ bam_bai_tuple, fasta_tuple ] ]
-        }
-        .join(ch_multiqc_done)
-        .map { _gate, rfcount_input, _multiqc_report ->
-            rfcount_input
+            [ bam_bai_tuple, fasta_tuple ]
         }
 
     RNAFRAMEWORK_RFCOUNT (
@@ -513,7 +456,7 @@ workflow RNASTRUCTUROME {
             if (!meta.cell_line || !meta.replicate) {
                 error("Missing cell_line or replicate for sample '${meta.id}'. rf-norm requires both columns to pair samples safely.")
             }
-            def group = "${meta.cell_line}__${meta.replicate}".toString()
+            def group = "${meta.cell_line}_${meta.replicate}".toString()
             def condition = (meta.condition ?: 'treated').toLowerCase()
             [ group, condition, meta, rc, rci ]
         }
@@ -603,13 +546,7 @@ workflow RNASTRUCTUROME {
             if (!meta.cell_line) {
                 error("Missing cell_line for sample '${meta.id}'. rf-fold replicate grouping requires cell_line.")
             }
-            def fold_group = [
-                meta.cell_line,
-                (meta.principle ?: 'unknown').toString().toLowerCase(),
-                (meta.method ?: 'unknown').toString().toLowerCase(),
-                (meta.rfnorm_scoring_method ?: 'na').toString(),
-                (meta.rfnorm_norm_method ?: 'na').toString()
-            ].join('__')
+            def fold_group = meta.cell_line.toString()
             [ fold_group, [ meta, xml ] ]
         }
         .groupTuple()
@@ -631,6 +568,77 @@ workflow RNASTRUCTUROME {
 
     RNAFRAMEWORK_RFFOLD (
         ch_fold_input
+    )
+
+    // Add RNAframework outputs to MultiQC input collection.
+    ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFCOUNT.out.rc.collect { rc_file -> rc_file[1] })
+    ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFCOUNT.out.plots.collect { plot_file -> plot_file[1] })
+    ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFNORM.out.xml.collect { xml_file -> xml_file[1] })
+    ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFNORM.out.plots.collect { plot_file -> plot_file[1] })
+    ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFFOLD.out.structures.collect { fold_dir -> fold_dir[1] })
+
+    // Add RNAframework versions to the MultiQC software-versions input.
+    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_RFCOUNT.out.versions.first())
+    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
+    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
+
+    //
+    // MODULE: multiqc — aggregate pipeline quality control reports
+    //
+    ch_multiqc_config        = channel.fromPath(
+        "$projectDir/assets/multiqc_config.yml", checkIfExists: true)
+    ch_multiqc_custom_config = params.multiqc_config ?
+        channel.fromPath(params.multiqc_config, checkIfExists: true) :
+        channel.empty()
+    ch_multiqc_logo          = params.multiqc_logo ?
+        channel.fromPath(params.multiqc_logo, checkIfExists: true) :
+        channel.empty()
+
+    summary_params      = paramsSummaryMap(
+        workflow, parameters_schema: "nextflow_schema.json")
+    ch_workflow_summary = channel.value(paramsSummaryMultiqc(summary_params))
+    ch_multiqc_files = ch_multiqc_files.mix(
+        ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
+    ch_multiqc_custom_methods_description = params.multiqc_methods_description ?
+        file(params.multiqc_methods_description, checkIfExists: true) :
+        file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
+    ch_methods_description                = channel.value(
+        methodsDescriptionText(ch_multiqc_custom_methods_description))
+
+    def ch_versions_for_multiqc_yaml = softwareVersionsToYAML(ch_versions_for_multiqc_files)
+        .mix(
+            ch_versions_for_multiqc_tuples
+                .map { process, tool, version ->
+                    [ process[process.lastIndexOf(':')+1..-1], "  ${tool}: ${version}" ]
+                }
+                .groupTuple(by:0)
+                .map { process, tool_versions ->
+                    tool_versions.unique().sort()
+                    "${process}:\n${tool_versions.join('\n')}"
+                }
+        )
+        .collectFile(
+            storeDir: "${params.outdir}/pipeline_info",
+            name: 'nf_core_' + 'rnastructurome_software_' + 'mqc_' + 'versions_for_multiqc.yml',
+            sort: true,
+            newLine: true
+        )
+
+    ch_multiqc_files = ch_multiqc_files.mix(ch_versions_for_multiqc_yaml)
+    ch_multiqc_files = ch_multiqc_files.mix(
+        ch_methods_description.collectFile(
+            name: 'methods_description_mqc.yaml',
+            sort: true
+        )
+    )
+
+    MULTIQC (
+        ch_multiqc_files.collect(),
+        ch_multiqc_config.toList(),
+        ch_multiqc_custom_config.toList(),
+        ch_multiqc_logo.toList(),
+        [],
+        []
     )
 
     //

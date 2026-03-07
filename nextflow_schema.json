@@ -61,8 +61,8 @@
                     "exists": true,
                     "mimetype": "text/plain",
                     "pattern": "^\\S+\\.fn?a(sta)?(\\.gz)?$",
-                    "description": "Path to FASTA genome file.",
-                    "help_text": "This parameter is *mandatory* if `--genome` is not specified. If you don't have a Bowtie/Bowtie2 index available this will be generated for you automatically.",
+                    "description": "Path to transcript FASTA file.",
+                    "help_text": "Provide a transcript-level FASTA for rf-count/rf-norm/rf-fold. If omitted, the pipeline will try to resolve transcript FASTA from `params.genomes[genome_build]` (`transcript_fasta`, `transcriptome`, or `cdna`).",
                     "fa_icon": "far fa-file-code"
                 },
                 "igenomes_ignore": {
@@ -84,6 +84,22 @@
                     "type": "object",
                     "description": "Internal iGenomes reference map loaded from config.",
                     "fa_icon": "fas fa-ban",
+                    "hidden": true,
+                    "additionalProperties": true
+                },
+                "ensembl_base_url": {
+                    "type": "string",
+                    "description": "Ensembl FTP base URL used when auto-resolving transcript FASTA.",
+                    "default": "https://ftp.ensembl.org/pub"
+                },
+                "ensembl_release": {
+                    "type": "string",
+                    "description": "Ensembl release for transcript FASTA auto-resolution (`current`, `latest`, or release number like `114`).",
+                    "default": "current"
+                },
+                "ensembl_species_map": {
+                    "type": "object",
+                    "description": "Optional map from genome_build keys to Ensembl species names used for transcript FASTA auto-resolution.",
                     "hidden": true,
                     "additionalProperties": true
                 }
@@ -111,7 +127,7 @@
                 },
                 "genome_build": {
                     "type": "string",
-                    "description": "Fallback genome build key (e.g. `hg38`) for rows missing `genome_build`."
+                    "description": "Fallback reference key for rows missing `genome_build` (e.g. `hg38` or Ensembl species like `homo_sapiens`)."
                 },
                 "umi_pattern": {
                     "type": "string",
@@ -487,12 +503,6 @@
                     "description": "Enable windowed folding in rf-fold (`-w`).",
                     "default": false
                 },
-                "rffold_auto_window_min_len": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "Automatically enable rf-fold windowed mode (`-w`) when any input XML transcript length is at least this value, unless `--rffold_window` is already set.",
-                    "default": 10000
-                },
                 "rffold_unconstrained": {
                     "type": "boolean",
                     "description": "Fold without reactivity constraints in rf-fold (`-u`).",
@@ -538,7 +548,7 @@
                 "rffold_dotplot": {
                     "type": "boolean",
                     "description": "Generate dot plots from rf-fold (`-d`).",
-                    "default": false
+                    "default": true
                 },
                 "rffold_shannon_entropy": {
                     "type": "boolean",

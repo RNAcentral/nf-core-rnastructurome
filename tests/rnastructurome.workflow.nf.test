@@ -2,7 +2,7 @@ nextflow_workflow {
 
     name "Test Workflow RNASTRUCTUROME"
     script "../workflows/rnastructurome.nf"
-    config "tests/nextflow.config"
+    config "${new File('tests/nextflow.config').absolutePath}"
     workflow "RNASTRUCTUROME"
     tag "workflows"
     tag "rnastructurome"
@@ -15,18 +15,18 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
 
                 input[0] = Channel.of(
                     [
                         [ id:'rtstop_sample', sample_id:'rtstop_sample', principle:'RT-stop', genome_build:'hg38', single_end:true ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ],
                     [
                         [ id:'map_sample', sample_id:'map_sample', principle:'MaP', genome_build:'mm10', single_end:true ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
                 """
@@ -54,7 +54,7 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
 
@@ -62,10 +62,10 @@ nextflow_workflow {
                     [
                         [ id:'reseq_rtstop', sample_id:'reseq_rtstop', principle:'RT-stop', genome_build:'hg38', single_end:false ],
                         [
-                            file('tests/data/test_single.fastq', checkIfExists: true),
-                            file('tests/data/test_single.fastq', checkIfExists: true),
-                            file('tests/data/test_single.fastq', checkIfExists: true),
-                            file('tests/data/test_single.fastq', checkIfExists: true)
+                            file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true),
+                            file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true),
+                            file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true),
+                            file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true)
                         ]
                     ]
                 )
@@ -90,14 +90,14 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
 
                 input[0] = Channel.of(
                     [
                         [ id:'missing_build', sample_id:'missing_build', principle:'RT-stop', single_end:true ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
                 """
@@ -120,7 +120,7 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
                 params.bowtie_manual_only = true
@@ -129,11 +129,11 @@ nextflow_workflow {
                 input[0] = Channel.of(
                     [
                         [ id:'rtstop_manual', sample_id:'rtstop_manual', principle:'RT-stop', genome_build:'hg38', single_end:true ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ],
                     [
                         [ id:'map_manual', sample_id:'map_manual', principle:'MaP', genome_build:'mm10', single_end:true ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
                 """
@@ -156,7 +156,7 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
                 params.rfcount_img = true
@@ -171,7 +171,7 @@ nextflow_workflow {
                 input[0] = Channel.of(
                     [
                         [ id:'map_rfcount', sample_id:'map_rfcount', principle:'MaP', genome_build:'hg38', single_end:true ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
                 """
@@ -194,26 +194,26 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
 
                 input[0] = Channel.of(
                     [
                         [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ],
                     [
                         [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ],
                     [
                         [ id:'hek_treated_rep2', sample_id:'hek_treated_rep2', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep2', condition:'treated' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ],
                     [
                         [ id:'hek_untreated_rep2', sample_id:'hek_untreated_rep2', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep2', condition:'untreated' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
                 """
@@ -224,7 +224,7 @@ nextflow_workflow {
             assertAll(
                 { assert workflow.success },
                 { assert workflow.out.normalized_xml.size() == 2 },
-                { assert workflow.out.normalized_xml.collect { entry -> entry[0].id }.toSet() == ['hek293T__rep1', 'hek293T__rep2'] as Set },
+                { assert workflow.out.normalized_xml.collect { entry -> entry[0].id }.toSet() == ['hek293T_rep1', 'hek293T_rep2'] as Set },
                 { assert workflow.out.normalized_xml.collect { entry -> entry[0].rfnorm_scoring_method }.toSet() == [1] as Set },
                 { assert workflow.out.normalized_xml.collect { entry -> entry[0].rfnorm_norm_method }.toSet() == [3] as Set }
             )
@@ -239,14 +239,14 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
 
                 input[0] = Channel.of(
                     [
                         [ id:'hek_treated_only', sample_id:'hek_treated_only', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
                 """
@@ -271,26 +271,26 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
 
                 input[0] = Channel.of(
                     [
                         [ id:'map_treated_rep1', sample_id:'map_treated_rep1', principle:'MaP', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ],
                     [
                         [ id:'map_untreated_rep1', sample_id:'map_untreated_rep1', principle:'MaP', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ],
                     [
                         [ id:'map_denatured_rep1', sample_id:'map_denatured_rep1', principle:'MaP', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'denatured' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ],
                     [
                         [ id:'map_treated_rep2', sample_id:'map_treated_rep2', principle:'MaP', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep2', condition:'treated' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
                 """
@@ -301,12 +301,12 @@ nextflow_workflow {
             assertAll(
                 { assert workflow.success },
                 { assert workflow.out.normalized_xml.size() == 2 },
-                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep1' }[0].rfnorm_scoring_method == 3 },
-                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep1' }[0].rfnorm_norm_method == 3 },
-                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep1' }[0].rfnorm_has_denatured },
-                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep2' }[0].rfnorm_scoring_method == 4 },
-                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep2' }[0].rfnorm_norm_method == 3 },
-                { assert !workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T__rep2' }[0].rfnorm_has_untreated }
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep1' }[0].rfnorm_scoring_method == 3 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep1' }[0].rfnorm_norm_method == 3 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep1' }[0].rfnorm_has_denatured },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_scoring_method == 4 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_norm_method == 3 },
+                { assert !workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_has_untreated }
             )
         }
     }
@@ -319,14 +319,14 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
 
                 input[0] = Channel.of(
                     [
                         [ id:'missing_norm_key', sample_id:'missing_norm_key', principle:'RT-stop', genome_build:'hg38', single_end:true, condition:'treated' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
                 """
@@ -349,14 +349,14 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
 
                 input[0] = Channel.of(
                     [
                         [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
                 """
@@ -380,14 +380,14 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file('tests/data/ref.fa', checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
                 params.genome = null
                 params.genome_build = null
 
                 input[0] = Channel.of(
                     [
                         [ id:'hek_denatured_rep1', sample_id:'hek_denatured_rep1', principle:'RT-stop', genome_build:'hg38', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'denatured' ],
-                        [ file('tests/data/test_single.fastq', checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
                 """

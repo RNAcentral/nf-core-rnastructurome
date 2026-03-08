@@ -47,7 +47,7 @@ Reference resolution behavior:
   - `cdna`
 - If no transcript FASTA path is configured, it falls back to Ensembl auto-download by species:
   - Uses `params.genomes[genome_build].ensembl_species` when defined, then `--ensembl_species_map` aliases, otherwise treats `genome_build` itself as Ensembl species if it matches `genus_species` (e.g. `homo_sapiens`, `saccharomyces_cerevisiae`).
-  - Downloads both `cdna.all.fa.gz` and `ncrna.fa.gz` from Ensembl FTP and merges them into one transcript FASTA used for mapping and RNAframework.
+  - Downloads `cdna.all.fa.gz` and, when available, `ncrna.fa.gz` from Ensembl FTP, then merges available files into one transcript FASTA used for mapping and RNAframework.
 - Ensembl source can be tuned with:
   - `--ensembl_release` (`current` by default; accepts values like `114` or `release-114`)
   - `--ensembl_base_url` (default `https://ftp.ensembl.org/pub`)
@@ -221,9 +221,9 @@ Replicate handling:
 Main output areas under `--outdir`:
 
 - `fastqc/`, `cutadapt/`, `bowtie*/`, `samtools*/` for preprocessing and alignment
-- `rnaframework/count/`: count tables and always-on plots
-- `rnaframework/norm/`: normalized XML and always-on normalization plots
-- `rnaframework/fold/`: inferred secondary structures (dot-bracket by default), fold reports, optional CT, optional dotplots
+- `count/`: count tables and always-on plots
+- `norm/`: normalized XML and always-on normalization plots
+- `fold/`: inferred secondary structures (dot-bracket by default), fold reports, optional CT, optional dotplots
 - `multiqc/`: final aggregated QC report
 
 For full output details, see [output documentation](output.md).

@@ -3,7 +3,7 @@ process RNAFRAMEWORK_RFNORM {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container 'dincarnato/rnaframework:2.9.6'
+    container 'rnastructurome/rnaframework:2.9.6-r1'
 
     input:
     tuple val(meta), path(treated), path(untreated), path(denatured), path(rci_files)

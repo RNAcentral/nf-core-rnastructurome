@@ -3,7 +3,7 @@ process RNAFRAMEWORK_RFCOUNT {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container 'dincarnato/rnaframework:2.9.6'
+    container 'rnastructurome/rnaframework:2.9.6-r1'
 
     input:
     tuple val(meta), path(bam), path(bai)
@@ -33,13 +33,27 @@ process RNAFRAMEWORK_RFCOUNT {
         FASTA_PATH="${fallback_fasta}"
     fi
 
+    export TERM="\${TERM:-xterm}"
+
+    set -o pipefail
     rf-count \\
         -p ${task.cpus} \\
         -f "\${FASTA_PATH}" \\
         -o ${outdir} \\
         -ow \\
         ${args} \\
-        "${prefix}:${bam}"
+        "${prefix}:${bam}" 2>&1 | tee rfcount.log
+
+    covered=\$(sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' rfcount.log | awk -v sample="${prefix}" '\$1 == sample {print \$2}' | tail -n 1)
+    case "\${covered}" in
+        ''|*[!0-9]*)
+            ;;
+        0)
+            echo "[RNAFRAMEWORK_RFCOUNT] rf-count reported zero covered transcripts for sample '${prefix}'." >&2
+            echo "[RNAFRAMEWORK_RFCOUNT] No usable signal was available for rf-norm/rf-fold. Use deeper or structure-probing compatible input." >&2
+            exit 1
+            ;;
+    esac
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

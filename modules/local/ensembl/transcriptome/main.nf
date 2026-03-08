@@ -20,11 +20,12 @@ process ENSEMBL_TRANSCRIPTOME {
     def baseUrl = (params.ensembl_base_url ?: 'https://ftp.ensembl.org/pub').toString()
     """
     python - <<'PY'
-    import gzip
-    import os
-    import re
-    import shutil
-    import urllib.request
+import gzip
+import os
+import re
+import shutil
+import sys
+import urllib.request
 
     species = "${ensembl_species}".strip().lower()
     release = "${release}".strip()
@@ -54,24 +55,42 @@ process ENSEMBL_TRANSCRIPTOME {
             raise RuntimeError(f"No file matching /{pattern}/ found at {listing_url}")
         return filtered[0]
 
+    def find_optional_ensembl_file(listing_url: str, pattern: str):
+        try:
+            listing = fetch_text(listing_url)
+        except Exception:
+            return None
+        matches = re.findall(r'href="([^"]+)"', listing)
+        filtered = [m for m in matches if re.search(pattern, m)]
+        return filtered[0] if filtered else None
+
     cdna_name = find_ensembl_file(cdna_dir, r'\\.cdna\\.all\\.fa\\.gz')
-    ncrna_name = find_ensembl_file(ncrna_dir, r'\\.ncrna\\.fa\\.gz')
+    ncrna_name = find_optional_ensembl_file(ncrna_dir, r'\\.ncrna\\.fa\\.gz')
     cdna_url = f"{cdna_dir}{cdna_name}"
-    ncrna_url = f"{ncrna_dir}{ncrna_name}"
+    ncrna_url = f"{ncrna_dir}{ncrna_name}" if ncrna_name else None
 
     cdna_local = "cdna.fa.gz"
     ncrna_local = "ncrna.fa.gz"
     urllib.request.urlretrieve(cdna_url, cdna_local)
-    urllib.request.urlretrieve(ncrna_url, ncrna_local)
+    if ncrna_url:
+        urllib.request.urlretrieve(ncrna_url, ncrna_local)
+    else:
+        print(
+            f"[ENSEMBL_TRANSCRIPTOME] Warning: no ncrna FASTA found for species '{species}' at {ncrna_dir}. Continuing with cdna only.",
+            file=sys.stderr
+        )
 
     with gzip.open(out_gz, "wb") as out_handle:
         with gzip.open(cdna_local, "rb") as in_handle:
             shutil.copyfileobj(in_handle, out_handle)
-        with gzip.open(ncrna_local, "rb") as in_handle:
-            shutil.copyfileobj(in_handle, out_handle)
+        if ncrna_url:
+            with gzip.open(ncrna_local, "rb") as in_handle:
+                shutil.copyfileobj(in_handle, out_handle)
 
     with open("ensembl_source_urls.txt", "w", encoding="utf-8") as handle:
-        handle.write(f"{cdna_url}\\n{ncrna_url}\\n")
+        handle.write(f"{cdna_url}\\n")
+        if ncrna_url:
+            handle.write(f"{ncrna_url}\\n")
     PY
 
     cat <<-END_VERSIONS > versions.yml

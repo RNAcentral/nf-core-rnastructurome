@@ -12,6 +12,9 @@ process RNAFRAMEWORK_RFCOUNT {
     output:
     tuple val(meta), path("*_rfcount/*.rc"), emit: rc
     tuple val(meta), path("*_rfcount/*.rc.rci"), optional: true, emit: rci
+    tuple val(meta), path("*_rfcount/index.rci"), optional: true, emit: index_rci
+    tuple val(meta), path("*_rfcount/error.out"), optional: true, emit: error_log
+    tuple val(meta), path("*_rfcount/samtools.log"), optional: true, emit: samtools_log
     tuple val(meta), path("*_rfcount/plots/*.pdf"), optional: true, emit: plots
     path "versions.yml"          , emit: versions
 
@@ -68,6 +71,9 @@ process RNAFRAMEWORK_RFCOUNT {
     mkdir -p ${outdir}
     touch ${outdir}/${prefix}.rc
     touch ${outdir}/${prefix}.rc.rci
+    touch ${outdir}/index.rci
+    touch ${outdir}/error.out
+    touch ${outdir}/samtools.log
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

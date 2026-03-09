@@ -3,7 +3,7 @@ process ENSEMBL_TRANSCRIPTOME {
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"
-    container 'quay.io/biocontainers/python:3.12.11--he550d4f_0'
+    container 'docker.io/python:3.12.11'
 
     input:
     tuple val(meta), val(ensembl_species)
@@ -101,18 +101,18 @@ with open("ensembl_source_urls.txt", "w", encoding="utf-8") as handle:
         handle.write(f"{ncrna_url}\\n")
 PY
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        ensembl_release: "${release}"
-    END_VERSIONS
+    printf '%s\n' \
+        '"${task.process}":' \
+        '    ensembl_release: "${release}"' \
+        > versions.yml
     """
 
     stub:
     """
     touch ${meta.id}.transcripts.fa.gz
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        ensembl_release: "${release}"
-    END_VERSIONS
+    printf '%s\n' \
+        '"${task.process}":' \
+        '    ensembl_release: "${release}"' \
+        > versions.yml
     """
 }

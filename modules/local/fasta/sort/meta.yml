@@ -1,0 +1,45 @@
+name: fasta_sort
+description: Sort FASTA records lexicographically by sequence identifier
+keywords:
+  - fasta
+  - reference
+  - sorting
+tools:
+  - python:
+      description: Python runtime used to normalize FASTA record ordering.
+      homepage: https://www.python.org/
+      documentation: https://docs.python.org/3/
+      licence: ["Python-2.0"]
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing reference information
+          e.g. [ id:'homo_sapiens', organism:'homo_sapiens' ]
+    - fasta:
+        type: file
+        description: Reference FASTA file, optionally gzip-compressed
+        pattern: "*.{fa,fasta,fa.gz,fasta.gz}"
+        ontologies: []
+output:
+  fasta:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing reference information
+            e.g. [ id:'homo_sapiens', organism:'homo_sapiens' ]
+      - "*.sorted.fa":
+          type: file
+          description: FASTA records sorted lexicographically by sequence identifier
+          pattern: "*.{sorted.fa}"
+          ontologies: []
+  versions:
+    - "versions.yml":
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+        ontologies: []
+authors:
+  - "@vicbeg"
+maintainers:
+  - "@vicbeg"

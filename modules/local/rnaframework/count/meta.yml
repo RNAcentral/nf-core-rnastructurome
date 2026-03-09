@@ -62,6 +62,39 @@ output:
           description: Optional RNAframework raw count index sidecar file
           pattern: "*.{rci}"
           ontologies: []
+  index_rci:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test', principle:'RT-stop' ]
+      - "index.rci":
+          type: file
+          description: Optional RNAframework global count index file
+          pattern: "index.rci"
+          ontologies: []
+  error_log:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test', principle:'RT-stop' ]
+      - "error.out":
+          type: file
+          description: Optional RNAframework error log produced during counting
+          pattern: "error.out"
+          ontologies: []
+  samtools_log:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test', principle:'RT-stop' ]
+      - "samtools.log":
+          type: file
+          description: Optional samtools log produced by RNAframework during counting
+          pattern: "samtools.log"
+          ontologies: []
   plots:
     - - meta:
           type: map

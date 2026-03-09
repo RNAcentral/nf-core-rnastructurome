@@ -37,7 +37,10 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.rc.size() == 1 },
-                { assert process.out.rci.size() == 1 }
+                { assert process.out.rci.size() == 1 },
+                { assert process.out.index_rci.size() == 1 },
+                { assert process.out.error_log.size() == 1 },
+                { assert process.out.samtools_log.size() == 1 }
             )
         }
     }

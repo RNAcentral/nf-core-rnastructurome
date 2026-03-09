@@ -27,6 +27,7 @@ include { RNAFRAMEWORK_RFCOUNT  } from '../modules/local/rnaframework/count/main
 include { RNAFRAMEWORK_RFNORM   } from '../modules/local/rnaframework/norm/main'
 include { RNAFRAMEWORK_RFFOLD   } from '../modules/local/rnaframework/fold/main'
 include { ENSEMBL_TRANSCRIPTOME } from '../modules/local/ensembl/transcriptome/main'
+include { FASTA_SORT            } from '../modules/local/fasta/sort/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -173,7 +174,13 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
 
     ch_all_reference_fasta = ch_reference_local.mix(ENSEMBL_TRANSCRIPTOME.out.fasta)
-    ch_reference_fasta_keyed = ch_all_reference_fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+
+    FASTA_SORT (
+        ch_all_reference_fasta
+    )
+    ch_versions = ch_versions.mix(FASTA_SORT.out.versions)
+
+    ch_reference_fasta_keyed = FASTA_SORT.out.fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
 
     ch_rtstop_reference_fasta = principle_branches.rtstop
         .map { meta, _reads -> [ resolveReferenceKey(meta, params.organism), true ] }
@@ -245,7 +252,7 @@ workflow RNASTRUCTUROME {
     // MODULE: samtools faidx — index reference FASTA for markdup
     //
     SAMTOOLS_FAIDX (
-        ch_all_reference_fasta.map { meta, fasta -> [meta, fasta, []] },
+        FASTA_SORT.out.fasta.map { meta, fasta -> [meta, fasta, []] },
         false
     )
 

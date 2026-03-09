@@ -110,7 +110,7 @@ workflow PIPELINE_INITIALISATION {
                     library_layout: fastq_2 ? 'PAIRED' : 'SINGLE',
                     method        : meta.method ?: params.method,
                     principle     : meta.principle ?: params.principle,
-                    genome_build  : meta.genome_build ?: params.genome_build ?: params.genome,
+                    organism      : meta.organism ?: params.organism,
                     adapter_3p    : meta.adapter_3p,
                     adapter_5p    : meta.adapter_5p,
                     umi_pattern   : meta.umi_pattern ?: params.umi_pattern,

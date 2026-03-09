@@ -125,54 +125,46 @@ workflow RNASTRUCTUROME {
     )
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC_POST.out.zip.collect { fastqc_zip -> fastqc_zip[1] })
 
-    def resolveGenomeBuild = { meta ->
-        def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
-        if (!genome_build) {
-            error("Missing genome_build for sample '${meta.id}'. Set genome_build in samplesheet or provide --genome_build/--genome.")
-        }
-        genome_build
-    }
-
     ch_reference_requests = ch_samplesheet_for_branching
         .map { meta, _reads ->
-            def genome_build = resolveGenomeBuild(meta)
+            def reference_key = resolveReferenceKey(meta, params.organism)
             if (params.fasta) {
-                return [ genome_build, "path::${params.fasta.toString()}" ]
+                return [ reference_key, "path::${params.fasta.toString()}" ]
             }
 
-            def genome_entry = params.genomes?.containsKey(genome_build) ? params.genomes[genome_build] : null
+            def genome_entry = params.genomes?.containsKey(reference_key) ? params.genomes[reference_key] : null
             def transcript_fasta = genome_entry?.transcript_fasta ?: genome_entry?.transcriptome ?: genome_entry?.cdna
             if (transcript_fasta) {
-                return [ genome_build, "path::${transcript_fasta.toString()}" ]
+                return [ reference_key, "path::${transcript_fasta.toString()}" ]
             }
 
-            def ensembl_species = genome_entry?.ensembl_species ?: params.ensembl_species_map?.get(genome_build) ?: (genome_build ==~ /[a-z]+_[a-z0-9_]+/ ? genome_build : null)
+            def ensembl_species = genome_entry?.ensembl_species ?: params.ensembl_species_map?.get(reference_key) ?: (reference_key ==~ /[a-z]+_[a-z0-9_]+/ ? reference_key : null)
             if (!ensembl_species) {
-                error("No transcript FASTA resolved for genome_build '${genome_build}'. Provide --fasta with a transcript FASTA, set params.genomes['${genome_build}'].transcript_fasta (or transcriptome/cdna), or set params.genomes['${genome_build}'].ensembl_species.")
+                error("No transcript FASTA resolved for reference '${reference_key}'. Provide --fasta with a transcript FASTA, set params.genomes['${reference_key}'].transcript_fasta (or transcriptome/cdna), or set params.genomes['${reference_key}'].ensembl_species.")
             }
-            [ genome_build, "ensembl::${ensembl_species.toLowerCase()}" ]
+            [ reference_key, "ensembl::${ensembl_species.toLowerCase()}" ]
         }
         .groupTuple()
-        .map { genome_build, resolutions ->
+        .map { reference_key, resolutions ->
             def unique_resolutions = resolutions.unique()
             if (unique_resolutions.size() != 1) {
-                error("Multiple transcript reference resolutions were detected for genome_build '${genome_build}': ${unique_resolutions.join(', ')}")
+                error("Multiple transcript reference resolutions were detected for reference '${reference_key}': ${unique_resolutions.join(', ')}")
             }
-            [ genome_build, unique_resolutions[0] ]
+            [ reference_key, unique_resolutions[0] ]
         }
 
     ch_reference_local = ch_reference_requests
-        .filter { _genome_build, resolution -> resolution.startsWith('path::') }
-        .map { genome_build, resolution ->
+        .filter { _reference_key, resolution -> resolution.startsWith('path::') }
+        .map { reference_key, resolution ->
             def fasta_path = resolution - 'path::'
-            [ [ id: genome_build, genome_build: genome_build ], file(fasta_path, checkIfExists: true) ]
+            [ [ id: reference_key, organism: reference_key ], file(fasta_path, checkIfExists: true) ]
         }
 
     ch_reference_ensembl_input = ch_reference_requests
-        .filter { _genome_build, resolution -> resolution.startsWith('ensembl::') }
-        .map { genome_build, resolution ->
+        .filter { _reference_key, resolution -> resolution.startsWith('ensembl::') }
+        .map { reference_key, resolution ->
             def ensembl_species = resolution - 'ensembl::'
-            [ [ id: genome_build, genome_build: genome_build, ensembl_species: ensembl_species ], ensembl_species ]
+            [ [ id: reference_key, organism: reference_key, ensembl_species: ensembl_species ], ensembl_species ]
         }
 
     ENSEMBL_TRANSCRIPTOME (
@@ -180,31 +172,31 @@ workflow RNASTRUCTUROME {
     )
     ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
 
-    ch_all_genome_build_fasta = ch_reference_local.mix(ENSEMBL_TRANSCRIPTOME.out.fasta)
-    ch_reference_fasta_keyed = ch_all_genome_build_fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+    ch_all_reference_fasta = ch_reference_local.mix(ENSEMBL_TRANSCRIPTOME.out.fasta)
+    ch_reference_fasta_keyed = ch_all_reference_fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
 
-    ch_rtstop_genome_build_fasta = principle_branches.rtstop
-        .map { meta, _reads -> [ resolveGenomeBuild(meta), true ] }
+    ch_rtstop_reference_fasta = principle_branches.rtstop
+        .map { meta, _reads -> [ resolveReferenceKey(meta, params.organism), true ] }
         .join(ch_reference_fasta_keyed)
-        .map { _genome_build, _flag, ref_tuple -> ref_tuple }
+        .map { _reference_key, _flag, ref_tuple -> ref_tuple }
 
-    ch_map_genome_build_fasta = principle_branches.map
-        .map { meta, _reads -> [ resolveGenomeBuild(meta), true ] }
+    ch_map_reference_fasta = principle_branches.map
+        .map { meta, _reads -> [ resolveReferenceKey(meta, params.organism), true ] }
         .join(ch_reference_fasta_keyed)
-        .map { _genome_build, _flag, ref_tuple -> ref_tuple }
+        .map { _reference_key, _flag, ref_tuple -> ref_tuple }
 
     //
     // MODULE: bowtie-build — build Bowtie v1 indices for RT-stop alignment
     //
     BOWTIE_BUILD (
-        ch_rtstop_genome_build_fasta
+        ch_rtstop_reference_fasta
     )
 
     //
     // MODULE: bowtie2-build — build Bowtie2 indices for MaP alignment
     //
     BOWTIE2_BUILD (
-        ch_map_genome_build_fasta
+        ch_map_reference_fasta
     )
 
     ch_bowtie_index_keyed = BOWTIE_BUILD.out.index.map { meta, index -> [ meta.id.toString(), [meta, index] ] }
@@ -212,20 +204,18 @@ workflow RNASTRUCTUROME {
 
     ch_rtstop_align_inputs = CUTADAPT_RTSTOP.out.reads
         .map { meta, reads ->
-            def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
-            [ genome_build, [meta, reads] ]
+            [ resolveReferenceKey(meta, params.organism), [meta, reads] ]
         }
         .join(ch_bowtie_index_keyed)
-        .map { _genome_build, reads_tuple, index_tuple -> [ reads_tuple, index_tuple ] }
+        .map { _reference_key, reads_tuple, index_tuple -> [ reads_tuple, index_tuple ] }
 
     ch_map_align_inputs = CUTADAPT_MAP.out.reads
         .map { meta, reads ->
-            def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
-            [ genome_build, [meta, reads] ]
+            [ resolveReferenceKey(meta, params.organism), [meta, reads] ]
         }
         .join(ch_bowtie2_index_keyed)
         .join(ch_reference_fasta_keyed)
-        .map { _genome_build, reads_tuple, index_tuple, fasta_tuple -> [ reads_tuple, index_tuple, fasta_tuple ] }
+        .map { _reference_key, reads_tuple, index_tuple, fasta_tuple -> [ reads_tuple, index_tuple, fasta_tuple ] }
 
     //
     // MODULE: bowtie align — align RT-stop reads with Bowtie v1
@@ -255,27 +245,23 @@ workflow RNASTRUCTUROME {
     // MODULE: samtools faidx — index reference FASTA for markdup
     //
     SAMTOOLS_FAIDX (
-        ch_all_genome_build_fasta.map { meta, fasta -> [meta, fasta, []] },
+        ch_all_reference_fasta.map { meta, fasta -> [meta, fasta, []] },
         false
     )
 
     ch_reference_fasta_fai_keyed = SAMTOOLS_FAIDX.out.fai
         .map { meta, fai -> [ meta.id.toString(), [meta, fai] ] }
         .join(ch_reference_fasta_keyed)
-        .map { genome_build, fai_tuple, fasta_tuple ->
-            [ genome_build, [fasta_tuple[0], fasta_tuple[1], fai_tuple[1]] ]
+        .map { reference_key, fai_tuple, fasta_tuple ->
+            [ reference_key, [fasta_tuple[0], fasta_tuple[1], fai_tuple[1]] ]
         }
 
     ch_sorted_inputs = ch_mapped_bam
         .map { meta, bam ->
-            def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
-            if (!genome_build) {
-                error("Missing genome_build for sample '${meta.id}' while preparing samtools sort input.")
-            }
-            [ genome_build, [meta, bam] ]
+            [ resolveReferenceKey(meta, params.organism), [meta, bam] ]
         }
         .join(ch_reference_fasta_keyed)
-        .map { _genome_build, bam_tuple, fasta_tuple ->
+        .map { _reference_key, bam_tuple, fasta_tuple ->
             [ bam_tuple, fasta_tuple ]
         }
 
@@ -317,14 +303,10 @@ workflow RNASTRUCTUROME {
 
     ch_markdup_inputs = dedup_branches.non_umi
         .map { meta, bam, _bai ->
-            def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
-            if (!genome_build) {
-                error("Missing genome_build for sample '${meta.id}' while preparing samtools markdup input.")
-            }
-            [ genome_build, [meta, bam] ]
+            [ resolveReferenceKey(meta, params.organism), [meta, bam] ]
         }
         .join(ch_reference_fasta_fai_keyed)
-        .map { _genome_build, bam_tuple, fasta_fai_tuple ->
+        .map { _reference_key, bam_tuple, fasta_fai_tuple ->
             [ bam_tuple, fasta_fai_tuple ]
         }
 
@@ -355,14 +337,10 @@ workflow RNASTRUCTUROME {
 
     ch_stats_inputs = ch_markdup_bam_bai
         .map { meta, bam, bai ->
-            def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
-            if (!genome_build) {
-                error("Missing genome_build for sample '${meta.id}' while preparing samtools stats input.")
-            }
-            [ genome_build, [meta, bam, bai] ]
+            [ resolveReferenceKey(meta, params.organism), [meta, bam, bai] ]
         }
         .join(ch_reference_fasta_keyed)
-        .map { _genome_build, bam_bai_tuple, fasta_tuple ->
+        .map { _reference_key, bam_bai_tuple, fasta_tuple ->
             [ bam_bai_tuple, fasta_tuple ]
         }
 
@@ -425,11 +403,10 @@ workflow RNASTRUCTUROME {
     //
     ch_rfcount_with_fasta = ch_markdup_bam_bai
         .map { meta, bam, bai ->
-            def genome_build = (meta.genome_build ?: params.genome_build ?: params.genome)?.toString()
-            [ genome_build, [meta, bam, bai] ]
+            [ resolveReferenceKey(meta, params.organism), [meta, bam, bai] ]
         }
         .join(ch_reference_fasta_keyed)
-        .map { _genome_build, bam_bai_tuple, fasta_tuple ->
+        .map { _reference_key, bam_bai_tuple, fasta_tuple ->
             [ bam_bai_tuple, fasta_tuple ]
         }
 
@@ -551,11 +528,11 @@ workflow RNASTRUCTUROME {
         }
         .groupTuple()
         .map { fold_group, entries ->
-            def metas = entries.collect { it[0] }
-            def xmls = entries.collect { it[1] }
+            def metas = entries.collect { entry -> entry[0] }
+            def xmls = entries.collect { entry -> entry[1] }
             def base = metas[0]
-            def replicates = metas.collect { (it.replicate ?: 'na').toString() }.unique().sort()
-            def sampleIds = metas.collect { (it.id ?: 'na').toString() }.unique().sort()
+            def replicates = metas.collect { meta -> (meta.replicate ?: 'na').toString() }.unique().sort()
+            def sampleIds = metas.collect { meta -> (meta.id ?: 'na').toString() }.unique().sort()
             def foldMeta = base + [
                 id                 : fold_group,
                 fold_group         : fold_group,
@@ -694,6 +671,28 @@ workflow RNASTRUCTUROME {
     fold_structures  = RNAFRAMEWORK_RFFOLD.out.structures // channel: [ val(meta), path(dir) ]
     versions         = ch_versions                        // channel: [ path(versions.yml) ]
 
+}
+
+def normaliseEnsemblSpecies(value) {
+    value
+        ?.toString()
+        ?.trim()
+        ?.toLowerCase()
+        ?.replaceAll(/\s+/, '_')
+}
+
+def resolveReferenceKey(meta, fallbackOrganism) {
+    def rawReference = (meta.organism ?: fallbackOrganism)?.toString()?.trim()
+    if (!rawReference) {
+        error("Missing organism for sample '${meta.id}'. Set organism in the samplesheet or provide --organism.")
+    }
+    if (rawReference.contains(' ')) {
+        return normaliseEnsemblSpecies(rawReference)
+    }
+    if (rawReference ==~ /[a-z]+_[a-z0-9_]+/) {
+        return rawReference.toLowerCase()
+    }
+    rawReference
 }
 
 /*

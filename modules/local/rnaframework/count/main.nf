@@ -22,8 +22,8 @@ process RNAFRAMEWORK_RFCOUNT {
     def args   = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def fallback_fasta = params.fasta ?: (
-        meta_ref?.genome_build && params.genomes?.containsKey(meta_ref.genome_build)
-            ? (params.genomes[meta_ref.genome_build]?.transcript_fasta ?: params.genomes[meta_ref.genome_build]?.transcriptome ?: params.genomes[meta_ref.genome_build]?.cdna ?: '')
+        meta_ref?.organism && params.genomes?.containsKey(meta_ref.organism)
+            ? (params.genomes[meta_ref.organism]?.transcript_fasta ?: params.genomes[meta_ref.organism]?.transcriptome ?: params.genomes[meta_ref.organism]?.cdna ?: '')
             : ''
     )
     def outdir = "${prefix}_rfcount"

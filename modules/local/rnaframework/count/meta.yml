@@ -33,7 +33,7 @@ input:
         type: map
         description: |
           Groovy Map containing reference information
-          e.g. [ id:'hg38' ]
+          e.g. [ id:'homo_sapiens', organism:'homo_sapiens' ]
     - fasta:
         type: file
         description: Reference FASTA file

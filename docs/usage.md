@@ -41,12 +41,13 @@ nextflow run main.nf -profile docker --input samplesheet.csv --fasta transcripts
 Reference resolution behavior:
 
 - If `--fasta` is set, that file is used directly and should be a transcript FASTA.
-- If `--fasta` is not set, the pipeline first tries transcript FASTA keys in `params.genomes[genome_build]`:
+- If `--fasta` is not set, the pipeline first tries transcript FASTA keys in `params.genomes[reference_key]`, where `reference_key` is resolved from `organism`:
   - `transcript_fasta`
   - `transcriptome`
   - `cdna`
 - If no transcript FASTA path is configured, it falls back to Ensembl auto-download by species:
-  - Uses `params.genomes[genome_build].ensembl_species` when defined, then `--ensembl_species_map` aliases, otherwise treats `genome_build` itself as Ensembl species if it matches `genus_species` (e.g. `homo_sapiens`, `saccharomyces_cerevisiae`).
+  - Uses `params.genomes[reference_key].ensembl_species` when defined, then `--ensembl_species_map` aliases, otherwise treats the reference key itself as Ensembl species if it matches `genus_species` (e.g. `homo_sapiens`, `saccharomyces_cerevisiae`).
+  - Latin binomials such as `Homo sapiens` or `Saccharomyces cerevisiae` are normalized automatically to Ensembl species format (`homo_sapiens`, `saccharomyces_cerevisiae`).
   - Downloads `cdna.all.fa.gz` and, when available, `ncrna.fa.gz` from Ensembl FTP, then merges available files into one transcript FASTA used for mapping and RNAframework.
 - Ensembl source can be tuned with:
   - `--ensembl_release` (`current` by default; accepts values like `114` or `release-114`)
@@ -85,6 +86,7 @@ HEK293T_untreated_r1,/data/untreated_r1.fastq.gz,,HEK293T,untreated,1
 
 Optional per-sample columns supported by the pipeline include:
 
+- `organism` (preferred for transcriptome auto-resolution; e.g. `Homo sapiens`)
 - `adapter_5p`
 - `adapter_3p`
 - `umi_pattern`

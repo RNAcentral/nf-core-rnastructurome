@@ -20,7 +20,7 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample`, `fastq_1`, `cell_line`, `condition`, and `replicate` columns, with optional `fastq_2` for paired-end data. `sample_id`, `method`, `principle`, `genome_build`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
+                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample`, `fastq_1`, `cell_line`, `condition`, and `replicate` columns, with optional `fastq_2` for paired-end data. `sample_id`, `method`, `principle`, `organism`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {
@@ -62,7 +62,7 @@
                     "mimetype": "text/plain",
                     "pattern": "^\\S+\\.fn?a(sta)?(\\.gz)?$",
                     "description": "Path to transcript FASTA file.",
-                    "help_text": "Provide a transcript-level FASTA for rf-count/rf-norm/rf-fold. If omitted, the pipeline will try to resolve transcript FASTA from `params.genomes[genome_build]` (`transcript_fasta`, `transcriptome`, or `cdna`).",
+                    "help_text": "Provide a transcript-level FASTA for rf-count/rf-norm/rf-fold. If omitted, the pipeline will try to resolve transcript FASTA from `params.genomes[organism]` (`transcript_fasta`, `transcriptome`, or `cdna`).",
                     "fa_icon": "far fa-file-code"
                 },
                 "igenomes_ignore": {
@@ -99,7 +99,7 @@
                 },
                 "ensembl_species_map": {
                     "type": "object",
-                    "description": "Optional map from genome_build keys to Ensembl species names used for transcript FASTA auto-resolution.",
+                    "description": "Optional map from organism keys to Ensembl species names used for transcript FASTA auto-resolution.",
                     "hidden": true,
                     "additionalProperties": true
                 }
@@ -125,9 +125,9 @@
                     "description": "Fallback probing principle for rows missing `principle`.",
                     "enum": ["RT-stop", "MaP"]
                 },
-                "genome_build": {
+                "organism": {
                     "type": "string",
-                    "description": "Fallback reference key for rows missing `genome_build` (e.g. `hg38` or Ensembl species like `homo_sapiens`)."
+                    "description": "Fallback organism for rows missing `organism`, typically a Latin binomial such as `Homo sapiens`."
                 },
                 "umi_pattern": {
                     "type": "string",

@@ -39,9 +39,10 @@
                 "type": "string",
                 "meta": ["principle"]
             },
-            "genome_build": {
+            "organism": {
                 "type": "string",
-                "meta": ["genome_build"]
+                "meta": ["organism"],
+                "description": "Organism name used for transcript reference resolution. Latin binomials such as 'Homo sapiens' are normalised to Ensembl species format."
             },
             "adapter_3p": {
                 "type": "string",

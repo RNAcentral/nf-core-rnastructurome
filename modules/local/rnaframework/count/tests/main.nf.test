@@ -41,7 +41,6 @@ nextflow_process {
                 { assert process.out.index_rci.size() == 1 },
                 { assert process.out.error_log.size() == 1 },
                 { assert process.out.samtools_log.size() == 1 },
-                { assert process.out.rfcount_log.size() == 1 },
                 { assert process.out.summary.size() == 1 },
                 { assert path(process.out.summary[0][1]).text.contains('covered') }
             )

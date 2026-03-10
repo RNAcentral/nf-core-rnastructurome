@@ -15,7 +15,6 @@ process RNAFRAMEWORK_RFCOUNT {
     tuple val(meta), path("*_rfcount/index.rci"), optional: true, emit: index_rci
     tuple val(meta), path("*_rfcount/error.out"), optional: true, emit: error_log
     tuple val(meta), path("*_rfcount/samtools.log"), optional: true, emit: samtools_log
-    tuple val(meta), path("*_rfcount/rfcount.log"), optional: true, emit: rfcount_log
     tuple val(meta), path("*_rfcount/*.rfcount_summary.tsv"), optional: true, emit: summary
     tuple val(meta), path("*_rfcount/plots/*.pdf"), optional: true, emit: plots
     path "versions.yml"          , emit: versions
@@ -73,8 +72,7 @@ process RNAFRAMEWORK_RFCOUNT {
             ;;
     esac
 
-    mv "\${rfcount_log_tmp}" ${outdir}/rfcount.log
-    rm -f "\${cleaned_log}"
+    rm -f "\${rfcount_log_tmp}" "\${cleaned_log}"
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -92,7 +90,6 @@ process RNAFRAMEWORK_RFCOUNT {
     touch ${outdir}/index.rci
     touch ${outdir}/error.out
     touch ${outdir}/samtools.log
-    touch ${outdir}/rfcount.log
     cat <<-END_SUMMARY > ${outdir}/${prefix}.rfcount_summary.tsv
     sample	covered	pct_a_stops	pct_c_stops	pct_g_stops	pct_u_stops
     ${prefix}	1	25.0	25.0	25.0	25.0

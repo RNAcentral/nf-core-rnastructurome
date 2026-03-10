@@ -7,14 +7,20 @@ report_section_order:
     order: 1000
   "nf-core-rnastructurome-count-progression":
     order: 1001
+  cutadapt_filtered_reads_plot:
+    order: 1100
+  cutadapt_trimmed_sequences_plot_5:
+    order: 1101
+  cutadapt_trimmed_sequences_plot_3:
+    order: 1102
   "nf-core-rnastructurome-cutadapt-adapters":
-    order: 1002
+    order: 1103
   "nf-core-rnastructurome-summary":
-    order: 1003
-  "nf-core-rnastructurome-methods-description":
-    order: 1004
+    order: 1200
   software_versions:
-    order: 1005
+    order: 1201
+  "nf-core-rnastructurome-methods-description":
+    order: 1202
 
 export_plots: true
 

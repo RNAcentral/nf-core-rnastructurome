@@ -1139,12 +1139,12 @@ def cutadaptAdaptersMultiqc(rows) {
     }.join('\n')
 
     """id: 'nf-core-rnastructurome-cutadapt-adapters'
-section_name: 'nf-core/rnastructurome Cutadapt Adapters'
-description: 'Cutadapt adapter sequences used for trimming in each sample.'
+section_name: 'Cutadapt: Adapter Sequences Used'
+description: 'Adapter sequences used for trimming in each sample.'
 plot_type: 'table'
 pconfig:
   id: 'nf-core-rnastructurome-cutadapt-adapters'
-  title: 'nf-core/rnastructurome Cutadapt Adapters'
+  title: 'Cutadapt: Adapter Sequences Used'
 headers:
   cutadapt_mode:
     title: 'Trim Mode'

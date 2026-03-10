@@ -3,7 +3,7 @@ process RNAFRAMEWORK_RFNORM {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container 'rnastructurome/rnaframework:2.9.6-r1'
+    container 'ghcr.io/vicbeg/rnaframework:2.9.6-r1'
 
     input:
     tuple val(meta), path(treated), path(untreated), path(denatured), path(rci_files)
@@ -23,6 +23,8 @@ process RNAFRAMEWORK_RFNORM {
     def denatured_arg = denatured ? "-d ${denatured}" : ''
     def treated_list  = treated instanceof List ? treated.join(' ') : "${treated}"
     """
+    export TERM="\${TERM:-xterm}"
+
     rf-norm \\
         -p ${task.cpus} \\
         -o ${prefix}_norm \\

@@ -536,7 +536,7 @@ workflow RNASTRUCTUROME {
         .groupTuple()
         .map { fold_group, entries ->
             def metas = entries.collect { entry -> entry[0] }
-            def xmls = entries.collect { entry -> entry[1] }
+            def xmls = entries.collect { entry -> entry[1] }.flatten()
             def base = metas[0]
             def replicates = metas.collect { meta -> (meta.replicate ?: 'na').toString() }.unique().sort()
             def sampleIds = metas.collect { meta -> (meta.id ?: 'na').toString() }.unique().sort()

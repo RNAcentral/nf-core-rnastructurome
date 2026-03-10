@@ -30,7 +30,7 @@ output:
             e.g. [ id:'homo_sapiens', organism:'homo_sapiens' ]
       - "*.sorted.fa":
           type: file
-          description: FASTA records sorted lexicographically by sequence identifier
+          description: FASTA records normalized and sorted lexicographically by sequence identifier
           pattern: "*.{sorted.fa}"
           ontologies: []
   versions:

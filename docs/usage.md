@@ -123,7 +123,7 @@ Adapter precedence:
 1. Per-sample (`adapter_5p`, `adapter_3p`)
 2. Global (`--cutadapt_adapter_5p`, `--cutadapt_adapter_3p`)
 
-If no adapters are provided, cutadapt performs quality/length filtering only.
+If no adapters are provided, the pipeline falls back to `AGATCGGAAGAGC` for both the 5' and 3' adapter. Set `--cutadapt_quality_only` to skip adapter trimming entirely and perform quality/length filtering only.
 
 ### Optional UMI extraction
 

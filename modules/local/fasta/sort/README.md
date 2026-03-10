@@ -9,6 +9,7 @@ Inputs:
 Behavior:
 
 - reads all FASTA records
+- normalizes yeast systematic isoform transcript ids from `-A/-B/-C` to `_A/_B/_C`
 - sorts by the first token in each header line
 - writes a normalized plain-text `.sorted.fa`
 

@@ -143,11 +143,11 @@
             "properties": {
                 "cutadapt_adapter_5p": {
                     "type": "string",
-                    "description": "Global fallback 5' adapter sequence(s), comma-separated."
+                    "description": "Global fallback 5' adapter sequence(s), comma-separated. If omitted and no per-sample adapter is provided, the pipeline defaults to AGATCGGAAGAGC."
                 },
                 "cutadapt_adapter_3p": {
                     "type": "string",
-                    "description": "Global fallback 3' adapter sequence(s), comma-separated."
+                    "description": "Global fallback 3' adapter sequence(s), comma-separated. If omitted and no per-sample adapter is provided, the pipeline defaults to AGATCGGAAGAGC."
                 },
                 "cutadapt_quality_only": {
                     "type": "boolean",

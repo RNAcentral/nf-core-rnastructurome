@@ -3,7 +3,7 @@ process RNAFRAMEWORK_RFFOLD {
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
-    container 'rnastructurome/rnaframework:2.9.6-r1'
+    container 'ghcr.io/vicbeg/rnaframework:2.9.6-r1'
 
     input:
     tuple val(meta), path(xml)
@@ -20,6 +20,8 @@ process RNAFRAMEWORK_RFFOLD {
     prefix   = task.ext.prefix ?: "${meta.id}"
     def xml_list = xml instanceof List ? xml.join(' ') : "${xml}"
     """
+    export TERM="\${TERM:-xterm}"
+
     rf-fold \\
         -p ${task.cpus} \\
         -o ${prefix}_fold \\

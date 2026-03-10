@@ -42,6 +42,7 @@ process RNAFRAMEWORK_RFCOUNT {
     export PATH="/home/ubuntu/rnaframework:/home/ubuntu/conda/bin:\${PATH}"
 
     mkdir -p ${outdir}
+    rfcount_log_tmp="${prefix}.rfcount.log"
 
     set -o pipefail
     rf-count \\
@@ -50,10 +51,10 @@ process RNAFRAMEWORK_RFCOUNT {
         -o ${outdir} \\
         -ow \\
         ${args} \\
-        "${prefix}:${bam}" 2>&1 | tee ${outdir}/rfcount.log
+        "${prefix}:${bam}" 2>&1 | tee "\${rfcount_log_tmp}"
 
-    cleaned_log="${outdir}/rfcount.clean.log"
-    sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' ${outdir}/rfcount.log | tr '\\r' '\\n' > "\${cleaned_log}"
+    cleaned_log="${prefix}.rfcount.clean.log"
+    sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' "\${rfcount_log_tmp}" | tr '\\r' '\\n' > "\${cleaned_log}"
 
     summary_tsv="${outdir}/${prefix}.rfcount_summary.tsv"
     {
@@ -72,6 +73,7 @@ process RNAFRAMEWORK_RFCOUNT {
             ;;
     esac
 
+    mv "\${rfcount_log_tmp}" ${outdir}/rfcount.log
     rm -f "\${cleaned_log}"
 
     cat <<-END_VERSIONS > versions.yml

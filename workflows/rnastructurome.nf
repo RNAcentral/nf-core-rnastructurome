@@ -118,6 +118,37 @@ workflow RNASTRUCTUROME {
     ch_trimmed_reads = CUTADAPT_RTSTOP.out.reads.mix(CUTADAPT_MAP.out.reads)
     ch_multiqc_files = ch_multiqc_files.mix(CUTADAPT_RTSTOP.out.log.collect { cutadapt_log -> cutadapt_log[1] })
     ch_multiqc_files = ch_multiqc_files.mix(CUTADAPT_MAP.out.log.collect { cutadapt_log -> cutadapt_log[1] })
+    def ch_cutadapt_adapter_mqc = CUTADAPT_RTSTOP.out.log
+        .map { meta, cutadapt_log ->
+            [
+                meta.id.toString(),
+                [
+                    cutadapt_mode: 'RT-stop',
+                    adapter_5p  : parseCutadaptCommandArg(cutadapt_log, '-g'),
+                    adapter_3p  : parseCutadaptCommandArg(cutadapt_log, '-a')
+                ]
+            ]
+        }
+        .mix(
+            CUTADAPT_MAP.out.log.map { meta, cutadapt_log ->
+                [
+                    meta.id.toString(),
+                    [
+                        cutadapt_mode: 'MaP',
+                        adapter_5p  : parseCutadaptCommandArg(cutadapt_log, '-g'),
+                        adapter_3p  : parseCutadaptCommandArg(cutadapt_log, '-a')
+                    ]
+                ]
+            }
+        )
+        .collect()
+        .map { rows -> cutadaptAdaptersMultiqc(rows) }
+    ch_multiqc_files = ch_multiqc_files.mix(
+        ch_cutadapt_adapter_mqc.collectFile(
+            name: 'cutadapt_adapters_mqc.yaml',
+            sort: true
+        )
+    )
 
     //
     // MODULE: fastqc (post-trim) — quality control on trimmed reads
@@ -627,6 +658,8 @@ workflow RNASTRUCTUROME {
 
     summary_params      = paramsSummaryMap(
         workflow, parameters_schema: "nextflow_schema.json")
+    summary_params      = filterSummaryParams(summary_params)
+    summary_params      = addModuleOptionsSummary(summary_params, params)
     ch_workflow_summary = channel.value(paramsSummaryMultiqc(summary_params))
     ch_multiqc_files = ch_multiqc_files.mix(
         ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
@@ -771,9 +804,284 @@ def parseRfcountCoveredTranscripts(summaryFile) {
     (fields[1]) as long
 }
 
+def filterSummaryParams(summaryParams) {
+    def hiddenKeys = [
+        'ensembl_species_map',
+        'container',
+        'configFiles',
+        'launchDir',
+        'projectDir',
+        'userName',
+        'workDir'
+    ] as Set
+
+    summaryParams.collectEntries { sectionName, sectionParams ->
+        if (!(sectionParams instanceof Map)) {
+            return [(sectionName): sectionParams]
+        }
+
+        def filteredSection = sectionParams.findAll { key, value ->
+            if (hiddenKeys.contains(key)) {
+                return false
+            }
+            if (key == 'genomes' && value instanceof Map && value.isEmpty()) {
+                return false
+            }
+            true
+        }
+
+        [(sectionName): filteredSection]
+    }.findAll { _sectionName, sectionParams ->
+        !(sectionParams instanceof Map) || !sectionParams.isEmpty()
+    }
+}
+
+def addModuleOptionsSummary(summaryParams, params) {
+    def sampleMetadata = parseInputSamplesheetMetadata(params.input)
+    def moduleOptions = buildModuleOptionsSummary(params, sampleMetadata)
+    if (moduleOptions.isEmpty()) {
+        return summaryParams
+    }
+    summaryParams + ['Module options': moduleOptions]
+}
+
+def parseInputSamplesheetMetadata(inputPath) {
+    if (!inputPath) {
+        return [principles: [], conditions: [], methods: []]
+    }
+
+    def inputFile = file(inputPath.toString())
+    if (!inputFile.exists()) {
+        return [principles: [], conditions: [], methods: []]
+    }
+
+    def lines = inputFile.readLines().findAll { line -> line?.trim() }
+    if (lines.size() < 2) {
+        return [principles: [], conditions: [], methods: []]
+    }
+
+    def header = lines[0].split(',', -1)*.trim()
+    def principleIdx = header.indexOf('principle')
+    def conditionIdx = header.indexOf('condition')
+    def methodIdx = header.indexOf('method')
+
+    def principles = []
+    def conditions = []
+    def methods = []
+
+    lines.drop(1).each { line ->
+        def fields = line.split(',', -1)
+        if (principleIdx >= 0 && principleIdx < fields.size()) {
+            def value = fields[principleIdx]?.trim()
+            if (value) principles << value
+        }
+        if (conditionIdx >= 0 && conditionIdx < fields.size()) {
+            def value = fields[conditionIdx]?.trim()
+            if (value) conditions << value
+        }
+        if (methodIdx >= 0 && methodIdx < fields.size()) {
+            def value = fields[methodIdx]?.trim()
+            if (value) methods << value
+        }
+    }
+
+    [
+        principles: principles.unique(),
+        conditions: conditions.collect { it.toLowerCase() }.unique(),
+        methods   : methods.unique()
+    ]
+}
+
+def buildModuleOptionsSummary(params, sampleMetadata) {
+    def moduleOptions = [:]
+    def principles = (sampleMetadata.principles ?: []).collect { it.toLowerCase() }
+
+    if (!principles || principles.contains('rt-stop')) {
+        moduleOptions['bowtie_rtstop_aligner'] = 'bowtie'
+        moduleOptions['bowtie_rtstop_args'] = renderBowtie1Args(params)
+    }
+    if (principles.contains('map')) {
+        moduleOptions['bowtie_map_aligner'] = 'bowtie2'
+        moduleOptions['bowtie_map_args'] = renderBowtie2Args(params)
+    }
+
+    def rfnormSummary = renderRfNormSummary(params, sampleMetadata)
+    moduleOptions.putAll(rfnormSummary)
+
+    moduleOptions.findAll { _k, v -> v != null && v.toString().trim() }
+}
+
+def renderBowtie1Args(params) {
+    def manualOnly = params.bowtie_manual_only as Boolean ?: false
+    def manualParams = (params.bowtie_mapping_params ?: '').toString().trim()
+    if (manualOnly) {
+        return manualParams ?: 'none'
+    }
+    def args = []
+    if (params.bowtie_all as Boolean) {
+        args << '-a'
+    } else if (params.bowtie_k != null) {
+        args << "-k ${params.bowtie_k as Integer}"
+    }
+    if (params.bowtie_norc as Boolean) {
+        args << '--norc'
+    }
+    if ((params.bowtie_trim5 as Integer) > 0) {
+        args << "--trim5 ${params.bowtie_trim5 as Integer}"
+    }
+    if ((params.bowtie_trim3 as Integer) > 0) {
+        args << "--trim3 ${params.bowtie_trim3 as Integer}"
+    }
+    def seedlen = params.bowtie_seedlen != null ? params.bowtie_seedlen as Integer : 28
+    args << "-l ${seedlen}"
+    if (params.bowtie_v != null) {
+        args << "-v ${params.bowtie_v as Integer}"
+    } else {
+        args << "-n ${params.bowtie_n as Integer}"
+    }
+    if (!(params.bowtie_all as Boolean) && params.bowtie_k == null && params.bowtie_max != null) {
+        args << "-m ${params.bowtie_max as Integer}"
+    }
+    args << "--chunkmbs ${params.bowtie_chunkmbs as Integer}"
+    if (manualParams) {
+        args << manualParams
+    }
+    args.join(' ').trim()
+}
+
+def renderBowtie2Args(params) {
+    def manualOnly = params.bowtie_manual_only as Boolean ?: false
+    def manualParams = (params.bowtie_mapping_params ?: '').toString().trim()
+    if (manualOnly) {
+        return manualParams ?: 'none'
+    }
+    def args = []
+    if (params.bowtie_all as Boolean) {
+        args << '-a'
+    } else if (params.bowtie_k != null) {
+        args << "-k ${params.bowtie_k as Integer}"
+    }
+    if (params.bowtie_norc as Boolean) {
+        args << '--norc'
+    }
+    if ((params.bowtie_trim5 as Integer) > 0) {
+        args << "--trim5 ${params.bowtie_trim5 as Integer}"
+    }
+    if ((params.bowtie_trim3 as Integer) > 0) {
+        args << "--trim3 ${params.bowtie_trim3 as Integer}"
+    }
+    def seedlen = params.bowtie_seedlen != null ? params.bowtie_seedlen as Integer : 22
+    args << "-L ${seedlen}"
+    args << "-N ${params.bowtie2_N as Integer}"
+    args << "-D ${params.bowtie2_D as Integer}"
+    args << "-R ${params.bowtie2_R as Integer}"
+    args << "--mp ${params.bowtie2_mp}"
+    args << "--dpad ${params.bowtie2_dpad as Integer}"
+    args << "--rdg ${params.bowtie2_rdg}"
+    args << "--rfg ${params.bowtie2_rfg}"
+    if (params.bowtie2_softclip as Boolean) {
+        args << '--local'
+        args << "--ma ${params.bowtie2_ma as Integer}"
+    }
+    if (params.bowtie2_dovetail as Boolean) {
+        args << '--dovetail'
+    }
+    if (manualParams) {
+        args << manualParams
+    }
+    args.join(' ').trim()
+}
+
+def renderRfNormSummary(params, sampleMetadata) {
+    def principles = (sampleMetadata.principles ?: []).collect { it.toLowerCase() }.unique()
+    def conditions = (sampleMetadata.conditions ?: []).collect { it.toLowerCase() }.unique()
+    if (principles.size() != 1) {
+        return [
+            rfnorm_mode: 'dynamic (mixed principles across samples)'
+        ]
+    }
+
+    def principle = principles[0]
+    def hasUntreated = conditions.contains('untreated')
+    def hasDenatured = conditions.contains('denatured')
+    def scoringMethod = principle == 'map' ? (hasUntreated ? 3 : 4) : (hasUntreated ? 1 : 2)
+    def normMethod = scoringMethod == 2 ? 2 : 3
+    def reactiveBases = params.rfnorm_reactive_bases ?: ((((sampleMetadata.methods ?: []).collect { it.toLowerCase() }.unique() == ['dms']) ? 'AC' : null))
+
+    def args = [
+        "-sm ${scoringMethod}",
+        "-nm ${normMethod}"
+    ]
+    if (params.rfnorm_remap_reactivities as Boolean) args << '--remap-reactivities'
+    if (reactiveBases) args << "--reactive-bases ${reactiveBases}"
+    if (params.rfnorm_norm_window != null) args << "--norm-window ${params.rfnorm_norm_window as Integer}"
+    if (params.rfnorm_window_offset != null) args << "--window-offset ${params.rfnorm_window_offset as Integer}"
+    if (params.rfnorm_dynamic_window != null) args << "--dynamic-window ${params.rfnorm_dynamic_window as Integer}"
+    if (params.rfnorm_norm_independent as Boolean) args << '--norm-independent'
+    if (params.rfnorm_norm_factor) args << "--norm-factor ${params.rfnorm_norm_factor}"
+    if (params.rfnorm_raw as Boolean) args << '--raw'
+    if (params.rfnorm_pseudocount != null) args << "--pseudocount ${params.rfnorm_pseudocount}"
+    if (params.rfnorm_max_score != null) args << "--max-score ${params.rfnorm_max_score}"
+    if (params.rfnorm_ignore_lower_than_untreated as Boolean) args << '--ignore-lower-than-untreated'
+    if (params.rfnorm_max_untreated_mut != null) args << "--max-untreated-mut ${params.rfnorm_max_untreated_mut}"
+    if (params.rfnorm_max_mutation_rate != null) args << "--max-mutation-rate ${params.rfnorm_max_mutation_rate}"
+    def meanCoverage = params.rfnorm_mean_coverage != null ? params.rfnorm_mean_coverage as BigDecimal : 0
+    if (meanCoverage > 0) args << "--mean-coverage ${params.rfnorm_mean_coverage}"
+    def medianCoverage = params.rfnorm_median_coverage != null ? params.rfnorm_median_coverage as BigDecimal : 0
+    if (medianCoverage > 0) args << "--median-coverage ${params.rfnorm_median_coverage}"
+    def nanThreshold = params.rfnorm_nan != null ? params.rfnorm_nan as Integer : 10
+    if (nanThreshold != 10) args << "--nan ${nanThreshold}"
+    args << '--img'
+    args << "-R ${params.rnaframework_r_path}"
+
+    [
+        rfnorm_mode         : "${principle.toUpperCase()} ${hasUntreated ? 'with untreated' : 'treated-only'}${hasDenatured ? ' + denatured' : ''}",
+        rfnorm_scoring      : "${rfNormScoringLabel(scoringMethod)} (sm=${scoringMethod})",
+        rfnorm_normalisation: "${rfNormNormLabel(normMethod)} (nm=${normMethod})",
+        rfnorm_args         : args.join(' ').trim()
+    ]
+}
+
+def rfNormScoringLabel(code) {
+    switch(code as Integer) {
+        case 1: return 'Ding'
+        case 2: return 'Rouskin'
+        case 3: return 'Siegfried'
+        case 4: return 'Zubradt'
+        default: return "unknown"
+    }
+}
+
+def rfNormNormLabel(code) {
+    switch(code as Integer) {
+        case 2: return '90% Winsorizing'
+        case 3: return 'Box-plot normalisation'
+        default: return "unknown"
+    }
+}
+
+def parseCutadaptCommandArg(logFile, optionName) {
+    def commandLine = logFile.readLines().find { line -> line.startsWith('Command line parameters:') }
+    if (!commandLine) {
+        return 'none'
+    }
+    def matcher = (commandLine =~ /(?:^|\s)${java.util.regex.Pattern.quote(optionName)}\s+(\S+)/)
+    matcher.find() ? matcher.group(1) : 'none'
+}
+
 def countProgressionMultiqc(rows) {
-    def orderedRows = rows.sort { a, b -> a[0] <=> b[0] }
-    def dataBlock = orderedRows.collect { sample_id, metrics ->
+    def rowEntries
+    if (rows instanceof Map) {
+        rowEntries = rows.entrySet().collect { [it.key, it.value] }
+    } else if (rows instanceof List && rows.size() == 2 && rows[1] instanceof Map && !(rows[0] instanceof List)) {
+        rowEntries = [rows]
+    } else {
+        rowEntries = rows
+    }
+    def orderedRows = rowEntries.sort { a, b -> a[0] <=> b[0] }
+    def dataBlock = orderedRows.collect { row ->
+        def sample_id = row[0]
+        def metrics = row[1]
         def metricLines = metrics.collect { key, value ->
             def rendered = value instanceof BigDecimal ? String.format(java.util.Locale.ROOT, '%.2f', value) : value.toString()
             "    ${key}: ${rendered}"
@@ -805,6 +1113,44 @@ headers:
   rfcount_covered_transcripts:
     title: 'RFCOUNT Covered Transcripts'
     format: '{:,.0f}'
+data:
+${dataBlock}
+"""
+}
+
+def cutadaptAdaptersMultiqc(rows) {
+    def rowEntries
+    if (rows instanceof Map) {
+        rowEntries = rows.entrySet().collect { [it.key, it.value] }
+    } else if (rows instanceof List && rows.size() == 2 && rows[1] instanceof Map && !(rows[0] instanceof List)) {
+        rowEntries = [rows]
+    } else {
+        rowEntries = rows
+    }
+    def orderedRows = rowEntries.sort { a, b -> a[0] <=> b[0] }
+    def dataBlock = orderedRows.collect { row ->
+        def sample_id = row[0]
+        def metrics = row[1]
+        def metricLines = metrics.collect { key, value ->
+            "    ${key}: '${value.toString().replace(\"'\", \"''\")}'"
+        }.join('\n')
+        "  ${sample_id}:\n${metricLines}"
+    }.join('\n')
+
+    """id: 'nf-core-rnastructurome-cutadapt-adapters'
+section_name: 'nf-core/rnastructurome Cutadapt Adapters'
+description: 'Cutadapt adapter sequences used for trimming in each sample.'
+plot_type: 'table'
+pconfig:
+  id: 'nf-core-rnastructurome-cutadapt-adapters'
+  title: 'nf-core/rnastructurome Cutadapt Adapters'
+headers:
+  cutadapt_mode:
+    title: 'Trim Mode'
+  adapter_5p:
+    title: \"5' Adapter\"
+  adapter_3p:
+    title: \"3' Adapter\"
 data:
 ${dataBlock}
 """

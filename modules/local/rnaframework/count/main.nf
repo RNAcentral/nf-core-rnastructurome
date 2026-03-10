@@ -39,6 +39,9 @@ process RNAFRAMEWORK_RFCOUNT {
     fi
 
     export TERM="\${TERM:-xterm}"
+    export PATH="/home/ubuntu/rnaframework:/home/ubuntu/conda/bin:\${PATH}"
+
+    mkdir -p ${outdir}
 
     set -o pipefail
     rf-count \\

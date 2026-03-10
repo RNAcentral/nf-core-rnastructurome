@@ -25,6 +25,9 @@ process RNAFRAMEWORK_RFNORM {
     def treated_list  = treated instanceof List ? treated.join(' ') : "${treated}"
     """
     export TERM="\${TERM:-xterm}"
+    export PATH="/home/ubuntu/rnaframework:/home/ubuntu/conda/bin:\${PATH}"
+
+    mkdir -p ${prefix}_norm
 
     rf-norm \\
         -p ${task.cpus} \\

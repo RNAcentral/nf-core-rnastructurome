@@ -22,6 +22,9 @@ process RNAFRAMEWORK_RFFOLD {
     def xml_list = xml instanceof List ? xml.join(' ') : "${xml}"
     """
     export TERM="\${TERM:-xterm}"
+    export PATH="/home/ubuntu/rnaframework:/home/ubuntu/conda/bin:\${PATH}"
+
+    mkdir -p ${prefix}_fold
 
     rf-fold \\
         -p ${task.cpus} \\

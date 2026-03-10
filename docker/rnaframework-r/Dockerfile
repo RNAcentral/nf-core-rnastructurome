@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 docker.io/dincarnato/rnaframework:2.9.6
+FROM docker.io/dincarnato/rnaframework:2.9.6
 
 USER root
 

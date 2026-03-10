@@ -34,7 +34,8 @@ nextflow_process {
         then {
             assertAll(
                 { assert process.success },
-                { assert process.out.xml.size() == 1 }
+                { assert process.out.xml.size() == 1 },
+                { assert process.out.log.size() == 1 }
             )
         }
     }

@@ -132,6 +132,11 @@ Enable with `umi_pattern` (sample-level or global `--umi_pattern`).
 - Patterns containing only `N/C/X` use direct `umi_tools --bc-pattern` mode.
 - IUPAC patterns (for example with `D`) are converted automatically to regex mode.
 
+### Duplicate handling
+
+- UMI-tagged samples use `umi_tools dedup`.
+- Non-UMI samples use `samtools markdup` by default.
+
 ## RNAframework modules
 
 ### `rf-count`

@@ -10,6 +10,7 @@ process RNAFRAMEWORK_RFFOLD {
 
     output:
     tuple val(meta), path("${prefix}_fold/"), emit: structures
+    tuple val(meta), path("${prefix}_fold/rffold.log"), optional: true, emit: log
     path "versions.yml"                      , emit: versions
 
     when:
@@ -27,7 +28,7 @@ process RNAFRAMEWORK_RFFOLD {
         -o ${prefix}_fold \\
         -ow \\
         ${args} \\
-        ${xml_list}
+        ${xml_list} 2>&1 | tee ${prefix}_fold/rffold.log
 
     # rf-fold can return exit 0 even when all folds fail and details are written to error.out.
     # Treat this as a hard failure so the pipeline does not continue with empty fold outputs.
@@ -52,6 +53,7 @@ process RNAFRAMEWORK_RFFOLD {
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     mkdir -p ${prefix}_fold
+    touch ${prefix}_fold/rffold.log
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

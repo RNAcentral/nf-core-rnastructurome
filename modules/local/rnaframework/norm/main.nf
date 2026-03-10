@@ -10,6 +10,7 @@ process RNAFRAMEWORK_RFNORM {
 
     output:
     tuple val(meta), path("${prefix}_norm/*.xml"), emit: xml
+    tuple val(meta), path("${prefix}_norm/rfnorm.log"), optional: true, emit: log
     tuple val(meta), path("${prefix}_norm/plots/*.pdf"), optional: true, emit: plots
     path "versions.yml"                           , emit: versions
 
@@ -32,7 +33,7 @@ process RNAFRAMEWORK_RFNORM {
         ${args} \\
         -t ${treated_list} \\
         ${untreated_arg} \\
-        ${denatured_arg}
+        ${denatured_arg} 2>&1 | tee ${prefix}_norm/rfnorm.log
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -45,6 +46,7 @@ process RNAFRAMEWORK_RFNORM {
     """
     mkdir -p ${prefix}_norm
     touch ${prefix}_norm/stub.xml
+    touch ${prefix}_norm/rfnorm.log
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

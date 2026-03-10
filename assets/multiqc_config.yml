@@ -9,6 +9,8 @@ report_section_order:
     order: -1001
   "nf-core-rnastructurome-summary":
     order: -1002
+  "nf-core-rnastructurome-count-progression":
+    order: -1003
 
 export_plots: true
 

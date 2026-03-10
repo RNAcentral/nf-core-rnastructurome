@@ -20,6 +20,7 @@ include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_FINAL   } from '../modules/nf-core/sa
 include { SAMTOOLS_MARKDUP      } from '../modules/nf-core/samtools/markdup/main'
 include { SAMTOOLS_STATS        } from '../modules/nf-core/samtools/stats/main'
 include { SAMTOOLS_FLAGSTAT     } from '../modules/nf-core/samtools/flagstat/main'
+include { SAMTOOLS_FLAGSTAT as SAMTOOLS_FLAGSTAT_PRE } from '../modules/nf-core/samtools/flagstat/main'
 include { SAMTOOLS_IDXSTATS     } from '../modules/nf-core/samtools/idxstats/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { SAMTOOLS_FAIDX        } from '../modules/nf-core/samtools/faidx/main'
@@ -248,21 +249,6 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE_ALIGN.out.log.collect { bowtie_log -> bowtie_log[1] })
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { bowtie2_log -> bowtie2_log[1] })
 
-    //
-    // MODULE: samtools faidx — index reference FASTA for markdup
-    //
-    SAMTOOLS_FAIDX (
-        FASTA_SORT.out.fasta.map { meta, fasta -> [meta, fasta, []] },
-        false
-    )
-
-    ch_reference_fasta_fai_keyed = SAMTOOLS_FAIDX.out.fai
-        .map { meta, fai -> [ meta.id.toString(), [meta, fai] ] }
-        .join(ch_reference_fasta_keyed)
-        .map { reference_key, fai_tuple, fasta_tuple ->
-            [ reference_key, [fasta_tuple[0], fasta_tuple[1], fai_tuple[1]] ]
-        }
-
     ch_sorted_inputs = ch_mapped_bam
         .map { meta, bam ->
             [ resolveReferenceKey(meta, params.organism), [meta, bam] ]
@@ -301,12 +287,34 @@ workflow RNASTRUCTUROME {
     }
 
     //
+    // MODULE: samtools flagstat — collect pre-dedup flag statistics
+    //
+    SAMTOOLS_FLAGSTAT_PRE (
+        ch_sorted_bam_bai
+    )
+
+    //
     // MODULE: umi_tools dedup — deduplicate UMI-tagged BAMs
     //
     UMITOOLS_DEDUP (
         dedup_branches.umi,
         false
     )
+
+    //
+    // MODULE: samtools faidx — index reference FASTA for markdup
+    //
+    SAMTOOLS_FAIDX (
+        FASTA_SORT.out.fasta.map { meta, fasta -> [meta, fasta, []] },
+        false
+    )
+
+    ch_reference_fasta_fai_keyed = SAMTOOLS_FAIDX.out.fai
+        .map { meta, fai -> [ meta.id.toString(), [meta, fai] ] }
+        .join(ch_reference_fasta_keyed)
+        .map { reference_key, fai_tuple, fasta_tuple ->
+            [ reference_key, [fasta_tuple[0], fasta_tuple[1], fai_tuple[1]] ]
+        }
 
     ch_markdup_inputs = dedup_branches.non_umi
         .map { meta, bam, _bai ->
@@ -326,6 +334,7 @@ workflow RNASTRUCTUROME {
     )
 
     ch_dedup_bam = UMITOOLS_DEDUP.out.bam.mix(SAMTOOLS_MARKDUP.out.bam)
+
     ch_multiqc_files = ch_multiqc_files.mix(UMITOOLS_DEDUP.out.log.collect { dedup_log -> dedup_log[1] })
 
     //
@@ -396,9 +405,9 @@ workflow RNASTRUCTUROME {
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_ALIGN.out.versions_bowtie2)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_ALIGN.out.versions_samtools)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_ALIGN.out.versions_pigz)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_FAIDX.out.versions_samtools)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_SORT.out.versions_samtools)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_INDEX_SORT.out.versions_samtools)
+    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_FAIDX.out.versions_samtools)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_MARKDUP.out.versions_samtools)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_INDEX_FINAL.out.versions_samtools)
     ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_STATS.out.versions_samtools)
@@ -420,6 +429,44 @@ workflow RNASTRUCTUROME {
     RNAFRAMEWORK_RFCOUNT (
         ch_rfcount_with_fasta.map { bam_bai_tuple, _fasta_tuple -> bam_bai_tuple },
         ch_rfcount_with_fasta.map { _bam_bai_tuple, fasta_tuple -> fasta_tuple }
+    )
+
+    def ch_pre_dedup_mapped_reads = SAMTOOLS_FLAGSTAT_PRE.out.flagstat
+        .map { meta, flagstat -> [ meta.id.toString(), parseFlagstatMappedReads(flagstat) ] }
+
+    def ch_post_dedup_mapped_reads = SAMTOOLS_FLAGSTAT.out.flagstat
+        .map { meta, flagstat -> [ meta.id.toString(), parseFlagstatMappedReads(flagstat) ] }
+
+    def ch_rfcount_covered_transcripts = RNAFRAMEWORK_RFCOUNT.out.summary
+        .map { meta, summary_tsv -> [ meta.id.toString(), parseRfcountCoveredTranscripts(summary_tsv) ] }
+
+    def ch_count_progression_mqc = ch_pre_dedup_mapped_reads
+        .join(ch_post_dedup_mapped_reads)
+        .join(ch_rfcount_covered_transcripts)
+        .map { sample_id, mapped_pre, mapped_post, covered_transcripts ->
+            def mappedPreLong = mapped_pre as long
+            def mappedPostLong = mapped_post as long
+            def removed = Math.max(mappedPreLong - mappedPostLong, 0L)
+            def pctRemoved = mappedPreLong ? ((removed as double) / (mappedPreLong as double)) * 100.0d : 0.0d
+            [
+                sample_id,
+                [
+                    mapped_reads_pre_dedup     : mappedPreLong,
+                    mapped_reads_post_dedup    : mappedPostLong,
+                    reads_removed_by_dedup     : removed,
+                    pct_removed_by_dedup       : pctRemoved,
+                    rfcount_covered_transcripts: covered_transcripts as long
+                ]
+            ]
+        }
+        .collect()
+        .map { rows -> countProgressionMultiqc(rows) }
+
+    ch_multiqc_files = ch_multiqc_files.mix(
+        ch_count_progression_mqc.collectFile(
+            name: 'count_progression_mqc.yaml',
+            sort: true
+        )
     )
 
     //
@@ -700,6 +747,67 @@ def resolveReferenceKey(meta, fallbackOrganism) {
         return rawReference.toLowerCase()
     }
     rawReference
+}
+
+def parseFlagstatMappedReads(flagstatFile) {
+    def mappedLine = flagstatFile.readLines().find { line ->
+        line ==~ /^\d+\s+\+\s+\d+\s+mapped\s+\(.*/
+    }
+    if (!mappedLine) {
+        error("Could not parse mapped read count from flagstat file: ${flagstatFile}")
+    }
+    (mappedLine.tokenize()[0]) as long
+}
+
+def parseRfcountCoveredTranscripts(summaryFile) {
+    def summaryLines = summaryFile.readLines().findAll { line -> line?.trim() }
+    if (summaryLines.size() < 2) {
+        error("Could not parse rf-count summary TSV: ${summaryFile}")
+    }
+    def fields = summaryLines[1].split('\t')
+    if (fields.size() < 2) {
+        error("rf-count summary TSV is missing the covered transcript column: ${summaryFile}")
+    }
+    (fields[1]) as long
+}
+
+def countProgressionMultiqc(rows) {
+    def orderedRows = rows.sort { a, b -> a[0] <=> b[0] }
+    def dataBlock = orderedRows.collect { sample_id, metrics ->
+        def metricLines = metrics.collect { key, value ->
+            def rendered = value instanceof BigDecimal ? String.format(java.util.Locale.ROOT, '%.2f', value) : value.toString()
+            "    ${key}: ${rendered}"
+        }.join('\n')
+        "  ${sample_id}:\n${metricLines}"
+    }.join('\n')
+
+    """id: 'nf-core-rnastructurome-count-progression'
+section_name: 'nf-core/rnastructurome Count Progression'
+description: 'Mapped read retention through deduplication together with rf-count covered transcript totals.'
+plot_type: 'table'
+pconfig:
+  id: 'nf-core-rnastructurome-count-progression'
+  title: 'nf-core/rnastructurome Count Progression'
+headers:
+  mapped_reads_pre_dedup:
+    title: 'Mapped Reads Pre-dedup'
+    format: '{:,.0f}'
+  mapped_reads_post_dedup:
+    title: 'Mapped Reads Post-dedup'
+    format: '{:,.0f}'
+  reads_removed_by_dedup:
+    title: 'Reads Removed by Dedup'
+    format: '{:,.0f}'
+  pct_removed_by_dedup:
+    title: 'Dedup Removed %'
+    format: '{:,.2f}'
+    suffix: '%'
+  rfcount_covered_transcripts:
+    title: 'RFCOUNT Covered Transcripts'
+    format: '{:,.0f}'
+data:
+${dataBlock}
+"""
 }
 
 /*

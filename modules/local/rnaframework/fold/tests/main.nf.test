@@ -31,7 +31,8 @@ nextflow_process {
         then {
             assertAll(
                 { assert process.success },
-                { assert process.out.structures.size() == 1 }
+                { assert process.out.structures.size() == 1 },
+                { assert process.out.log.size() == 1 }
             )
         }
     }
@@ -60,7 +61,8 @@ nextflow_process {
         then {
             assertAll(
                 { assert process.success },
-                { assert process.out.structures.size() == 1 }
+                { assert process.out.structures.size() == 1 },
+                { assert process.out.log.size() == 1 }
             )
         }
     }

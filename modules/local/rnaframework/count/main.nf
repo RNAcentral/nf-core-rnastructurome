@@ -15,6 +15,8 @@ process RNAFRAMEWORK_RFCOUNT {
     tuple val(meta), path("*_rfcount/index.rci"), optional: true, emit: index_rci
     tuple val(meta), path("*_rfcount/error.out"), optional: true, emit: error_log
     tuple val(meta), path("*_rfcount/samtools.log"), optional: true, emit: samtools_log
+    tuple val(meta), path("*_rfcount/rfcount.log"), optional: true, emit: rfcount_log
+    tuple val(meta), path("*_rfcount/*.rfcount_summary.tsv"), optional: true, emit: summary
     tuple val(meta), path("*_rfcount/plots/*.pdf"), optional: true, emit: plots
     path "versions.yml"          , emit: versions
 
@@ -45,9 +47,18 @@ process RNAFRAMEWORK_RFCOUNT {
         -o ${outdir} \\
         -ow \\
         ${args} \\
-        "${prefix}:${bam}" 2>&1 | tee rfcount.log
+        "${prefix}:${bam}" 2>&1 | tee ${outdir}/rfcount.log
 
-    covered=\$(sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' rfcount.log | awk -v sample="${prefix}" '\$1 == sample {print \$2}' | tail -n 1)
+    cleaned_log="${outdir}/rfcount.clean.log"
+    sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' ${outdir}/rfcount.log | tr '\\r' '\\n' > "\${cleaned_log}"
+
+    summary_tsv="${outdir}/${prefix}.rfcount_summary.tsv"
+    {
+        printf 'sample\\tcovered\\tpct_a_stops\\tpct_c_stops\\tpct_g_stops\\tpct_u_stops\\n'
+        awk -v sample="${prefix}" '\$1 == sample {print \$1 "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6}' "\${cleaned_log}" | tail -n 1
+    } > "\${summary_tsv}"
+
+    covered=\$(awk -F'\\t' 'NR == 2 {print \$2}' "\${summary_tsv}")
     case "\${covered}" in
         ''|*[!0-9]*)
             ;;
@@ -57,6 +68,8 @@ process RNAFRAMEWORK_RFCOUNT {
             exit 1
             ;;
     esac
+
+    rm -f "\${cleaned_log}"
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -74,6 +87,11 @@ process RNAFRAMEWORK_RFCOUNT {
     touch ${outdir}/index.rci
     touch ${outdir}/error.out
     touch ${outdir}/samtools.log
+    touch ${outdir}/rfcount.log
+    cat <<-END_SUMMARY > ${outdir}/${prefix}.rfcount_summary.tsv
+    sample	covered	pct_a_stops	pct_c_stops	pct_g_stops	pct_u_stops
+    ${prefix}	1	25.0	25.0	25.0	25.0
+    END_SUMMARY
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

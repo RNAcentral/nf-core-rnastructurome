@@ -1132,7 +1132,8 @@ def cutadaptAdaptersMultiqc(rows) {
         def sample_id = row[0]
         def metrics = row[1]
         def metricLines = metrics.collect { key, value ->
-            "    ${key}: '${value.toString().replace(\"'\", \"''\")}'"
+            def rendered = value.toString().replace("'", "''")
+            "    ${key}: '${rendered}'"
         }.join('\n')
         "  ${sample_id}:\n${metricLines}"
     }.join('\n')

@@ -1158,9 +1158,19 @@ def cutadaptAdaptersMultiqc(rows) {
     } else {
         rowEntries = []
     }
-    def orderedRows = rowEntries.sort { a, b -> a[0].toString() <=> b[0].toString() }
+    def orderedRows = rowEntries
+        .findResults { row ->
+            if (row instanceof Map.Entry && row.value instanceof Map) {
+                return [row.key.toString(), row.value]
+            }
+            if (row instanceof List && row.size() == 2 && row[1] instanceof Map) {
+                return [row[0].toString(), row[1]]
+            }
+            null
+        }
+        .sort { a, b -> a[0] <=> b[0] }
     def dataBlock = orderedRows.collect { row ->
-        def sample_id = row[0].toString()
+        def sample_id = row[0]
         def metrics = row[1]
         def metricLines = metrics.collect { key, value ->
             def rendered = value.toString().replace("'", "''")

@@ -16,11 +16,11 @@ report_section_order:
   "nf-core-rnastructurome-cutadapt-adapters":
     order: 1103
   "nf-core-rnastructurome-summary":
-    order: 1200
+    order: 3
   software_versions:
-    order: 1201
+    order: 2
   "nf-core-rnastructurome-methods-description":
-    order: 1202
+    order: 1
 
 export_plots: true
 

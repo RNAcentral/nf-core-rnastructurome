@@ -3,7 +3,7 @@ process RNAFRAMEWORK_RFFOLD {
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
-    container 'ghcr.io/vicbeg/rnaframework:2.9.6-r1'
+    container 'ghcr.io/vicbeg/rnaframework:2.9.6-r2-runtime'
 
     input:
     tuple val(meta), path(xml)

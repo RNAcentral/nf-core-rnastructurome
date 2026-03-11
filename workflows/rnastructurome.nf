@@ -807,6 +807,7 @@ def parseRfcountCoveredTranscripts(summaryFile) {
 def filterSummaryParams(summaryParams) {
     def hiddenKeys = [
         'ensembl_species_map',
+        'genomes',
         'container',
         'configFiles',
         'launchDir',
@@ -822,9 +823,6 @@ def filterSummaryParams(summaryParams) {
 
         def filteredSection = sectionParams.findAll { key, value ->
             if (hiddenKeys.contains(key)) {
-                return false
-            }
-            if (key == 'genomes' && value instanceof Map && value.isEmpty()) {
                 return false
             }
             true
@@ -847,27 +845,31 @@ def addModuleOptionsSummary(summaryParams, params) {
 
 def parseInputSamplesheetMetadata(inputPath) {
     if (!inputPath) {
-        return [principles: [], conditions: [], methods: []]
+        return [principles: [], conditions: [], methods: [], adapter_5p: [], adapter_3p: []]
     }
 
     def inputFile = file(inputPath.toString())
     if (!inputFile.exists()) {
-        return [principles: [], conditions: [], methods: []]
+        return [principles: [], conditions: [], methods: [], adapter_5p: [], adapter_3p: []]
     }
 
     def lines = inputFile.readLines().findAll { line -> line?.trim() }
     if (lines.size() < 2) {
-        return [principles: [], conditions: [], methods: []]
+        return [principles: [], conditions: [], methods: [], adapter_5p: [], adapter_3p: []]
     }
 
     def header = lines[0].split(',', -1)*.trim()
     def principleIdx = header.indexOf('principle')
     def conditionIdx = header.indexOf('condition')
     def methodIdx = header.indexOf('method')
+    def adapter5pIdx = header.indexOf('adapter_5p')
+    def adapter3pIdx = header.indexOf('adapter_3p')
 
     def principles = []
     def conditions = []
     def methods = []
+    def adapter5p = []
+    def adapter3p = []
 
     lines.drop(1).each { line ->
         def fields = line.split(',', -1)
@@ -883,18 +885,37 @@ def parseInputSamplesheetMetadata(inputPath) {
             def value = fields[methodIdx]?.trim()
             if (value) methods << value
         }
+        if (adapter5pIdx >= 0 && adapter5pIdx < fields.size()) {
+            def value = fields[adapter5pIdx]?.trim()
+            if (value) adapter5p << value
+        }
+        if (adapter3pIdx >= 0 && adapter3pIdx < fields.size()) {
+            def value = fields[adapter3pIdx]?.trim()
+            if (value) adapter3p << value
+        }
     }
 
     [
         principles: principles.unique(),
         conditions: conditions.collect { it.toLowerCase() }.unique(),
-        methods   : methods.unique()
+        methods   : methods.unique(),
+        adapter_5p: adapter5p.unique(),
+        adapter_3p: adapter3p.unique()
     ]
 }
 
 def buildModuleOptionsSummary(params, sampleMetadata) {
     def moduleOptions = [:]
     def principles = (sampleMetadata.principles ?: []).collect { it.toLowerCase() }
+    def adapter5p = (sampleMetadata.adapter_5p ?: []).findAll { it?.trim() }
+    def adapter3p = (sampleMetadata.adapter_3p ?: []).findAll { it?.trim() }
+
+    if (!adapter5p.isEmpty()) {
+        moduleOptions['cutadapt_adapter_5p'] = adapter5p.join(', ')
+    }
+    if (!adapter3p.isEmpty()) {
+        moduleOptions['cutadapt_adapter_3p'] = adapter3p.join(', ')
+    }
 
     if (!principles || principles.contains('rt-stop')) {
         moduleOptions['bowtie_rtstop_aligner'] = 'bowtie'
@@ -1141,6 +1162,8 @@ def cutadaptAdaptersMultiqc(rows) {
     """id: 'nf-core-rnastructurome-cutadapt-adapters'
 section_name: 'Cutadapt: Adapter Sequences Used'
 description: 'Adapter sequences used for trimming in each sample.'
+parent_id: 'cutadapt'
+parent_name: 'Cutadapt'
 plot_type: 'table'
 pconfig:
   id: 'nf-core-rnastructurome-cutadapt-adapters'

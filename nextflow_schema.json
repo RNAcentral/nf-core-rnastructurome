@@ -558,7 +558,7 @@
                 "rffold_vienna_rnaplot": {
                     "type": "string",
                     "description": "Path to ViennaRNA `RNAplot` binary for SVG structure plots in rf-fold (`-vrp`).",
-                    "default": "/usr/bin/RNAplot"
+                    "default": "RNAplot"
                 },
                 "rnaframework_container": {
                     "type": "string",
@@ -567,8 +567,8 @@
                 },
                 "rnaframework_r_path": {
                     "type": "string",
-                    "description": "Path to R executable inside the RNAframework container (used by rf-count, rf-norm, and rf-fold plotting).",
-                    "default": "/usr/bin/R"
+                    "description": "Path to R executable used by rf-count, rf-norm, and rf-fold plotting.",
+                    "default": "R"
                 }
             }
         },

@@ -188,7 +188,7 @@ Key parameters:
 Notes:
 
 - For `method=DMS`, pipeline defaults `--rfnorm_reactive_bases` to `AC` if unset.
-- `R` must exist at `--rnaframework_r_path` inside the RNAframework container.
+- `R` must exist at `--rnaframework_r_path` in the active runtime environment.
 
 ### `rf-fold`
 
@@ -196,7 +196,7 @@ Default behavior:
 
 - Dot-bracket output is default (CT is optional).
 - Graphical fold reports are always enabled (`-g -R`).
-- RNAplot overlays are enabled via `-vrp` (default `/usr/bin/RNAplot`).
+- RNAplot overlays are enabled via `-vrp` (default `RNAplot`).
 - Dotplot generation is controlled by `--rffold_dotplot` (default `true`).
 
 Supported pipeline options and mapped flags:
@@ -220,8 +220,8 @@ Replicate handling:
 
 ### RNAframework runtime settings
 
-- `--rnaframework_container`: RNAframework image for local modules
-- `--rnaframework_r_path`: `R` binary inside that container
+- `--rnaframework_container`: RNAframework image for local modules when using container-based profiles
+- `--rnaframework_r_path`: `R` binary used by RNAframework plotting
 
 ## Outputs at a glance
 

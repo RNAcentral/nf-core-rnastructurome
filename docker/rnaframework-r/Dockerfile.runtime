@@ -64,6 +64,7 @@ RUN ln -sf ${RF_RUNTIME_ROOT}/bin/perl /usr/local/bin/perl \
     && ln -sf ${RF_RUNTIME_ROOT}/bin/ProbabilityPlot /usr/local/bin/ProbabilityPlot \
     && ln -sf ${RF_RUNTIME_ROOT}/bin/MaxExpect /usr/local/bin/MaxExpect \
     && ln -sf ${RF_RUNTIME_ROOT}/bin/MaxExpect-smp /usr/local/bin/MaxExpect-smp \
+    && ln -sf /home/ubuntu/rnaframework/lib /usr/local/bin/lib \
     && ln -sf /home/ubuntu/rnaframework/rf-count /usr/local/bin/rf-count \
     && ln -sf /home/ubuntu/rnaframework/rf-norm /usr/local/bin/rf-norm \
     && ln -sf /home/ubuntu/rnaframework/rf-fold /usr/local/bin/rf-fold \

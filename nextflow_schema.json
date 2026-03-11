@@ -568,7 +568,7 @@
                 "rnaframework_r_path": {
                     "type": "string",
                     "description": "Path to R executable used by rf-count, rf-norm, and rf-fold plotting.",
-                    "default": "R"
+                    "default": "/usr/bin/R"
                 }
             }
         },

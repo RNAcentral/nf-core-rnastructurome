@@ -188,7 +188,7 @@ Key parameters:
 Notes:
 
 - For `method=DMS`, pipeline defaults `--rfnorm_reactive_bases` to `AC` if unset.
-- `R` must exist at `--rnaframework_r_path` in the active runtime environment.
+- `R` must exist at `--rnaframework_r_path` in the active runtime environment. The default is `/usr/bin/R`.
 
 ### `rf-fold`
 
@@ -221,7 +221,7 @@ Replicate handling:
 ### RNAframework runtime settings
 
 - `--rnaframework_container`: RNAframework image for local modules when using container-based profiles
-- `--rnaframework_r_path`: `R` binary used by RNAframework plotting
+- `--rnaframework_r_path`: `R` binary used by RNAframework plotting (default: `/usr/bin/R`)
 
 ## Outputs at a glance
 

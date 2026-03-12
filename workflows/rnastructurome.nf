@@ -83,6 +83,9 @@ workflow RNASTRUCTUROME {
     }
 
     def ch_reads_for_umi = principle_branches.rtstop.mix(principle_branches.map)
+    def ch_reads_with_umi = ch_reads_for_umi.filter { meta, _reads ->
+        (meta.umi_pattern ?: '').toString().trim()
+    }
     def ch_reads_without_umi = ch_reads_for_umi.filter { meta, _reads ->
         !((meta.umi_pattern ?: '').toString().trim())
     }
@@ -91,7 +94,7 @@ workflow RNASTRUCTUROME {
     // MODULE: umi_tools extract — extract UMIs from reads
     //
     UMITOOLS_EXTRACT (
-        ch_reads_for_umi
+        ch_reads_with_umi
     )
 
     def ch_reads_after_umi = ch_reads_without_umi.mix(UMITOOLS_EXTRACT.out.reads)
@@ -263,13 +266,15 @@ workflow RNASTRUCTUROME {
 
     ch_rtstop_reference_fasta = principle_branches.rtstop
         .map { meta, _reads -> [ resolveReferenceKey(meta, params.organism), true ] }
-        .join(ch_reference_fasta_keyed)
-        .map { _reference_key, _flag, ref_tuple -> ref_tuple }
+        .combine(ch_reference_fasta_keyed)
+        .filter { sample_tuple, ref_tuple -> sample_tuple[0] == ref_tuple[0] }
+        .map { sample_tuple, ref_tuple -> ref_tuple[1] }
 
     ch_map_reference_fasta = principle_branches.map
         .map { meta, _reads -> [ resolveReferenceKey(meta, params.organism), true ] }
-        .join(ch_reference_fasta_keyed)
-        .map { _reference_key, _flag, ref_tuple -> ref_tuple }
+        .combine(ch_reference_fasta_keyed)
+        .filter { sample_tuple, ref_tuple -> sample_tuple[0] == ref_tuple[0] }
+        .map { sample_tuple, ref_tuple -> ref_tuple[1] }
 
     //
     // MODULE: bowtie-build — build Bowtie v1 indices for RT-stop alignment
@@ -292,16 +297,20 @@ workflow RNASTRUCTUROME {
         .map { meta, reads ->
             [ resolveReferenceKey(meta, params.organism), [meta, reads] ]
         }
-        .join(ch_bowtie_index_keyed)
-        .map { _reference_key, reads_tuple, index_tuple -> [ reads_tuple, index_tuple ] }
+        .combine(ch_bowtie_index_keyed)
+        .filter { reads_tuple, index_tuple -> reads_tuple[0] == index_tuple[0] }
+        .map { reads_tuple, index_tuple -> [ reads_tuple[1], index_tuple[1] ] }
 
     ch_map_align_inputs = CUTADAPT_MAP.out.reads
         .map { meta, reads ->
             [ resolveReferenceKey(meta, params.organism), [meta, reads] ]
         }
-        .join(ch_bowtie2_index_keyed)
-        .join(ch_reference_fasta_keyed)
-        .map { _reference_key, reads_tuple, index_tuple, fasta_tuple -> [ reads_tuple, index_tuple, fasta_tuple ] }
+        .combine(ch_bowtie2_index_keyed)
+        .filter { reads_tuple, index_tuple -> reads_tuple[0] == index_tuple[0] }
+        .map { reads_tuple, index_tuple -> [ reads_tuple[0], reads_tuple[1], index_tuple[1] ] }
+        .combine(ch_reference_fasta_keyed)
+        .filter { joined_tuple, fasta_tuple -> joined_tuple[0] == fasta_tuple[0] }
+        .map { joined_tuple, fasta_tuple -> [ joined_tuple[1], joined_tuple[2], fasta_tuple[1] ] }
 
     //
     // MODULE: bowtie align — align RT-stop reads with Bowtie v1
@@ -331,10 +340,9 @@ workflow RNASTRUCTUROME {
         .map { meta, bam ->
             [ resolveReferenceKey(meta, params.organism), [meta, bam] ]
         }
-        .join(ch_reference_fasta_keyed)
-        .map { _reference_key, bam_tuple, fasta_tuple ->
-            [ bam_tuple, fasta_tuple ]
-        }
+        .combine(ch_reference_fasta_keyed)
+        .filter { bam_tuple, fasta_tuple -> bam_tuple[0] == fasta_tuple[0] }
+        .map { bam_tuple, fasta_tuple -> [ bam_tuple[1], fasta_tuple[1] ] }
 
     //
     // MODULE: samtools sort — coordinate-sort mapped BAMs
@@ -398,10 +406,9 @@ workflow RNASTRUCTUROME {
         .map { meta, bam, _bai ->
             [ resolveReferenceKey(meta, params.organism), [meta, bam] ]
         }
-        .join(ch_reference_fasta_fai_keyed)
-        .map { _reference_key, bam_tuple, fasta_fai_tuple ->
-            [ bam_tuple, fasta_fai_tuple ]
-        }
+        .combine(ch_reference_fasta_fai_keyed)
+        .filter { bam_tuple, fasta_fai_tuple -> bam_tuple[0] == fasta_fai_tuple[0] }
+        .map { bam_tuple, fasta_fai_tuple -> [ bam_tuple[1], fasta_fai_tuple[1] ] }
 
     //
     // MODULE: samtools markdup — deduplicate non-UMI BAMs
@@ -433,10 +440,9 @@ workflow RNASTRUCTUROME {
         .map { meta, bam, bai ->
             [ resolveReferenceKey(meta, params.organism), [meta, bam, bai] ]
         }
-        .join(ch_reference_fasta_keyed)
-        .map { _reference_key, bam_bai_tuple, fasta_tuple ->
-            [ bam_bai_tuple, fasta_tuple ]
-        }
+        .combine(ch_reference_fasta_keyed)
+        .filter { bam_bai_tuple, fasta_tuple -> bam_bai_tuple[0] == fasta_tuple[0] }
+        .map { bam_bai_tuple, fasta_tuple -> [ bam_bai_tuple[1], fasta_tuple[1] ] }
 
     //
     // MODULE: samtools stats — collect alignment statistics
@@ -499,10 +505,9 @@ workflow RNASTRUCTUROME {
         .map { meta, bam, bai ->
             [ resolveReferenceKey(meta, params.organism), [meta, bam, bai] ]
         }
-        .join(ch_reference_fasta_keyed)
-        .map { _reference_key, bam_bai_tuple, fasta_tuple ->
-            [ bam_bai_tuple, fasta_tuple ]
-        }
+        .combine(ch_reference_fasta_keyed)
+        .filter { bam_bai_tuple, fasta_tuple -> bam_bai_tuple[0] == fasta_tuple[0] }
+        .map { bam_bai_tuple, fasta_tuple -> [ bam_bai_tuple[1], fasta_tuple[1] ] }
 
     RNAFRAMEWORK_RFCOUNT (
         ch_rfcount_with_fasta.map { bam_bai_tuple, _fasta_tuple -> bam_bai_tuple },
@@ -683,10 +688,9 @@ workflow RNASTRUCTUROME {
         .map { meta, fold_dir ->
             [ resolveReferenceKey(meta, params.organism), [meta, fold_dir] ]
         }
-        .join(ch_reference_gtf_keyed)
-        .map { _reference_key, fold_tuple, gtf_tuple ->
-            [ fold_tuple[0], fold_tuple[1], gtf_tuple[1] ]
-        }
+        .combine(ch_reference_gtf_keyed)
+        .filter { fold_tuple, gtf_tuple -> fold_tuple[0] == gtf_tuple[0] }
+        .map { fold_tuple, gtf_tuple -> [ fold_tuple[1][0], fold_tuple[1][1], gtf_tuple[1][1] ] }
 
     RNAFRAMEWORK_DOTPLOT2BP (
         ch_dotplot_bp_input

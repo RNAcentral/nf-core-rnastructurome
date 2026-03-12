@@ -18,8 +18,6 @@ process ENSEMBL_TRANSCRIPTOME {
     task.ext.when == null || task.ext.when
 
     script:
-    def release = (params.ensembl_release ?: 'current').toString()
-    def baseUrl = (params.ensembl_base_url ?: 'https://ftp.ensembl.org/pub').toString()
     """
     python - <<'PY'
 import gzip
@@ -30,8 +28,8 @@ import sys
 import urllib.request
 
 species = "${ensembl_species}".strip().lower().replace(" ", "_")
-release = "${release}".strip()
-base_url = "${baseUrl}".rstrip("/")
+release = "${(params.ensembl_release ?: 'current').toString()}".strip()
+base_url = "${(params.ensembl_base_url ?: 'https://ftp.ensembl.org/pub').toString()}".rstrip("/")
 out_gz = "${meta.id}.transcripts.fa.gz"
 warnings_log = "ensembl_warnings.log"
 
@@ -103,7 +101,7 @@ PY
 
     printf '%s\n' \
         '"${task.process}":' \
-        '    ensembl_release: "${release}"' \
+        '    ensembl_release: "${(params.ensembl_release ?: 'current').toString()}"' \
         > versions.yml
     """
 
@@ -111,8 +109,11 @@ PY
     """
     touch ${meta.id}.transcripts.fa.gz
     printf '%s\n' \
+        "stub://${meta.id}.transcripts.fa.gz" \
+        > ensembl_source_urls.txt
+    printf '%s\n' \
         '"${task.process}":' \
-        '    ensembl_release: "${release}"' \
+        '    ensembl_release: "${(params.ensembl_release ?: 'current').toString()}"' \
         > versions.yml
     """
 }

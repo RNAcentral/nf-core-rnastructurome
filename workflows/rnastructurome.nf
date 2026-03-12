@@ -28,7 +28,9 @@ include { RNAFRAMEWORK_RFCOUNT  } from '../modules/local/rnaframework/count/main
 include { RNAFRAMEWORK_RFNORM   } from '../modules/local/rnaframework/norm/main'
 include { RNAFRAMEWORK_RFFOLD   } from '../modules/local/rnaframework/fold/main'
 include { ENSEMBL_TRANSCRIPTOME } from '../modules/local/ensembl/transcriptome/main'
+include { ENSEMBL_GTF          } from '../modules/local/ensembl/gtf/main'
 include { FASTA_SORT            } from '../modules/local/fasta/sort/main'
+include { RNAFRAMEWORK_DOTPLOT2BP } from '../modules/local/rnaframework/dotplot2bp/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -205,7 +207,51 @@ workflow RNASTRUCTUROME {
     )
     ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
 
+    ch_reference_gtf_requests = ch_samplesheet_for_branching
+        .map { meta, _reads ->
+            def reference_key = resolveReferenceKey(meta, params.organism)
+            def genome_entry = params.genomes?.containsKey(reference_key) ? params.genomes[reference_key] : null
+            def gtf_path = genome_entry?.gtf
+            if (gtf_path) {
+                return [ reference_key, "path::${gtf_path.toString()}" ]
+            }
+
+            def ensembl_species = genome_entry?.ensembl_species ?: params.ensembl_species_map?.get(reference_key) ?: (reference_key ==~ /[a-z]+_[a-z0-9_]+/ ? reference_key : null)
+            if (!ensembl_species) {
+                error("No GTF annotation resolved for reference '${reference_key}'. Set params.genomes['${reference_key}'].gtf or params.genomes['${reference_key}'].ensembl_species.")
+            }
+            [ reference_key, "ensembl::${ensembl_species.toLowerCase()}" ]
+        }
+        .groupTuple()
+        .map { reference_key, resolutions ->
+            def unique_resolutions = resolutions.unique()
+            if (unique_resolutions.size() != 1) {
+                error("Multiple GTF reference resolutions were detected for reference '${reference_key}': ${unique_resolutions.join(', ')}")
+            }
+            [ reference_key, unique_resolutions[0] ]
+        }
+
+    ch_reference_gtf_local = ch_reference_gtf_requests
+        .filter { _reference_key, resolution -> resolution.startsWith('path::') }
+        .map { reference_key, resolution ->
+            def gtf_path = resolution - 'path::'
+            [ [ id: reference_key, organism: reference_key ], file(gtf_path, checkIfExists: true) ]
+        }
+
+    ch_reference_gtf_ensembl_input = ch_reference_gtf_requests
+        .filter { _reference_key, resolution -> resolution.startsWith('ensembl::') }
+        .map { reference_key, resolution ->
+            def ensembl_species = resolution - 'ensembl::'
+            [ [ id: reference_key, organism: reference_key, ensembl_species: ensembl_species ], ensembl_species ]
+        }
+
+    ENSEMBL_GTF (
+        ch_reference_gtf_ensembl_input
+    )
+    ch_versions = ch_versions.mix(ENSEMBL_GTF.out.versions)
+
     ch_all_reference_fasta = ch_reference_local.mix(ENSEMBL_TRANSCRIPTOME.out.fasta)
+    ch_all_reference_gtf   = ch_reference_gtf_local.mix(ENSEMBL_GTF.out.gtf)
 
     FASTA_SORT (
         ch_all_reference_fasta
@@ -213,6 +259,7 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(FASTA_SORT.out.versions)
 
     ch_reference_fasta_keyed = FASTA_SORT.out.fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+    ch_reference_gtf_keyed   = ch_all_reference_gtf.map { meta, gtf -> [ meta.id.toString(), [meta, gtf] ] }
 
     ch_rtstop_reference_fasta = principle_branches.rtstop
         .map { meta, _reads -> [ resolveReferenceKey(meta, params.organism), true ] }
@@ -632,6 +679,19 @@ workflow RNASTRUCTUROME {
         ch_fold_input
     )
 
+    def ch_dotplot_bp_input = RNAFRAMEWORK_RFFOLD.out.structures
+        .map { meta, fold_dir ->
+            [ resolveReferenceKey(meta, params.organism), [meta, fold_dir] ]
+        }
+        .join(ch_reference_gtf_keyed)
+        .map { _reference_key, fold_tuple, gtf_tuple ->
+            [ fold_tuple[0], fold_tuple[1], gtf_tuple[1] ]
+        }
+
+    RNAFRAMEWORK_DOTPLOT2BP (
+        ch_dotplot_bp_input
+    )
+
     // Add RNAframework outputs to MultiQC input collection.
     ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFCOUNT.out.rc.collect { rc_file -> rc_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFCOUNT.out.plots.collect { plot_file -> plot_file[1] })
@@ -643,6 +703,7 @@ workflow RNASTRUCTUROME {
     ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_RFCOUNT.out.versions.first())
     ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
     ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
+    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
 
     //
     // MODULE: multiqc — aggregate pipeline quality control reports
@@ -720,6 +781,7 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
+    ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
 
     //
     // Collate and save software versions
@@ -756,6 +818,7 @@ workflow RNASTRUCTUROME {
     mapped_bam       = ch_dedup_bam                       // channel: [ val(meta), path(bam) ]
     normalized_xml   = RNAFRAMEWORK_RFNORM.out.xml        // channel: [ val(meta), path(xml) ]
     fold_structures  = RNAFRAMEWORK_RFFOLD.out.structures // channel: [ val(meta), path(dir) ]
+    fold_bp          = RNAFRAMEWORK_DOTPLOT2BP.out.bp     // channel: [ val(meta), path(bp) ]
     versions         = ch_versions                        // channel: [ path(versions.yml) ]
 
 }

@@ -1,6 +1,6 @@
 process RNAFRAMEWORK_RFCOUNT {
     tag "$meta.id"
-    label 'process_medium'
+    label 'process_high'
 
     conda "${moduleDir}/environment.yml"
     container 'ghcr.io/vicbeg/rnaframework:2.9.6-r2-runtime'

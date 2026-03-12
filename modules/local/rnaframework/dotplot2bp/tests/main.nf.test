@@ -1,0 +1,50 @@
+nextflow_process {
+
+    name "Test Process RNAFRAMEWORK_DOTPLOT2BP"
+    script "../main.nf"
+    process "RNAFRAMEWORK_DOTPLOT2BP"
+
+    tag "modules"
+    tag "modules_local"
+    tag "rnaframework"
+    tag "rnaframework/dotplot2bp"
+    config "./nextflow.config"
+
+    test("converts plus and minus strand dotplots into genomic bp arcs") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'fold_group', organism:'Homo sapiens' ],
+                    file("${projectDir}/modules/local/rnaframework/dotplot2bp/tests/fixtures/fold_group", type: 'dir', checkIfExists: true),
+                    file("${projectDir}/modules/local/rnaframework/dotplot2bp/tests/fixtures/annotation.gtf", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                {
+                    assert process.out.bp.size() == 1
+                    def bpFiles = process.out.bp[0][1]
+                    assert bpFiles.size() == 2
+                    def plusPath = bpFiles.find { it.toString().endsWith('TXPLUS.bp') }
+                    def lines = path(plusPath).text.readLines().findAll { !it.startsWith('color') }
+                    assert lines.contains('chr1\t101\t101\t202\t202\t0')
+                    assert lines.contains('chr1\t102\t102\t201\t201\t0')
+                },
+                {
+                    def bpFiles = process.out.bp[0][1]
+                    def minusPath = bpFiles.find { it.toString().endsWith('TXMINUS.bp') }
+                    def lines = path(minusPath).text.readLines().findAll { !it.startsWith('color') }
+                    assert lines.contains('chr2\t100\t100\t202\t202\t0')
+                    assert lines.contains('chr2\t101\t101\t201\t201\t0')
+                },
+                { assert path(process.out.versions[0]).text.contains('python:') }
+            )
+        }
+    }
+}

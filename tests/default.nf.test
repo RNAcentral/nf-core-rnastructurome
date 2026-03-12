@@ -9,6 +9,7 @@ nextflow_pipeline {
         when {
             params {
                 outdir = "$outputDir"
+                input = "${projectDir}/tests/data/samplesheet.nft.csv"
             }
         }
 

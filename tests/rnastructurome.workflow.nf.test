@@ -20,11 +20,11 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'rtstop_sample', sample_id:'rtstop_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true ],
+                        [ id:'rtstop_sample', sample_id:'rtstop_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'rtstop_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'map_sample', sample_id:'map_sample', principle:'MaP', organism:'Mus musculus', single_end:true ],
+                        [ id:'map_sample', sample_id:'map_sample', principle:'MaP', organism:'Mus musculus', single_end:true, cell_line:'map_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
@@ -58,7 +58,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'reseq_rtstop', sample_id:'reseq_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:false ],
+                        [ id:'reseq_rtstop', sample_id:'reseq_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:false, cell_line:'reseq_line', replicate:'rep1', condition:'treated' ],
                         [
                             file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true),
                             file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true),
@@ -94,7 +94,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'organism_sample', sample_id:'organism_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true ],
+                        [ id:'organism_sample', sample_id:'organism_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'organism_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
@@ -155,11 +155,11 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'rtstop_manual', sample_id:'rtstop_manual', principle:'RT-stop', organism:'Homo sapiens', single_end:true ],
+                        [ id:'rtstop_manual', sample_id:'rtstop_manual', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'rtstop_manual_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'map_manual', sample_id:'map_manual', principle:'MaP', organism:'Mus musculus', single_end:true ],
+                        [ id:'map_manual', sample_id:'map_manual', principle:'MaP', organism:'Mus musculus', single_end:true, cell_line:'map_manual_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
@@ -196,7 +196,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'map_rfcount', sample_id:'map_rfcount', principle:'MaP', organism:'Homo sapiens', single_end:true ],
+                        [ id:'map_rfcount', sample_id:'map_rfcount', principle:'MaP', organism:'Homo sapiens', single_end:true, cell_line:'map_rfcount_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )

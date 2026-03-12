@@ -8,7 +8,13 @@ It is intended for the case where:
 - you already have BAMs on Codon
 - you want a small reproducible test subset without relying on host `samtools`
 
-The script runs `samtools view` inside a Docker container, finds three transcripts spanning low, medium, and high alignment support, extracts read names for those transcripts, and writes subset FASTQ files plus a replacement samplesheet.
+The script runs `samtools view` from one of three backends:
+
+- host `samtools` on `PATH`
+- `singularity exec` / `apptainer exec`
+- Docker
+
+It then finds three transcripts spanning low, medium, and high alignment support, extracts read names for those transcripts, and writes subset FASTQ files plus a replacement samplesheet.
 
 ## What a sample is
 
@@ -35,11 +41,20 @@ The script does not infer sample identity from BAM filenames alone. The sample k
 
 ## Requirements
 
-- Docker available on the machine where you run the script
+- one of:
+  - host `samtools`
+  - Singularity / Apptainer
+  - Docker
 - transcript-aligned BAMs, one per samplesheet row
 - original FASTQ paths still present in the samplesheet
 
-Default container image:
+Default Singularity image:
+
+```text
+ /hps/nobackup/agb/rnacentral/chemprob/nf-core-rnastructurome/work/singularity/img/depot.galaxyproject.org-singularity-samtools-1.22.1--h96c455f_0.img
+```
+
+Default Docker image:
 
 ```text
 docker.io/rnastructurome/rnaframework:2.9.6-r1
@@ -53,6 +68,8 @@ python bin/subset_fastq_from_bam.py \
   --bam treated_rep1=/path/to/treated_rep1.bam \
   --bam untreated_rep1=/path/to/untreated_rep1.bam \
   --bam denatured_rep1=/path/to/denatured_rep1.bam \
+  --container-engine singularity \
+  --singularity-image /path/to/samtools.img \
   --output-dir /path/to/subset_out
 ```
 
@@ -89,7 +106,9 @@ python bin/subset_fastq_from_bam.py \
 - `--quantiles`: low, medium, high selection quantiles
 - `--transcript`: manually specify exactly three transcripts instead of auto-selection
 - `--sample-id-column`: preferred samplesheet key column; default is `sample_id`, with fallback to `sample`
+- `--container-engine`: `auto`, `host`, `singularity`, or `docker`
 - `--container-image`: Docker image used to provide `samtools`
+- `--singularity-image`: Singularity / Apptainer image used to provide `samtools`
 - `--container-platform`: Docker platform, default `linux/amd64`
 
 ## Output files

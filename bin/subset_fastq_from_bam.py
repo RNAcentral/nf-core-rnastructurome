@@ -5,6 +5,7 @@ import argparse
 import csv
 import gzip
 import os
+import shutil
 import subprocess
 import sys
 from collections import defaultdict
@@ -13,6 +14,7 @@ from typing import Iterable
 
 
 DEFAULT_CONTAINER_IMAGE = "docker.io/rnastructurome/rnaframework:2.9.6-r1"
+DEFAULT_SINGULARITY_IMAGE = "/hps/nobackup/agb/rnacentral/chemprob/nf-core-rnastructurome/work/singularity/img/depot.galaxyproject.org-singularity-samtools-1.22.1--h96c455f_0.img"
 DEFAULT_QUANTILES = (0.2, 0.5, 0.8)
 SAM_FLAG_UNMAPPED = 0x4
 SAM_FLAG_SECONDARY = 0x100
@@ -54,9 +56,20 @@ def parse_args() -> argparse.Namespace:
         help="Ascending quantiles used to choose low, medium, and high coverage transcripts.",
     )
     parser.add_argument(
+        "--container-engine",
+        default="auto",
+        choices=("auto", "host", "singularity", "docker"),
+        help="How to run samtools: use host PATH, singularity, docker, or auto-detect. Default: auto",
+    )
+    parser.add_argument(
         "--container-image",
         default=DEFAULT_CONTAINER_IMAGE,
-        help=f"Container image used to run samtools. Default: {DEFAULT_CONTAINER_IMAGE}",
+        help=f"Docker image used to run samtools. Default: {DEFAULT_CONTAINER_IMAGE}",
+    )
+    parser.add_argument(
+        "--singularity-image",
+        default=DEFAULT_SINGULARITY_IMAGE,
+        help=f"Singularity/Apptainer image used to run samtools. Default: {DEFAULT_SINGULARITY_IMAGE}",
     )
     parser.add_argument(
         "--container-platform",
@@ -72,17 +85,31 @@ def parse_args() -> argparse.Namespace:
 
 
 class SamtoolsRunner:
-    def __init__(self, image: str, platform: str) -> None:
+    def __init__(self, engine: str, image: str, singularity_image: str, platform: str) -> None:
+        self.engine = engine
         self.image = image
+        self.singularity_image = singularity_image
         self.platform = platform
         self.uid = os.getuid()
         self.gid = os.getgid()
 
-    def view_lines(self, bam_path: Path) -> Iterable[str]:
+    def _resolve_command(self, bam_path: Path) -> list[str]:
         bam_path = bam_path.resolve()
+        if self.engine == "host":
+            return ["samtools", "view", str(bam_path)]
+
+        if self.engine == "singularity":
+            image_path = Path(self.singularity_image).expanduser().resolve()
+            if not image_path.exists():
+                raise FileNotFoundError(f"Singularity image not found: {image_path}")
+            singularity_bin = shutil.which("singularity") or shutil.which("apptainer")
+            if singularity_bin is None:
+                raise RuntimeError("Neither singularity nor apptainer is available on PATH.")
+            return [singularity_bin, "exec", str(image_path), "samtools", "view", str(bam_path)]
+
         parent = bam_path.parent
         container_bam = f"/input/{bam_path.name}"
-        command = [
+        return [
             "docker",
             "run",
             "--rm",
@@ -97,6 +124,9 @@ class SamtoolsRunner:
             "view",
             container_bam,
         ]
+
+    def view_lines(self, bam_path: Path) -> Iterable[str]:
+        command = self._resolve_command(bam_path)
         process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
@@ -113,6 +143,18 @@ class SamtoolsRunner:
             return_code = process.wait()
             if return_code != 0:
                 raise RuntimeError(f"samtools view failed for {bam_path}: {stderr.strip()}")
+
+
+def resolve_container_engine(requested: str) -> str:
+    if requested != "auto":
+        return requested
+    if shutil.which("samtools"):
+        return "host"
+    if shutil.which("singularity") or shutil.which("apptainer"):
+        return "singularity"
+    if shutil.which("docker"):
+        return "docker"
+    raise RuntimeError("No usable samtools backend found. Install samtools, singularity/apptainer, or docker.")
 
 
 def parse_bam_mappings(values: list[str]) -> dict[str, Path]:
@@ -403,7 +445,8 @@ def main() -> int:
     if unknown_bams:
         raise ValueError(f"--bam mappings not present in samplesheet: {', '.join(unknown_bams)}")
 
-    samtools = SamtoolsRunner(args.container_image, args.container_platform)
+    engine = resolve_container_engine(args.container_engine)
+    samtools = SamtoolsRunner(engine, args.container_image, args.singularity_image, args.container_platform)
     counts_by_sample = scan_alignment_counts(samtools, bam_by_sample)
     aggregated_counts = aggregate_counts(counts_by_sample)
     if args.transcript:

@@ -14,7 +14,7 @@ The script runs `samtools view` from one of three backends:
 - `singularity exec` / `apptainer exec`
 - Docker
 
-It then finds three transcripts spanning low, medium, and high alignment support, extracts read names for those transcripts, and writes subset FASTQ files plus a replacement samplesheet.
+It then finds the three highest-coverage transcripts by aggregate BAM support, extracts read names for those transcripts, and writes subset FASTQ files plus a replacement samplesheet.
 
 ## What a sample is
 
@@ -38,6 +38,8 @@ untreated_rep1,untreated_rep1,/data/untreated.fastq.gz,,HEK293T,untreated,1,Homo
 - each sample must have its own BAM mapping via `--bam sample_key=/path/to/sample.bam`
 
 The script does not infer sample identity from BAM filenames alone. The sample key in `--bam` must match the samplesheet row key.
+
+If the read names in the raw FASTQs do not match the BAM QNAMEs, use `--reads` to point at the exact processed FASTQs that went into alignment.
 
 ## Requirements
 
@@ -73,13 +75,29 @@ python bin/subset_fastq_from_bam.py \
   --output-dir /path/to/subset_out
 ```
 
+### Using alignment-input FASTQs instead of raw FASTQs
+
+If UMIs or preprocessing changed read names before alignment, override the samplesheet FASTQ paths with the exact FASTQs that fed `bowtie` / `bowtie2`:
+
+```bash
+python bin/subset_fastq_from_bam.py \
+  --samplesheet /path/to/raw_samplesheet.csv \
+  --bam GSM4333255=/path/to/GSM4333255.sorted.bam \
+  --bam GSM4333256=/path/to/GSM4333256.sorted.bam \
+  --reads GSM4333255=/path/to/HEK293T_treated_r1.trim.fastq.gz \
+  --reads GSM4333256=/path/to/HEK293T_untreated_r1.trim.fastq.gz \
+  --container-engine singularity \
+  --singularity-image /path/to/samtools.img \
+  --output-dir /path/to/subset_out
+```
+
 ## How transcript selection works
 
 Default behavior:
 
 1. Count primary BAM alignments per transcript across all supplied BAMs
 2. Drop transcripts below `--min-alignments` (default: `10`)
-3. Choose three transcripts at low, medium, and high quantiles (default: `0.2,0.5,0.8`)
+3. Choose the top 3 transcripts by aggregate alignment count
 4. Collect read names from each BAM for those transcripts
 5. Filter each sample FASTQ to only those reads
 
@@ -101,9 +119,9 @@ python bin/subset_fastq_from_bam.py \
 
 - `--samplesheet`: existing pipeline samplesheet CSV
 - `--bam SAMPLE=/path/to/sample.bam`: BAM for one samplesheet row; repeat once per sample
+- `--reads SAMPLE=/path/to/read1.fastq.gz[,/path/to/read2.fastq.gz]`: override samplesheet FASTQs with the exact reads used for alignment
 - `--output-dir`: destination for subset FASTQs and reports
 - `--min-alignments`: minimum per-transcript alignment count for auto-selection
-- `--quantiles`: low, medium, high selection quantiles
 - `--transcript`: manually specify exactly three transcripts instead of auto-selection
 - `--sample-id-column`: preferred samplesheet key column; default is `sample_id`, with fallback to `sample`
 - `--container-engine`: `auto`, `host`, `singularity`, or `docker`

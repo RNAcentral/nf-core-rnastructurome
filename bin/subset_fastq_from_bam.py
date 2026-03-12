@@ -15,7 +15,6 @@ from typing import Iterable
 
 DEFAULT_CONTAINER_IMAGE = "docker.io/rnastructurome/rnaframework:2.9.6-r1"
 DEFAULT_SINGULARITY_IMAGE = "/hps/nobackup/agb/rnacentral/chemprob/nf-core-rnastructurome/work/singularity/img/depot.galaxyproject.org-singularity-samtools-1.22.1--h96c455f_0.img"
-DEFAULT_QUANTILES = (0.2, 0.5, 0.8)
 SAM_FLAG_UNMAPPED = 0x4
 SAM_FLAG_SECONDARY = 0x100
 SAM_FLAG_DUPLICATE = 0x400
@@ -37,6 +36,16 @@ def parse_args() -> argparse.Namespace:
         metavar="SAMPLE=/path/to/sample.bam",
         help="Map a samplesheet sample or sample_id value to a transcript-aligned BAM. Repeat per sample.",
     )
+    parser.add_argument(
+        "--reads",
+        action="append",
+        default=[],
+        metavar="SAMPLE=/path/to/read1.fastq.gz[,/path/to/read2.fastq.gz]",
+        help=(
+            "Override samplesheet FASTQ path(s) for one sample. Use this to subset the exact FASTQs that went into "
+            "alignment, for example published cutadapt outputs. Repeat per sample."
+        ),
+    )
     parser.add_argument("--output-dir", required=True, help="Directory for subset FASTQs and reports.")
     parser.add_argument(
         "--min-alignments",
@@ -49,11 +58,6 @@ def parse_args() -> argparse.Namespace:
         action="append",
         default=[],
         help="Override transcript selection. Repeat exactly three times to skip auto-selection.",
-    )
-    parser.add_argument(
-        "--quantiles",
-        default="0.2,0.5,0.8",
-        help="Ascending quantiles used to choose low, medium, and high coverage transcripts.",
     )
     parser.add_argument(
         "--container-engine",
@@ -175,16 +179,32 @@ def parse_bam_mappings(values: list[str]) -> dict[str, Path]:
     return mappings
 
 
-def parse_quantiles(raw: str) -> tuple[float, float, float]:
-    parts = [part.strip() for part in raw.split(",") if part.strip()]
-    if len(parts) != 3:
-        raise ValueError("--quantiles must contain exactly three comma-separated values.")
-    quantiles = tuple(float(part) for part in parts)
-    if any(value < 0.0 or value > 1.0 for value in quantiles):
-        raise ValueError("--quantiles values must be between 0 and 1.")
-    if list(quantiles) != sorted(quantiles):
-        raise ValueError("--quantiles must be in ascending order.")
-    return quantiles  # type: ignore[return-value]
+def parse_read_overrides(values: list[str]) -> dict[str, tuple[Path, Path | None]]:
+    overrides: dict[str, tuple[Path, Path | None]] = {}
+    for value in values:
+        if "=" not in value:
+            raise ValueError(
+                f"Invalid --reads value '{value}'. Expected SAMPLE=/path/to/read1.fastq.gz[,/path/to/read2.fastq.gz]"
+            )
+        sample_key, reads_raw = value.split("=", 1)
+        sample_key = sample_key.strip()
+        read_parts = [part.strip() for part in reads_raw.split(",")]
+        if not sample_key:
+            raise ValueError(f"Invalid --reads value '{value}'. Sample key is empty.")
+        if sample_key in overrides:
+            raise ValueError(f"Duplicate --reads mapping for sample '{sample_key}'.")
+        if len(read_parts) == 0 or len(read_parts) > 2 or not read_parts[0]:
+            raise ValueError(
+                f"Invalid --reads value '{value}'. Expected one or two comma-separated FASTQ paths."
+            )
+        read1 = Path(read_parts[0]).expanduser().resolve()
+        read2 = Path(read_parts[1]).expanduser().resolve() if len(read_parts) == 2 and read_parts[1] else None
+        if not read1.exists():
+            raise FileNotFoundError(f"FASTQ override path does not exist for sample '{sample_key}': {read1}")
+        if read2 is not None and not read2.exists():
+            raise FileNotFoundError(f"FASTQ override path does not exist for sample '{sample_key}': {read2}")
+        overrides[sample_key] = (read1, read2)
+    return overrides
 
 
 def load_samplesheet(path: Path, sample_id_column: str) -> tuple[list[dict[str, str]], str]:
@@ -259,29 +279,19 @@ def aggregate_counts(counts_by_sample: dict[str, dict[str, int]]) -> dict[str, i
 def choose_transcripts(
     aggregated_counts: dict[str, int],
     min_alignments: int,
-    quantiles: tuple[float, float, float],
 ) -> list[tuple[str, int, str]]:
     eligible = sorted(
         ((transcript, count) for transcript, count in aggregated_counts.items() if count >= min_alignments),
-        key=lambda item: (item[1], item[0]),
+        key=lambda item: (-item[1], item[0]),
     )
     if len(eligible) < 3:
         raise ValueError(
             f"Need at least 3 transcripts with >= {min_alignments} alignments, found {len(eligible)}."
         )
-
-    labels = ("low", "medium", "high")
-    selected: list[tuple[str, int, str]] = []
-    used: set[str] = set()
-    last_index = len(eligible) - 1
-    for label, quantile in zip(labels, quantiles):
-        target_index = min(max(round(last_index * quantile), 0), last_index)
-        candidate_indices = sorted(range(len(eligible)), key=lambda idx: (abs(idx - target_index), idx))
-        chosen_index = next(idx for idx in candidate_indices if eligible[idx][0] not in used)
-        transcript, count = eligible[chosen_index]
-        selected.append((transcript, count, label))
-        used.add(transcript)
-    return selected
+    return [
+        (transcript, count, f"top_{rank}")
+        for rank, (transcript, count) in enumerate(eligible[:3], start=1)
+    ]
 
 
 def validate_requested_transcripts(requested: list[str], aggregated_counts: dict[str, int]) -> list[tuple[str, int, str]]:
@@ -294,7 +304,7 @@ def validate_requested_transcripts(requested: list[str], aggregated_counts: dict
         unique.append(transcript)
     if len(unique) != 3:
         raise ValueError("Provide exactly three --transcript values when overriding auto-selection.")
-    labels = ("low", "medium", "high")
+    labels = ("top_1", "top_2", "top_3")
     selected: list[tuple[str, int, str]] = []
     for label, transcript in zip(labels, unique):
         if transcript not in aggregated_counts:
@@ -434,9 +444,8 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     bam_by_sample = parse_bam_mappings(args.bam)
+    reads_override_by_sample = parse_read_overrides(args.reads)
     rows, match_column = load_samplesheet(samplesheet_path, args.sample_id_column)
-    quantiles = parse_quantiles(args.quantiles)
-
     sample_keys = {row[match_column] for row in rows}
     missing_bams = sorted(sample_keys - set(bam_by_sample))
     unknown_bams = sorted(set(bam_by_sample) - sample_keys)
@@ -444,6 +453,9 @@ def main() -> int:
         raise ValueError(f"Missing --bam mappings for samples: {', '.join(missing_bams)}")
     if unknown_bams:
         raise ValueError(f"--bam mappings not present in samplesheet: {', '.join(unknown_bams)}")
+    unknown_reads = sorted(set(reads_override_by_sample) - sample_keys)
+    if unknown_reads:
+        raise ValueError(f"--reads mappings not present in samplesheet: {', '.join(unknown_reads)}")
 
     engine = resolve_container_engine(args.container_engine)
     samtools = SamtoolsRunner(engine, args.container_image, args.singularity_image, args.container_platform)
@@ -452,7 +464,7 @@ def main() -> int:
     if args.transcript:
         selected_transcripts = validate_requested_transcripts(args.transcript, aggregated_counts)
     else:
-        selected_transcripts = choose_transcripts(aggregated_counts, args.min_alignments, quantiles)
+        selected_transcripts = choose_transcripts(aggregated_counts, args.min_alignments)
 
     selected_names_by_sample, transcript_counts_by_sample = collect_read_names(
         samtools,
@@ -464,18 +476,29 @@ def main() -> int:
     subset_counts: dict[str, dict[str, int]] = {}
     for row in rows:
         sample_key = row[match_column]
-        fastq_1 = Path(row["fastq_1"]).expanduser().resolve()
-        if not fastq_1.exists():
-            raise FileNotFoundError(f"FASTQ path does not exist for sample '{sample_key}': {fastq_1}")
+        override_reads = reads_override_by_sample.get(sample_key)
+        if override_reads:
+            fastq_1, fastq_2_override = override_reads
+        else:
+            fastq_1 = Path(row["fastq_1"]).expanduser().resolve()
+            fastq_2_override = None
+            if not fastq_1.exists():
+                raise FileNotFoundError(f"FASTQ path does not exist for sample '{sample_key}': {fastq_1}")
         selected_names = selected_names_by_sample[sample_key]
         fastq_1_output = build_output_fastq_path(output_dir, sample_key, fastq_1, "R1")
         fastq_1_written = subset_fastq(fastq_1, fastq_1_output, selected_names)
         sample_output_paths = {"fastq_1": fastq_1_output}
 
         fastq_2_written = 0
-        fastq_2_value = row.get("fastq_2", "").strip()
-        if fastq_2_value:
-            fastq_2 = Path(fastq_2_value).expanduser().resolve()
+        fastq_2_path: Path | None = None
+        if override_reads:
+            fastq_2_path = fastq_2_override
+        else:
+            fastq_2_value = row.get("fastq_2", "").strip()
+            if fastq_2_value:
+                fastq_2_path = Path(fastq_2_value).expanduser().resolve()
+        if fastq_2_path is not None:
+            fastq_2 = fastq_2_path
             if not fastq_2.exists():
                 raise FileNotFoundError(f"FASTQ path does not exist for sample '{sample_key}': {fastq_2}")
             fastq_2_output = build_output_fastq_path(output_dir, sample_key, fastq_2, "R2")

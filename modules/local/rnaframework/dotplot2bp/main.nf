@@ -43,6 +43,13 @@ def normalize_transcript_id(transcript_id: str) -> str:
         return yeast_isoform_pattern.sub(r'\\1_\\2\\3', transcript_id)
     return transcript_id
 
+def transcript_id_candidates(transcript_id: str):
+    normalized = normalize_transcript_id(transcript_id)
+    candidates = [normalized]
+    if "." in normalized:
+        candidates.append(normalized.split(".", 1)[0])
+    return candidates
+
 def open_text(path: Path):
     if path.suffix == ".gz":
         return gzip.open(path, "rt", encoding="utf-8")
@@ -91,10 +98,20 @@ bp_count = 0
 
 for dotplot_path in dotplot_paths:
     transcript_id = normalize_transcript_id(dotplot_path.stem)
-    entry = transcripts.get(transcript_id)
+    entry = None
+    matched_transcript_id = None
+    for candidate in transcript_id_candidates(transcript_id):
+        entry = transcripts.get(candidate)
+        if entry:
+            matched_transcript_id = candidate
+            break
     if not entry:
         warnings.append(f"Missing transcript_id '{transcript_id}' in annotation for {dotplot_path.name}; skipping.")
         continue
+    if matched_transcript_id != transcript_id:
+        warnings.append(
+            f"Matched dotplot transcript_id '{transcript_id}' to annotation transcript_id '{matched_transcript_id}' for {dotplot_path.name}."
+        )
 
     output_path = dotplot_out_dir / f"{transcript_id}.bp"
     with dotplot_path.open("rt", encoding="utf-8") as reader, output_path.open("wt", encoding="utf-8") as writer:

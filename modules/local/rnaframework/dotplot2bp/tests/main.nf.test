@@ -30,11 +30,17 @@ nextflow_process {
                 {
                     assert process.out.bp.size() == 1
                     def bpFiles = process.out.bp[0][1]
-                    assert bpFiles.size() == 2
+                    assert bpFiles.size() == 3
                     def plusPath = bpFiles.find { it.toString().endsWith('TXPLUS.bp') }
                     def lines = path(plusPath).text.readLines().findAll { !it.startsWith('color') }
                     assert lines.contains('chr1\t101\t101\t202\t202\t0')
                     assert lines.contains('chr1\t102\t102\t201\t201\t0')
+                },
+                {
+                    def bpFiles = process.out.bp[0][1]
+                    def versionedPath = bpFiles.find { it.toString().endsWith('TXPLUS.2.bp') }
+                    def lines = path(versionedPath).text.readLines().findAll { !it.startsWith('color') }
+                    assert lines.contains('chr1\t101\t101\t102\t102\t0')
                 },
                 {
                     def bpFiles = process.out.bp[0][1]

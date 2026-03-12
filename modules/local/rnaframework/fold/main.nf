@@ -45,21 +45,51 @@ process RNAFRAMEWORK_RFFOLD {
         exit 1
     fi
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        rnaframework: \$(rf-fold 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")
-    END_VERSIONS
+    missing_list="${prefix}_fold/missing_transcripts.txt"
+    warning_log="${prefix}_fold/partial_fold_warning.log"
+
+    expected_list=\$(mktemp)
+    folded_list=\$(mktemp)
+
+    printf '%s\n' ${xml_list} | sed 's#.*/##; s#\\.xml\$##' | sort -u >| "\${expected_list}"
+    find ${prefix}_fold/structures -maxdepth 1 -type f -name '*.db' -print \\
+        | sed 's#.*/##; s#\\.db\$##' | sort -u >| "\${folded_list}"
+    comm -23 "\${expected_list}" "\${folded_list}" >| "\${missing_list}"
+
+    expected_count=\$(wc -l < "\${expected_list}" | tr -d ' ')
+    folded_count=\$(wc -l < "\${folded_list}" | tr -d ' ')
+    missing_count=\$(wc -l < "\${missing_list}" | tr -d ' ')
+
+    if [[ "\${missing_count}" -gt 0 ]]; then
+        {
+            printf '[RNAFRAMEWORK_RFFOLD] Partial fold output detected.\\n'
+            printf '[RNAFRAMEWORK_RFFOLD] Expected %s transcript(s), folded %s, missing %s.\\n' "\${expected_count}" "\${folded_count}" "\${missing_count}"
+            printf '[RNAFRAMEWORK_RFFOLD] Missing transcript IDs:\\n'
+            cat "\${missing_list}"
+        } | tee "\${warning_log}" >&2
+    else
+        rm -f "\${warning_log}" "\${missing_list}"
+    fi
+
+    rm -f "\${expected_list}" "\${folded_list}"
+
+    printf '"%s":\n    rnaframework: %s\n' \\
+        "${task.process}" \\
+        "\$(rf-fold 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")" \\
+        > versions.yml
     """
 
     stub:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     mkdir -p ${prefix}_fold
+    mkdir -p ${prefix}_fold/structures
     touch ${prefix}_fold/rffold.log
+    touch ${prefix}_fold/structures/example.db
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        rnaframework: \$(rf-fold 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")
-    END_VERSIONS
+    printf '"%s":\n    rnaframework: %s\n' \\
+        "${task.process}" \\
+        "\$(rf-fold 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")" \\
+        > versions.yml
     """
 }

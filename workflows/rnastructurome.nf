@@ -65,8 +65,12 @@ workflow RNASTRUCTUROME {
         ch_samplesheet_checked
     )
 
-    def ch_pretrim_fastqc_input = CAT_FASTQ.out.reads
-    def ch_samplesheet_for_branching = CAT_FASTQ.out.reads
+    def ch_pretrim_reads_split = CAT_FASTQ.out.reads.multiMap { meta, reads ->
+        fastqc: [ meta, reads ]
+        branching: [ meta, reads ]
+    }
+    def ch_pretrim_fastqc_input = ch_pretrim_reads_split.fastqc.map { meta, reads -> [ meta, reads ] }
+    def ch_samplesheet_for_branching = ch_pretrim_reads_split.branching.map { meta, reads -> [ meta, reads ] }
 
     //
     // MODULE: fastqc (pre-trim) — quality control on raw reads
@@ -120,7 +124,19 @@ workflow RNASTRUCTUROME {
         ch_map_reads_for_cutadapt
     )
 
-    ch_trimmed_reads = CUTADAPT_RTSTOP.out.reads.mix(CUTADAPT_MAP.out.reads)
+    def ch_rtstop_trimmed_split = CUTADAPT_RTSTOP.out.reads.multiMap { meta, reads ->
+        align: [ meta, reads ]
+        fastqc: [ meta, reads ]
+    }
+    def ch_map_trimmed_split = CUTADAPT_MAP.out.reads.multiMap { meta, reads ->
+        align: [ meta, reads ]
+        fastqc: [ meta, reads ]
+    }
+    def ch_rtstop_trimmed_for_align = ch_rtstop_trimmed_split.align.map { meta, reads -> [ meta, reads ] }
+    def ch_rtstop_trimmed_for_fastqc = ch_rtstop_trimmed_split.fastqc.map { meta, reads -> [ meta, reads ] }
+    def ch_map_trimmed_for_align = ch_map_trimmed_split.align.map { meta, reads -> [ meta, reads ] }
+    def ch_map_trimmed_for_fastqc = ch_map_trimmed_split.fastqc.map { meta, reads -> [ meta, reads ] }
+    ch_trimmed_reads = ch_rtstop_trimmed_for_fastqc.mix(ch_map_trimmed_for_fastqc)
     ch_multiqc_files = ch_multiqc_files.mix(CUTADAPT_RTSTOP.out.log.collect { cutadapt_log -> cutadapt_log[1] })
     ch_multiqc_files = ch_multiqc_files.mix(CUTADAPT_MAP.out.log.collect { cutadapt_log -> cutadapt_log[1] })
     def ch_cutadapt_adapter_mqc = CUTADAPT_RTSTOP.out.log
@@ -263,18 +279,46 @@ workflow RNASTRUCTUROME {
 
     ch_reference_fasta_keyed = FASTA_SORT.out.fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
     ch_reference_gtf_keyed   = ch_all_reference_gtf.map { meta, gtf -> [ meta.id.toString(), [meta, gtf] ] }
+    ch_reference_fasta_map   = ch_reference_fasta_keyed
+        .map { key, value -> [ (key): value ] }
+        .collect()
+        .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
+    ch_reference_gtf_map     = ch_reference_gtf_keyed
+        .map { key, value -> [ (key): value ] }
+        .collect()
+        .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
 
     ch_rtstop_reference_fasta = principle_branches.rtstop
-        .map { meta, _reads -> [ resolveReferenceKey(meta, params.organism), true ] }
-        .combine(ch_reference_fasta_keyed)
-        .filter { sample_tuple, ref_tuple -> sample_tuple[0] == ref_tuple[0] }
-        .map { sample_tuple, ref_tuple -> ref_tuple[1] }
+        .combine(ch_reference_fasta_map)
+        .map { combined ->
+            def meta = combined[0]
+            def ref_map = combined[2]
+            def reference_key = resolveReferenceKey(meta, params.organism)
+            def ref_tuple = ref_map[reference_key]
+            if (!ref_tuple) {
+                error("No transcript FASTA resolved for reference '${reference_key}' in RT-stop branch.")
+            }
+            ref_tuple
+        }
+        .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+        .groupTuple()
+        .map { _reference_key, entries -> entries[0] }
 
     ch_map_reference_fasta = principle_branches.map
-        .map { meta, _reads -> [ resolveReferenceKey(meta, params.organism), true ] }
-        .combine(ch_reference_fasta_keyed)
-        .filter { sample_tuple, ref_tuple -> sample_tuple[0] == ref_tuple[0] }
-        .map { sample_tuple, ref_tuple -> ref_tuple[1] }
+        .combine(ch_reference_fasta_map)
+        .map { combined ->
+            def meta = combined[0]
+            def ref_map = combined[2]
+            def reference_key = resolveReferenceKey(meta, params.organism)
+            def ref_tuple = ref_map[reference_key]
+            if (!ref_tuple) {
+                error("No transcript FASTA resolved for reference '${reference_key}' in MaP branch.")
+            }
+            ref_tuple
+        }
+        .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+        .groupTuple()
+        .map { _reference_key, entries -> entries[0] }
 
     //
     // MODULE: bowtie-build — build Bowtie v1 indices for RT-stop alignment
@@ -292,42 +336,79 @@ workflow RNASTRUCTUROME {
 
     ch_bowtie_index_keyed = BOWTIE_BUILD.out.index.map { meta, index -> [ meta.id.toString(), [meta, index] ] }
     ch_bowtie2_index_keyed = BOWTIE2_BUILD.out.index.map { meta, index -> [ meta.id.toString(), [meta, index] ] }
+    ch_bowtie_index_map = ch_bowtie_index_keyed
+        .map { key, value -> [ (key): value ] }
+        .collect()
+        .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
+    ch_bowtie2_index_map = ch_bowtie2_index_keyed
+        .map { key, value -> [ (key): value ] }
+        .collect()
+        .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
 
-    ch_rtstop_align_inputs = CUTADAPT_RTSTOP.out.reads
-        .map { meta, reads ->
-            [ resolveReferenceKey(meta, params.organism), [meta, reads] ]
+    ch_rtstop_align_inputs = ch_rtstop_trimmed_for_align
+        .combine(ch_bowtie_index_map)
+        .map { combined ->
+            def meta = combined[0]
+            def reads = combined[1]
+            def index_map = combined[2]
+            def reference_key = resolveReferenceKey(meta, params.organism)
+            def index_tuple = index_map[reference_key]
+            if (!index_tuple) {
+                error("No Bowtie index resolved for reference '${reference_key}'.")
+            }
+            [ [meta, reads], index_tuple ]
         }
-        .combine(ch_bowtie_index_keyed)
-        .filter { reads_tuple, index_tuple -> reads_tuple[0] == index_tuple[0] }
-        .map { reads_tuple, index_tuple -> [ reads_tuple[1], index_tuple[1] ] }
 
-    ch_map_align_inputs = CUTADAPT_MAP.out.reads
-        .map { meta, reads ->
-            [ resolveReferenceKey(meta, params.organism), [meta, reads] ]
+    ch_map_align_inputs = ch_map_trimmed_for_align
+        .combine(ch_bowtie2_index_map)
+        .combine(ch_reference_fasta_map)
+        .map { combined ->
+            def meta = combined[0]
+            def reads = combined[1]
+            def index_map = combined[2]
+            def ref_map = combined[3]
+            def reference_key = resolveReferenceKey(meta, params.organism)
+            def index_tuple = index_map[reference_key]
+            def fasta_tuple = ref_map[reference_key]
+            if (!index_tuple) {
+                error("No Bowtie2 index resolved for reference '${reference_key}'.")
+            }
+            if (!fasta_tuple) {
+                error("No transcript FASTA resolved for reference '${reference_key}' in MaP alignment.")
+            }
+            [ [meta, reads], index_tuple, fasta_tuple ]
         }
-        .combine(ch_bowtie2_index_keyed)
-        .filter { reads_tuple, index_tuple -> reads_tuple[0] == index_tuple[0] }
-        .map { reads_tuple, index_tuple -> [ reads_tuple[0], reads_tuple[1], index_tuple[1] ] }
-        .combine(ch_reference_fasta_keyed)
-        .filter { joined_tuple, fasta_tuple -> joined_tuple[0] == fasta_tuple[0] }
-        .map { joined_tuple, fasta_tuple -> [ joined_tuple[1], joined_tuple[2], fasta_tuple[1] ] }
 
     //
     // MODULE: bowtie align — align RT-stop reads with Bowtie v1
     //
+    def ch_rtstop_align_split = ch_rtstop_align_inputs.multiMap { entry ->
+        reads: entry[0]
+        index: entry[1]
+    }
+    def ch_rtstop_align_reads = ch_rtstop_align_split.reads
+    def ch_rtstop_align_index = ch_rtstop_align_split.index
     BOWTIE_ALIGN (
-        ch_rtstop_align_inputs.map { reads_tuple, _index_tuple -> reads_tuple },
-        ch_rtstop_align_inputs.map { _reads_tuple, index_tuple -> index_tuple },
+        ch_rtstop_align_reads,
+        ch_rtstop_align_index,
         false
     )
 
     //
     // MODULE: bowtie2 align — align MaP reads with Bowtie2
     //
+    def ch_map_align_split = ch_map_align_inputs.multiMap { entry ->
+        reads: entry[0]
+        index: entry[1]
+        fasta: entry[2]
+    }
+    def ch_map_align_reads = ch_map_align_split.reads
+    def ch_map_align_index = ch_map_align_split.index
+    def ch_map_align_fasta = ch_map_align_split.fasta
     BOWTIE2_ALIGN (
-        ch_map_align_inputs.map { reads_tuple, _index_tuple, _fasta_tuple -> reads_tuple },
-        ch_map_align_inputs.map { _reads_tuple, index_tuple, _fasta_tuple -> index_tuple },
-        ch_map_align_inputs.map { _reads_tuple, _index_tuple, fasta_tuple -> fasta_tuple },
+        ch_map_align_reads,
+        ch_map_align_index,
+        ch_map_align_fasta,
         false,
         false
     )
@@ -337,19 +418,31 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { bowtie2_log -> bowtie2_log[1] })
 
     ch_sorted_inputs = ch_mapped_bam
-        .map { meta, bam ->
-            [ resolveReferenceKey(meta, params.organism), [meta, bam] ]
+        .combine(ch_reference_fasta_map)
+        .map { combined ->
+            def meta = combined[0]
+            def bam = combined[1]
+            def ref_map = combined[2]
+            def reference_key = resolveReferenceKey(meta, params.organism)
+            def fasta_tuple = ref_map[reference_key]
+            if (!fasta_tuple) {
+                error("No transcript FASTA resolved for reference '${reference_key}' for samtools sort.")
+            }
+            [ [meta, bam], fasta_tuple ]
         }
-        .combine(ch_reference_fasta_keyed)
-        .filter { bam_tuple, fasta_tuple -> bam_tuple[0] == fasta_tuple[0] }
-        .map { bam_tuple, fasta_tuple -> [ bam_tuple[1], fasta_tuple[1] ] }
 
     //
     // MODULE: samtools sort — coordinate-sort mapped BAMs
     //
+    def ch_sorted_split = ch_sorted_inputs.multiMap { entry ->
+        bam: entry[0]
+        fasta: entry[1]
+    }
+    def ch_sorted_bam_input = ch_sorted_split.bam
+    def ch_sorted_fasta_input = ch_sorted_split.fasta
     SAMTOOLS_SORT (
-        ch_sorted_inputs.map { bam_tuple, _fasta_tuple -> bam_tuple },
-        ch_sorted_inputs.map { _bam_tuple, fasta_tuple -> fasta_tuple },
+        ch_sorted_bam_input,
+        ch_sorted_fasta_input,
         false
     )
 
@@ -401,21 +494,37 @@ workflow RNASTRUCTUROME {
         .map { reference_key, fai_tuple, fasta_tuple ->
             [ reference_key, [fasta_tuple[0], fasta_tuple[1], fai_tuple[1]] ]
         }
+    ch_reference_fasta_fai_map = ch_reference_fasta_fai_keyed
+        .map { key, value -> [ (key): value ] }
+        .collect()
+        .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
 
     ch_markdup_inputs = dedup_branches.non_umi
-        .map { meta, bam, _bai ->
-            [ resolveReferenceKey(meta, params.organism), [meta, bam] ]
+        .combine(ch_reference_fasta_fai_map)
+        .map { combined ->
+            def meta = combined[0]
+            def bam = combined[1]
+            def ref_fai_map = combined[3]
+            def reference_key = resolveReferenceKey(meta, params.organism)
+            def fasta_fai_tuple = ref_fai_map[reference_key]
+            if (!fasta_fai_tuple) {
+                error("No FASTA/FAI tuple resolved for reference '${reference_key}' for markdup.")
+            }
+            [ [meta, bam], fasta_fai_tuple ]
         }
-        .combine(ch_reference_fasta_fai_keyed)
-        .filter { bam_tuple, fasta_fai_tuple -> bam_tuple[0] == fasta_fai_tuple[0] }
-        .map { bam_tuple, fasta_fai_tuple -> [ bam_tuple[1], fasta_fai_tuple[1] ] }
 
     //
     // MODULE: samtools markdup — deduplicate non-UMI BAMs
     //
+    def ch_markdup_split = ch_markdup_inputs.multiMap { entry ->
+        bam: entry[0]
+        ref: entry[1]
+    }
+    def ch_markdup_bam_input = ch_markdup_split.bam
+    def ch_markdup_ref_input = ch_markdup_split.ref
     SAMTOOLS_MARKDUP (
-        ch_markdup_inputs.map { bam_tuple, _fasta_fai_tuple -> bam_tuple },
-        ch_markdup_inputs.map { _bam_tuple, fasta_fai_tuple -> fasta_fai_tuple }
+        ch_markdup_bam_input,
+        ch_markdup_ref_input
     )
 
     ch_dedup_bam = UMITOOLS_DEDUP.out.bam.mix(SAMTOOLS_MARKDUP.out.bam)
@@ -437,19 +546,32 @@ workflow RNASTRUCTUROME {
         }
 
     ch_stats_inputs = ch_markdup_bam_bai
-        .map { meta, bam, bai ->
-            [ resolveReferenceKey(meta, params.organism), [meta, bam, bai] ]
+        .combine(ch_reference_fasta_map)
+        .map { combined ->
+            def meta = combined[0]
+            def bam = combined[1]
+            def bai = combined[2]
+            def ref_map = combined[3]
+            def reference_key = resolveReferenceKey(meta, params.organism)
+            def fasta_tuple = ref_map[reference_key]
+            if (!fasta_tuple) {
+                error("No transcript FASTA resolved for reference '${reference_key}' for samtools stats.")
+            }
+            [ [meta, bam, bai], fasta_tuple ]
         }
-        .combine(ch_reference_fasta_keyed)
-        .filter { bam_bai_tuple, fasta_tuple -> bam_bai_tuple[0] == fasta_tuple[0] }
-        .map { bam_bai_tuple, fasta_tuple -> [ bam_bai_tuple[1], fasta_tuple[1] ] }
 
     //
     // MODULE: samtools stats — collect alignment statistics
     //
+    def ch_stats_split = ch_stats_inputs.multiMap { entry ->
+        bam: entry[0]
+        fasta: entry[1]
+    }
+    def ch_stats_bam_input = ch_stats_split.bam
+    def ch_stats_fasta_input = ch_stats_split.fasta
     SAMTOOLS_STATS (
-        ch_stats_inputs.map { bam_bai_tuple, _fasta_tuple -> bam_bai_tuple },
-        ch_stats_inputs.map { _bam_bai_tuple, fasta_tuple -> fasta_tuple }
+        ch_stats_bam_input,
+        ch_stats_fasta_input
     )
 
     //
@@ -502,16 +624,29 @@ workflow RNASTRUCTUROME {
     // MODULE: rf-count — per-base RT-stop or mutation counts from deduplicated BAM
     //
     ch_rfcount_with_fasta = ch_markdup_bam_bai
-        .map { meta, bam, bai ->
-            [ resolveReferenceKey(meta, params.organism), [meta, bam, bai] ]
+        .combine(ch_reference_fasta_map)
+        .map { combined ->
+            def meta = combined[0]
+            def bam = combined[1]
+            def bai = combined[2]
+            def ref_map = combined[3]
+            def reference_key = resolveReferenceKey(meta, params.organism)
+            def fasta_tuple = ref_map[reference_key]
+            if (!fasta_tuple) {
+                error("No transcript FASTA resolved for reference '${reference_key}' for rf-count.")
+            }
+            [ [meta, bam, bai], fasta_tuple ]
         }
-        .combine(ch_reference_fasta_keyed)
-        .filter { bam_bai_tuple, fasta_tuple -> bam_bai_tuple[0] == fasta_tuple[0] }
-        .map { bam_bai_tuple, fasta_tuple -> [ bam_bai_tuple[1], fasta_tuple[1] ] }
 
+    def ch_rfcount_split = ch_rfcount_with_fasta.multiMap { entry ->
+        bam: entry[0]
+        fasta: entry[1]
+    }
+    def ch_rfcount_bam_input = ch_rfcount_split.bam
+    def ch_rfcount_fasta_input = ch_rfcount_split.fasta
     RNAFRAMEWORK_RFCOUNT (
-        ch_rfcount_with_fasta.map { bam_bai_tuple, _fasta_tuple -> bam_bai_tuple },
-        ch_rfcount_with_fasta.map { _bam_bai_tuple, fasta_tuple -> fasta_tuple }
+        ch_rfcount_bam_input,
+        ch_rfcount_fasta_input
     )
 
     def ch_pre_dedup_mapped_reads = SAMTOOLS_FLAGSTAT_PRE.out.flagstat
@@ -685,12 +820,18 @@ workflow RNASTRUCTUROME {
     )
 
     def ch_dotplot_bp_input = RNAFRAMEWORK_RFFOLD.out.structures
-        .map { meta, fold_dir ->
-            [ resolveReferenceKey(meta, params.organism), [meta, fold_dir] ]
+        .combine(ch_reference_gtf_map)
+        .map { combined ->
+            def meta = combined[0]
+            def fold_dir = combined[1]
+            def gtf_map = combined[2]
+            def reference_key = resolveReferenceKey(meta, params.organism)
+            def gtf_tuple = gtf_map[reference_key]
+            if (!gtf_tuple) {
+                error("No GTF resolved for reference '${reference_key}' for dotplot-to-bp conversion.")
+            }
+            [ meta, fold_dir, gtf_tuple[1] ]
         }
-        .combine(ch_reference_gtf_keyed)
-        .filter { fold_tuple, gtf_tuple -> fold_tuple[0] == gtf_tuple[0] }
-        .map { fold_tuple, gtf_tuple -> [ fold_tuple[1][0], fold_tuple[1][1], gtf_tuple[1][1] ] }
 
     RNAFRAMEWORK_DOTPLOT2BP (
         ch_dotplot_bp_input
@@ -836,9 +977,10 @@ def normaliseEnsemblSpecies(value) {
 }
 
 def resolveReferenceKey(meta, fallbackOrganism) {
-    def rawReference = (meta.organism ?: fallbackOrganism)?.toString()?.trim()
+    def sampleId = meta?.id ?: 'unknown'
+    def rawReference = (meta?.organism ?: fallbackOrganism)?.toString()?.trim()
     if (!rawReference) {
-        error("Missing organism for sample '${meta.id}'. Set organism in the samplesheet or provide --organism.")
+        error("Missing organism for sample '${sampleId}'. Set organism in the samplesheet or provide --organism.")
     }
     if (rawReference.contains(' ')) {
         return normaliseEnsemblSpecies(rawReference)
@@ -1163,8 +1305,12 @@ def countProgressionMultiqc(rows) {
         rowEntries = rows.entrySet().collect { [it.key, it.value] }
     } else if (rows instanceof List && rows.size() == 2 && rows[1] instanceof Map && !(rows[0] instanceof List)) {
         rowEntries = [rows]
-    } else {
+    } else if (rows instanceof List && rows.every { it instanceof List && it.size() == 2 && it[1] instanceof Map }) {
         rowEntries = rows
+    } else if (rows instanceof List && rows.size() % 2 == 0 && rows.collate(2).every { pair -> pair.size() == 2 && pair[1] instanceof Map }) {
+        rowEntries = rows.collate(2)
+    } else {
+        error("Unexpected count progression row structure: ${rows?.getClass()?.name} -> ${rows}")
     }
     def orderedRows = rowEntries.sort { a, b -> a[0] <=> b[0] }
     def dataBlock = orderedRows.collect { row ->

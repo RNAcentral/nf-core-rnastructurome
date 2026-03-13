@@ -11,4 +11,5 @@ null/
 
 assets/testdata/*
 local.config
-nf-metro/
+nf-metro/old
+nf-metro/final

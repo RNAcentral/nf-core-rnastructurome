@@ -25,8 +25,7 @@ process RNAFRAMEWORK_RFNORM {
     def treated_list  = treated instanceof List ? treated.join(' ') : "${treated}"
     """
     export TERM="\${TERM:-xterm}"
-
-    mkdir -p ${prefix}_norm
+    rfnorm_log_tmp="${prefix}.rfnorm.log"
 
     rf-norm \\
         -p ${task.cpus} \\
@@ -35,12 +34,16 @@ process RNAFRAMEWORK_RFNORM {
         ${args} \\
         -t ${treated_list} \\
         ${untreated_arg} \\
-        ${denatured_arg} 2>&1 | tee ${prefix}_norm/rfnorm.log
+        ${denatured_arg} 2>&1 | tee "\${rfnorm_log_tmp}"
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        rnaframework: \$(rf-norm 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")
-    END_VERSIONS
+    if [[ -d ${prefix}_norm ]]; then
+        mv "\${rfnorm_log_tmp}" ${prefix}_norm/rfnorm.log
+    fi
+
+    printf '"%s":\n    rnaframework: %s\n' \\
+        "${task.process}" \\
+        "\$(rf-norm 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")" \\
+        > versions.yml
     """
 
     stub:
@@ -50,9 +53,9 @@ process RNAFRAMEWORK_RFNORM {
     touch ${prefix}_norm/stub.xml
     touch ${prefix}_norm/rfnorm.log
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        rnaframework: \$(rf-norm 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")
-    END_VERSIONS
+    printf '"%s":\n    rnaframework: %s\n' \\
+        "${task.process}" \\
+        "\$(rf-norm 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")" \\
+        > versions.yml
     """
 }

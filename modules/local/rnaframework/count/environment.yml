@@ -3,4 +3,4 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - bioconda::rnaframework=2.9.6
+  - bioconda::rnaframework=2.9.6=pl5321hdfd78af_1

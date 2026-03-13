@@ -1030,7 +1030,7 @@ def filterSummaryParams(summaryParams) {
             return [(sectionName): sectionParams]
         }
 
-        def filteredSection = sectionParams.findAll { key, value ->
+        def filteredSection = sectionParams.findAll { key, _value ->
             if (hiddenKeys.contains(key)) {
                 return false
             }
@@ -1106,7 +1106,7 @@ def parseInputSamplesheetMetadata(inputPath) {
 
     [
         principles: principles.unique(),
-        conditions: conditions.collect { it.toLowerCase() }.unique(),
+        conditions: conditions.collect { condition -> condition.toLowerCase() }.unique(),
         methods   : methods.unique(),
         adapter_5p: adapter5p.unique(),
         adapter_3p: adapter3p.unique()
@@ -1115,9 +1115,9 @@ def parseInputSamplesheetMetadata(inputPath) {
 
 def buildModuleOptionsSummary(params, sampleMetadata) {
     def moduleOptions = [:]
-    def principles = (sampleMetadata.principles ?: []).collect { it.toLowerCase() }
-    def adapter5p = (sampleMetadata.adapter_5p ?: []).findAll { it?.trim() }
-    def adapter3p = (sampleMetadata.adapter_3p ?: []).findAll { it?.trim() }
+    def principles = (sampleMetadata.principles ?: []).collect { principle -> principle.toLowerCase() }
+    def adapter5p = (sampleMetadata.adapter_5p ?: []).findAll { adapter -> adapter?.trim() }
+    def adapter3p = (sampleMetadata.adapter_3p ?: []).findAll { adapter -> adapter?.trim() }
 
     if (!adapter5p.isEmpty()) {
         moduleOptions['cutadapt_adapter_5p'] = adapter5p.join(', ')
@@ -1223,8 +1223,8 @@ def renderBowtie2Args(params) {
 }
 
 def renderRfNormSummary(params, sampleMetadata) {
-    def principles = (sampleMetadata.principles ?: []).collect { it.toLowerCase() }.unique()
-    def conditions = (sampleMetadata.conditions ?: []).collect { it.toLowerCase() }.unique()
+    def principles = (sampleMetadata.principles ?: []).collect { principle -> principle.toLowerCase() }.unique()
+    def conditions = (sampleMetadata.conditions ?: []).collect { condition -> condition.toLowerCase() }.unique()
     if (principles.size() != 1) {
         return [
             rfnorm_mode: 'dynamic (mixed principles across samples)'
@@ -1236,7 +1236,7 @@ def renderRfNormSummary(params, sampleMetadata) {
     def hasDenatured = conditions.contains('denatured')
     def scoringMethod = principle == 'map' ? (hasUntreated ? 3 : 4) : (hasUntreated ? 1 : 2)
     def normMethod = scoringMethod == 2 ? 2 : 3
-    def reactiveBases = params.rfnorm_reactive_bases ?: ((((sampleMetadata.methods ?: []).collect { it.toLowerCase() }.unique() == ['dms']) ? 'AC' : null))
+    def reactiveBases = params.rfnorm_reactive_bases ?: ((((sampleMetadata.methods ?: []).collect { method -> method.toLowerCase() }.unique() == ['dms']) ? 'AC' : null))
 
     def args = [
         "-sm ${scoringMethod}",
@@ -1273,21 +1273,21 @@ def renderRfNormSummary(params, sampleMetadata) {
 }
 
 def rfNormScoringLabel(code) {
-    switch(code as Integer) {
-        case 1: return 'Ding'
-        case 2: return 'Rouskin'
-        case 3: return 'Siegfried'
-        case 4: return 'Zubradt'
-        default: return "unknown"
-    }
+    def labels = [
+        1: 'Ding',
+        2: 'Rouskin',
+        3: 'Siegfried',
+        4: 'Zubradt'
+    ]
+    labels[code as Integer] ?: 'unknown'
 }
 
 def rfNormNormLabel(code) {
-    switch(code as Integer) {
-        case 2: return '90% Winsorizing'
-        case 3: return 'Box-plot normalisation'
-        default: return "unknown"
-    }
+    def labels = [
+        2: '90% Winsorizing',
+        3: 'Box-plot normalisation'
+    ]
+    labels[code as Integer] ?: 'unknown'
 }
 
 def parseCutadaptCommandArg(logFile, optionName) {
@@ -1295,17 +1295,18 @@ def parseCutadaptCommandArg(logFile, optionName) {
     if (!commandLine) {
         return 'none'
     }
-    def matcher = (commandLine =~ /(?:^|\s)${java.util.regex.Pattern.quote(optionName)}\s+(\S+)/)
+    def pattern = java.util.regex.Pattern.compile("(?:^|\\s)${java.util.regex.Pattern.quote(optionName)}\\s+(\\S+)")
+    def matcher = pattern.matcher(commandLine)
     matcher.find() ? matcher.group(1) : 'none'
 }
 
 def countProgressionMultiqc(rows) {
     def rowEntries
     if (rows instanceof Map) {
-        rowEntries = rows.entrySet().collect { [it.key, it.value] }
+        rowEntries = rows.entrySet().collect { entry -> [entry.key, entry.value] }
     } else if (rows instanceof List && rows.size() == 2 && rows[1] instanceof Map && !(rows[0] instanceof List)) {
         rowEntries = [rows]
-    } else if (rows instanceof List && rows.every { it instanceof List && it.size() == 2 && it[1] instanceof Map }) {
+    } else if (rows instanceof List && rows.every { row -> row instanceof List && row.size() == 2 && row[1] instanceof Map }) {
         rowEntries = rows
     } else if (rows instanceof List && rows.size() % 2 == 0 && rows.collate(2).every { pair -> pair.size() == 2 && pair[1] instanceof Map }) {
         rowEntries = rows.collate(2)
@@ -1355,13 +1356,13 @@ ${dataBlock}
 def cutadaptAdaptersMultiqc(rows) {
     def rowEntries
     if (rows instanceof Map) {
-        rowEntries = rows.entrySet().collect { [it.key, it.value] }
+        rowEntries = rows.entrySet().collect { entry -> [entry.key, entry.value] }
     } else if (rows instanceof List && rows.size() == 2 && rows[1] instanceof Map && !(rows[0] instanceof List)) {
         rowEntries = [rows]
     } else if (rows instanceof List) {
         rowEntries = rows.collectMany { row ->
             if (row instanceof Map) {
-                return row.entrySet().collect { [it.key, it.value] }
+                return row.entrySet().collect { entry -> [entry.key, entry.value] }
             }
             if (row instanceof List && row.size() == 2 && row[1] instanceof Map) {
                 return [row]
@@ -1373,9 +1374,6 @@ def cutadaptAdaptersMultiqc(rows) {
     }
     def orderedRows = rowEntries
         .findResults { row ->
-            if (row instanceof Map.Entry && row.value instanceof Map) {
-                return [row.key.toString(), row.value]
-            }
             if (row instanceof List && row.size() == 2 && row[1] instanceof Map) {
                 return [row[0].toString(), row[1]]
             }

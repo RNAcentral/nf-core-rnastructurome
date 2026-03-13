@@ -1,14 +1,13 @@
 nextflow_workflow {
 
-    name "Test Main Workflow NFCORE_RNASTRUCTUROME"
-    script "../main.nf"
-    config "${new File('tests/nextflow.config').absolutePath}"
-    workflow "NFCORE_RNASTRUCTUROME"
-    tag "main"
+    name "Test Workflow RNASTRUCTUROME"
+    script "../rnastructurome.nf"
+    config "./nextflow.config"
+    workflow "RNASTRUCTUROME"
     tag "workflows"
-    tag "nfcore_rnastructurome"
+    tag "rnastructurome"
 
-    test("Runs the named workflow with a minimal RT-stop sample") {
+    test("Runs with a minimal RT-stop sample") {
 
         options "-stub"
 
@@ -21,7 +20,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'main_rtstop', sample_id:'main_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'main_line', replicate:'rep1', condition:'treated' ],
+                        [ id:'workflow_rtstop', sample_id:'workflow_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'workflow_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
@@ -31,7 +30,9 @@ nextflow_workflow {
 
         then {
             assertAll(
-                { assert workflow.success }
+                { assert workflow.success },
+                { assert workflow.out.mapped_bam.size() == 1 },
+                { assert workflow.out.mapped_bam[0][0].id == 'workflow_rtstop' }
             )
         }
     }

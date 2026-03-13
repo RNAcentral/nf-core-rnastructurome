@@ -1,0 +1,43 @@
+nextflow_workflow {
+
+    name "Test Workflow PIPELINE_INITIALISATION"
+    script "../main.nf"
+    config "./nextflow.config"
+    workflow "PIPELINE_INITIALISATION"
+    tag "subworkflows"
+    tag "utils_nfcore_rnastructurome_pipeline"
+    tag "pipeline_initialisation"
+
+    test("Parses the samplesheet into the pipeline channel shape") {
+
+        when {
+            workflow {
+                """
+                def fastq = new File("\${projectDir}/assets/testdata/human/GSM4333255.R1.HEK293T_untreated_r1.trim.subset.fastq.gz").absolutePath
+                def samplesheet = new File("$outputDir/samplesheet_init.csv")
+                samplesheet.text = '''sample,sample_id,fastq_1,fastq_2,method,principle,cell_line,condition,replicate,organism,adapter_3p,adapter_5p,umi_pattern
+init_sample,init_sample,''' + fastq + ''',,SHAPE,RT-stop,initline,treated,1,Homo sapiens,,,
+'''
+                input[0] = false
+                input[1] = false
+                input[2] = true
+                input[3] = []
+                input[4] = "$outputDir"
+                input[5] = samplesheet.toString()
+                input[6] = false
+                input[7] = false
+                input[8] = false
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.samplesheet.size() == 1 },
+                { assert workflow.out.samplesheet[0][0].sample_id == 'init_sample' },
+                { assert workflow.out.samplesheet.every { it[0].single_end } }
+            )
+        }
+    }
+}

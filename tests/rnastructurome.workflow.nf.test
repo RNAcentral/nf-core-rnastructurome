@@ -28,6 +28,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -67,6 +68,7 @@ nextflow_workflow {
                         ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -98,6 +100,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -128,6 +131,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -163,6 +167,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -200,6 +205,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -241,6 +247,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -273,6 +280,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -316,6 +324,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -351,6 +360,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -380,6 +390,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }
@@ -410,6 +421,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
                     ]
                 )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
                 """
             }
         }

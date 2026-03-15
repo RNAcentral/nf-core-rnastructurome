@@ -13,16 +13,16 @@ nextflow_process {
     test("normalizes Latin binomial and downloads transcript FASTA from local Ensembl fixture") {
 
         when {
-            params {
-                ensembl_release = "current"
-                ensembl_base_url = "file://${projectDir}/modules/local/ensembl/transcriptome/tests/fixtures/ensembl/pub"
-            }
             process {
                 """
                 input[0] = Channel.of([
                     [ id:'human_fixture', organism:'Homo sapiens' ],
                     'Homo sapiens'
                 ])
+                input[1] = [
+                    ensembl_release : 'current',
+                    ensembl_base_url: "file://${projectDir}/modules/local/ensembl/transcriptome/tests/fixtures/ensembl/pub"
+                ]
                 """
             }
         }
@@ -46,16 +46,16 @@ nextflow_process {
     test("continues with cdna only and warns when ncrna is absent") {
 
         when {
-            params {
-                ensembl_release = "current"
-                ensembl_base_url = "file://${projectDir}/modules/local/ensembl/transcriptome/tests/fixtures/ensembl/pub"
-            }
             process {
                 """
                 input[0] = Channel.of([
                     [ id:'worm_fixture', organism:'Caenorhabditis elegans' ],
                     'Caenorhabditis elegans'
                 ])
+                input[1] = [
+                    ensembl_release : 'current',
+                    ensembl_base_url: "file://${projectDir}/modules/local/ensembl/transcriptome/tests/fixtures/ensembl/pub"
+                ]
                 """
             }
         }

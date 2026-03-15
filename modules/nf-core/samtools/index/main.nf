@@ -16,9 +16,6 @@ process SAMTOOLS_INDEX {
     tuple val(meta), path("*.crai"), optional:true, emit: crai
     tuple val("${task.process}"), val('samtools'), eval("samtools version | sed '1!d;s/.* //'"), emit: versions_samtools, topic: versions
 
-    when:
-    task.ext.when == null || task.ext.when
-
     script:
     def args = task.ext.args ?: ''
     """

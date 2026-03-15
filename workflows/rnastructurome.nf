@@ -45,9 +45,11 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_rnas
 workflow RNASTRUCTUROME {
 
     take:
-    ch_samplesheet // channel: samplesheet read in from --input
+    ch_samplesheet         // channel: samplesheet read in from --input
+    pipeline_config_input  // map: pipeline configuration captured at the entry workflow
     main:
 
+    def pipeline_config = defaultPipelineConfig() + (pipeline_config_input ?: [:])
     ch_versions = channel.empty()
     ch_multiqc_files = channel.empty()
     def ch_samplesheet_checked = ch_samplesheet.map { meta, reads ->
@@ -181,18 +183,18 @@ workflow RNASTRUCTUROME {
 
     ch_reference_requests = ch_samplesheet_for_branching
         .map { meta, _reads ->
-            def reference_key = resolveReferenceKey(meta, params.organism)
-            if (params.fasta) {
-                return [ reference_key, "path::${params.fasta.toString()}" ]
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+            if (pipeline_config.fasta) {
+                return [ reference_key, "path::${pipeline_config.fasta.toString()}" ]
             }
 
-            def genome_entry = params.genomes?.containsKey(reference_key) ? params.genomes[reference_key] : null
+            def genome_entry = pipeline_config.genomes?.containsKey(reference_key) ? pipeline_config.genomes[reference_key] : null
             def transcript_fasta = genome_entry?.transcript_fasta ?: genome_entry?.transcriptome ?: genome_entry?.cdna
             if (transcript_fasta) {
                 return [ reference_key, "path::${transcript_fasta.toString()}" ]
             }
 
-            def ensembl_species = genome_entry?.ensembl_species ?: params.ensembl_species_map?.get(reference_key) ?: (reference_key ==~ /[a-z]+_[a-z0-9_]+/ ? reference_key : null)
+            def ensembl_species = genome_entry?.ensembl_species ?: pipeline_config.ensembl_species_map?.get(reference_key) ?: (reference_key ==~ /[a-z]+_[a-z0-9_]+/ ? reference_key : null)
             if (!ensembl_species) {
                 error("No transcript FASTA resolved for reference '${reference_key}'. Provide --fasta with a transcript FASTA, set params.genomes['${reference_key}'].transcript_fasta (or transcriptome/cdna), or set params.genomes['${reference_key}'].ensembl_species.")
             }
@@ -222,20 +224,24 @@ workflow RNASTRUCTUROME {
         }
 
     ENSEMBL_TRANSCRIPTOME (
-        ch_reference_ensembl_input
+        ch_reference_ensembl_input,
+        [
+            ensembl_release : pipeline_config.ensembl_release,
+            ensembl_base_url: pipeline_config.ensembl_base_url
+        ]
     )
     ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
 
     ch_reference_gtf_requests = ch_samplesheet_for_branching
         .map { meta, _reads ->
-            def reference_key = resolveReferenceKey(meta, params.organism)
-            def genome_entry = params.genomes?.containsKey(reference_key) ? params.genomes[reference_key] : null
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+            def genome_entry = pipeline_config.genomes?.containsKey(reference_key) ? pipeline_config.genomes[reference_key] : null
             def gtf_path = genome_entry?.gtf
             if (gtf_path) {
                 return [ reference_key, "path::${gtf_path.toString()}" ]
             }
 
-            def ensembl_species = genome_entry?.ensembl_species ?: params.ensembl_species_map?.get(reference_key) ?: (reference_key ==~ /[a-z]+_[a-z0-9_]+/ ? reference_key : null)
+            def ensembl_species = genome_entry?.ensembl_species ?: pipeline_config.ensembl_species_map?.get(reference_key) ?: (reference_key ==~ /[a-z]+_[a-z0-9_]+/ ? reference_key : null)
             if (!ensembl_species) {
                 error("No GTF annotation resolved for reference '${reference_key}'. Set params.genomes['${reference_key}'].gtf or params.genomes['${reference_key}'].ensembl_species.")
             }
@@ -265,7 +271,11 @@ workflow RNASTRUCTUROME {
         }
 
     ENSEMBL_GTF (
-        ch_reference_gtf_ensembl_input
+        ch_reference_gtf_ensembl_input,
+        [
+            ensembl_release : pipeline_config.ensembl_release,
+            ensembl_base_url: pipeline_config.ensembl_base_url
+        ]
     )
     ch_versions = ch_versions.mix(ENSEMBL_GTF.out.versions)
 
@@ -293,7 +303,7 @@ workflow RNASTRUCTUROME {
         .map { combined ->
             def meta = combined[0]
             def ref_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, params.organism)
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def ref_tuple = ref_map[reference_key]
             if (!ref_tuple) {
                 error("No transcript FASTA resolved for reference '${reference_key}' in RT-stop branch.")
@@ -309,7 +319,7 @@ workflow RNASTRUCTUROME {
         .map { combined ->
             def meta = combined[0]
             def ref_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, params.organism)
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def ref_tuple = ref_map[reference_key]
             if (!ref_tuple) {
                 error("No transcript FASTA resolved for reference '${reference_key}' in MaP branch.")
@@ -351,7 +361,7 @@ workflow RNASTRUCTUROME {
             def meta = combined[0]
             def reads = combined[1]
             def index_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, params.organism)
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def index_tuple = index_map[reference_key]
             if (!index_tuple) {
                 error("No Bowtie index resolved for reference '${reference_key}'.")
@@ -367,7 +377,7 @@ workflow RNASTRUCTUROME {
             def reads = combined[1]
             def index_map = combined[2]
             def ref_map = combined[3]
-            def reference_key = resolveReferenceKey(meta, params.organism)
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def index_tuple = index_map[reference_key]
             def fasta_tuple = ref_map[reference_key]
             if (!index_tuple) {
@@ -423,7 +433,7 @@ workflow RNASTRUCTUROME {
             def meta = combined[0]
             def bam = combined[1]
             def ref_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, params.organism)
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def fasta_tuple = ref_map[reference_key]
             if (!fasta_tuple) {
                 error("No transcript FASTA resolved for reference '${reference_key}' for samtools sort.")
@@ -505,7 +515,7 @@ workflow RNASTRUCTUROME {
             def meta = combined[0]
             def bam = combined[1]
             def ref_fai_map = combined[3]
-            def reference_key = resolveReferenceKey(meta, params.organism)
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def fasta_fai_tuple = ref_fai_map[reference_key]
             if (!fasta_fai_tuple) {
                 error("No FASTA/FAI tuple resolved for reference '${reference_key}' for markdup.")
@@ -552,7 +562,7 @@ workflow RNASTRUCTUROME {
             def bam = combined[1]
             def bai = combined[2]
             def ref_map = combined[3]
-            def reference_key = resolveReferenceKey(meta, params.organism)
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def fasta_tuple = ref_map[reference_key]
             if (!fasta_tuple) {
                 error("No transcript FASTA resolved for reference '${reference_key}' for samtools stats.")
@@ -630,7 +640,7 @@ workflow RNASTRUCTUROME {
             def bam = combined[1]
             def bai = combined[2]
             def ref_map = combined[3]
-            def reference_key = resolveReferenceKey(meta, params.organism)
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def fasta_tuple = ref_map[reference_key]
             if (!fasta_tuple) {
                 error("No transcript FASTA resolved for reference '${reference_key}' for rf-count.")
@@ -825,7 +835,7 @@ workflow RNASTRUCTUROME {
             def meta = combined[0]
             def fold_dir = combined[1]
             def gtf_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, params.organism)
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def gtf_tuple = gtf_map[reference_key]
             if (!gtf_tuple) {
                 error("No GTF resolved for reference '${reference_key}' for dotplot-to-bp conversion.")
@@ -855,25 +865,25 @@ workflow RNASTRUCTUROME {
     //
     ch_multiqc_config        = channel.fromPath(
         "$projectDir/assets/multiqc_config.yml", checkIfExists: true)
-    ch_multiqc_custom_config = params.multiqc_config ?
-        channel.fromPath(params.multiqc_config, checkIfExists: true) :
+    ch_multiqc_custom_config = pipeline_config.multiqc_config ?
+        channel.fromPath(pipeline_config.multiqc_config, checkIfExists: true) :
         channel.empty()
-    ch_multiqc_logo          = params.multiqc_logo ?
-        channel.fromPath(params.multiqc_logo, checkIfExists: true) :
+    ch_multiqc_logo          = pipeline_config.multiqc_logo ?
+        channel.fromPath(pipeline_config.multiqc_logo, checkIfExists: true) :
         channel.empty()
 
     summary_params      = paramsSummaryMap(
         workflow, parameters_schema: "nextflow_schema.json")
     summary_params      = filterSummaryParams(summary_params)
-    summary_params      = addModuleOptionsSummary(summary_params, params)
+    summary_params      = addModuleOptionsSummary(summary_params, pipeline_config)
     ch_workflow_summary = channel.value(paramsSummaryMultiqc(summary_params))
     ch_multiqc_files = ch_multiqc_files.mix(
         ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
-    ch_multiqc_custom_methods_description = params.multiqc_methods_description ?
-        file(params.multiqc_methods_description, checkIfExists: true) :
+    ch_multiqc_custom_methods_description = pipeline_config.multiqc_methods_description ?
+        file(pipeline_config.multiqc_methods_description, checkIfExists: true) :
         file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
     ch_methods_description                = channel.value(
-        methodsDescriptionText(ch_multiqc_custom_methods_description))
+        methodsDescriptionText(ch_multiqc_custom_methods_description, pipeline_config))
 
     def ch_versions_for_multiqc_yaml = softwareVersionsToYAML(ch_versions_for_multiqc_files)
         .mix(
@@ -888,7 +898,7 @@ workflow RNASTRUCTUROME {
                 }
         )
         .collectFile(
-            storeDir: "${params.outdir}/pipeline_info",
+            storeDir: "${pipeline_config.outdir}/pipeline_info",
             name: 'nf_core_' + 'rnastructurome_software_' + 'mqc_' + 'versions_for_multiqc.yml',
             sort: true,
             newLine: true
@@ -951,7 +961,7 @@ workflow RNASTRUCTUROME {
     softwareVersionsToYAML(ch_versions.mix(topic_versions.versions_file))
         .mix(topic_versions_string)
         .collectFile(
-            storeDir: "${params.outdir}/pipeline_info",
+            storeDir: "${pipeline_config.outdir}/pipeline_info",
             name: 'nf_core_'  +  'rnastructurome_software_'  + 'mqc_'  + 'versions.yml',
             sort: true,
             newLine: true
@@ -974,6 +984,67 @@ def normaliseEnsemblSpecies(value) {
         ?.trim()
         ?.toLowerCase()
         ?.replaceAll(/\s+/, '_')
+}
+
+def defaultPipelineConfig() {
+    [
+        organism                          : null,
+        fasta                             : null,
+        genomes                           : null,
+        ensembl_species_map               : [
+            'human': 'homo_sapiens',
+            'mouse': 'mus_musculus',
+            'yeast': 'saccharomyces_cerevisiae',
+            'rat'  : 'rattus_norvegicus'
+        ],
+        ensembl_release                   : 'current',
+        ensembl_base_url                  : 'https://ftp.ensembl.org/pub',
+        multiqc_config                    : null,
+        multiqc_logo                      : null,
+        multiqc_methods_description       : null,
+        outdir                            : null,
+        input                             : null,
+        umi_pattern                       : null,
+        bowtie_manual_only                : false,
+        bowtie_mapping_params             : null,
+        bowtie_k                          : null,
+        bowtie_all                        : false,
+        bowtie_norc                       : false,
+        bowtie_trim5                      : 0,
+        bowtie_trim3                      : 0,
+        bowtie_seedlen                    : null,
+        bowtie_n                          : 2,
+        bowtie_v                          : null,
+        bowtie_max                        : 1,
+        bowtie_chunkmbs                   : 128,
+        bowtie2_N                         : 0,
+        bowtie2_D                         : 15,
+        bowtie2_R                         : 2,
+        bowtie2_mp                        : '6,2',
+        bowtie2_dpad                      : 15,
+        bowtie2_rdg                       : '5,3',
+        bowtie2_rfg                       : '5,3',
+        bowtie2_softclip                  : false,
+        bowtie2_ma                        : 2,
+        bowtie2_dovetail                  : false,
+        rfnorm_reactive_bases             : null,
+        rfnorm_remap_reactivities         : false,
+        rfnorm_norm_window                : null,
+        rfnorm_window_offset              : null,
+        rfnorm_dynamic_window             : null,
+        rfnorm_norm_independent           : false,
+        rfnorm_norm_factor                : null,
+        rfnorm_raw                        : false,
+        rfnorm_pseudocount                : null,
+        rfnorm_max_score                  : null,
+        rfnorm_ignore_lower_than_untreated: false,
+        rfnorm_max_untreated_mut          : null,
+        rfnorm_max_mutation_rate          : null,
+        rfnorm_mean_coverage              : 0,
+        rfnorm_median_coverage            : 0,
+        rfnorm_nan                        : 10,
+        rnaframework_r_path               : '/usr/bin/R'
+    ]
 }
 
 def resolveReferenceKey(meta, fallbackOrganism) {
@@ -1043,9 +1114,9 @@ def filterSummaryParams(summaryParams) {
     }
 }
 
-def addModuleOptionsSummary(summaryParams, params) {
-    def sampleMetadata = parseInputSamplesheetMetadata(params.input)
-    def moduleOptions = buildModuleOptionsSummary(params, sampleMetadata)
+def addModuleOptionsSummary(summaryParams, pipeline_config) {
+    def sampleMetadata = parseInputSamplesheetMetadata(pipeline_config.input)
+    def moduleOptions = buildModuleOptionsSummary(pipeline_config, sampleMetadata)
     if (moduleOptions.isEmpty()) {
         return summaryParams
     }
@@ -1113,7 +1184,7 @@ def parseInputSamplesheetMetadata(inputPath) {
     ]
 }
 
-def buildModuleOptionsSummary(params, sampleMetadata) {
+def buildModuleOptionsSummary(pipeline_config, sampleMetadata) {
     def moduleOptions = [:]
     def principles = (sampleMetadata.principles ?: []).collect { principle -> principle.toLowerCase() }
     def adapter5p = (sampleMetadata.adapter_5p ?: []).findAll { adapter -> adapter?.trim() }
@@ -1128,92 +1199,92 @@ def buildModuleOptionsSummary(params, sampleMetadata) {
 
     if (!principles || principles.contains('rt-stop')) {
         moduleOptions['bowtie_rtstop_aligner'] = 'bowtie'
-        moduleOptions['bowtie_rtstop_args'] = renderBowtie1Args(params)
+        moduleOptions['bowtie_rtstop_args'] = renderBowtie1Args(pipeline_config)
     }
     if (principles.contains('map')) {
         moduleOptions['bowtie_map_aligner'] = 'bowtie2'
-        moduleOptions['bowtie_map_args'] = renderBowtie2Args(params)
+        moduleOptions['bowtie_map_args'] = renderBowtie2Args(pipeline_config)
     }
 
-    def rfnormSummary = renderRfNormSummary(params, sampleMetadata)
+    def rfnormSummary = renderRfNormSummary(pipeline_config, sampleMetadata)
     moduleOptions.putAll(rfnormSummary)
 
     moduleOptions.findAll { _k, v -> v != null && v.toString().trim() }
 }
 
-def renderBowtie1Args(params) {
-    def manualOnly = params.bowtie_manual_only as Boolean ?: false
-    def manualParams = (params.bowtie_mapping_params ?: '').toString().trim()
+def renderBowtie1Args(pipeline_config) {
+    def manualOnly = pipeline_config.bowtie_manual_only as Boolean ?: false
+    def manualParams = (pipeline_config.bowtie_mapping_params ?: '').toString().trim()
     if (manualOnly) {
         return manualParams ?: 'none'
     }
     def args = []
-    if (params.bowtie_all as Boolean) {
+    if (pipeline_config.bowtie_all as Boolean) {
         args << '-a'
-    } else if (params.bowtie_k != null) {
-        args << "-k ${params.bowtie_k as Integer}"
+    } else if (pipeline_config.bowtie_k != null) {
+        args << "-k ${pipeline_config.bowtie_k as Integer}"
     }
-    if (params.bowtie_norc as Boolean) {
+    if (pipeline_config.bowtie_norc as Boolean) {
         args << '--norc'
     }
-    if ((params.bowtie_trim5 as Integer) > 0) {
-        args << "--trim5 ${params.bowtie_trim5 as Integer}"
+    if ((pipeline_config.bowtie_trim5 as Integer) > 0) {
+        args << "--trim5 ${pipeline_config.bowtie_trim5 as Integer}"
     }
-    if ((params.bowtie_trim3 as Integer) > 0) {
-        args << "--trim3 ${params.bowtie_trim3 as Integer}"
+    if ((pipeline_config.bowtie_trim3 as Integer) > 0) {
+        args << "--trim3 ${pipeline_config.bowtie_trim3 as Integer}"
     }
-    def seedlen = params.bowtie_seedlen != null ? params.bowtie_seedlen as Integer : 28
+    def seedlen = pipeline_config.bowtie_seedlen != null ? pipeline_config.bowtie_seedlen as Integer : 28
     args << "-l ${seedlen}"
-    if (params.bowtie_v != null) {
-        args << "-v ${params.bowtie_v as Integer}"
+    if (pipeline_config.bowtie_v != null) {
+        args << "-v ${pipeline_config.bowtie_v as Integer}"
     } else {
-        args << "-n ${params.bowtie_n as Integer}"
+        args << "-n ${pipeline_config.bowtie_n as Integer}"
     }
-    if (!(params.bowtie_all as Boolean) && params.bowtie_k == null && params.bowtie_max != null) {
-        args << "-m ${params.bowtie_max as Integer}"
+    if (!(pipeline_config.bowtie_all as Boolean) && pipeline_config.bowtie_k == null && pipeline_config.bowtie_max != null) {
+        args << "-m ${pipeline_config.bowtie_max as Integer}"
     }
-    args << "--chunkmbs ${params.bowtie_chunkmbs as Integer}"
+    args << "--chunkmbs ${pipeline_config.bowtie_chunkmbs as Integer}"
     if (manualParams) {
         args << manualParams
     }
     args.join(' ').trim()
 }
 
-def renderBowtie2Args(params) {
-    def manualOnly = params.bowtie_manual_only as Boolean ?: false
-    def manualParams = (params.bowtie_mapping_params ?: '').toString().trim()
+def renderBowtie2Args(pipeline_config) {
+    def manualOnly = pipeline_config.bowtie_manual_only as Boolean ?: false
+    def manualParams = (pipeline_config.bowtie_mapping_params ?: '').toString().trim()
     if (manualOnly) {
         return manualParams ?: 'none'
     }
     def args = []
-    if (params.bowtie_all as Boolean) {
+    if (pipeline_config.bowtie_all as Boolean) {
         args << '-a'
-    } else if (params.bowtie_k != null) {
-        args << "-k ${params.bowtie_k as Integer}"
+    } else if (pipeline_config.bowtie_k != null) {
+        args << "-k ${pipeline_config.bowtie_k as Integer}"
     }
-    if (params.bowtie_norc as Boolean) {
+    if (pipeline_config.bowtie_norc as Boolean) {
         args << '--norc'
     }
-    if ((params.bowtie_trim5 as Integer) > 0) {
-        args << "--trim5 ${params.bowtie_trim5 as Integer}"
+    if ((pipeline_config.bowtie_trim5 as Integer) > 0) {
+        args << "--trim5 ${pipeline_config.bowtie_trim5 as Integer}"
     }
-    if ((params.bowtie_trim3 as Integer) > 0) {
-        args << "--trim3 ${params.bowtie_trim3 as Integer}"
+    if ((pipeline_config.bowtie_trim3 as Integer) > 0) {
+        args << "--trim3 ${pipeline_config.bowtie_trim3 as Integer}"
     }
-    def seedlen = params.bowtie_seedlen != null ? params.bowtie_seedlen as Integer : 22
+    def seedlen = pipeline_config.bowtie_seedlen != null ? pipeline_config.bowtie_seedlen as Integer : 22
     args << "-L ${seedlen}"
-    args << "-N ${params.bowtie2_N as Integer}"
-    args << "-D ${params.bowtie2_D as Integer}"
-    args << "-R ${params.bowtie2_R as Integer}"
-    args << "--mp ${params.bowtie2_mp}"
-    args << "--dpad ${params.bowtie2_dpad as Integer}"
-    args << "--rdg ${params.bowtie2_rdg}"
-    args << "--rfg ${params.bowtie2_rfg}"
-    if (params.bowtie2_softclip as Boolean) {
+    args << "-N ${pipeline_config.bowtie2_N as Integer}"
+    args << "-D ${pipeline_config.bowtie2_D as Integer}"
+    args << "-R ${pipeline_config.bowtie2_R as Integer}"
+    args << "--mp ${pipeline_config.bowtie2_mp}"
+    args << "--dpad ${pipeline_config.bowtie2_dpad as Integer}"
+    args << "--rdg ${pipeline_config.bowtie2_rdg}"
+    args << "--rfg ${pipeline_config.bowtie2_rfg}"
+    if (pipeline_config.bowtie2_softclip as Boolean) {
         args << '--local'
-        args << "--ma ${params.bowtie2_ma as Integer}"
+        args << "--ma ${pipeline_config.bowtie2_ma as Integer}"
     }
-    if (params.bowtie2_dovetail as Boolean) {
+    if (pipeline_config.bowtie2_dovetail as Boolean) {
         args << '--dovetail'
     }
     if (manualParams) {
@@ -1222,7 +1293,7 @@ def renderBowtie2Args(params) {
     args.join(' ').trim()
 }
 
-def renderRfNormSummary(params, sampleMetadata) {
+def renderRfNormSummary(pipeline_config, sampleMetadata) {
     def principles = (sampleMetadata.principles ?: []).collect { principle -> principle.toLowerCase() }.unique()
     def conditions = (sampleMetadata.conditions ?: []).collect { condition -> condition.toLowerCase() }.unique()
     if (principles.size() != 1) {
@@ -1236,33 +1307,33 @@ def renderRfNormSummary(params, sampleMetadata) {
     def hasDenatured = conditions.contains('denatured')
     def scoringMethod = principle == 'map' ? (hasUntreated ? 3 : 4) : (hasUntreated ? 1 : 2)
     def normMethod = scoringMethod == 2 ? 2 : 3
-    def reactiveBases = params.rfnorm_reactive_bases ?: ((((sampleMetadata.methods ?: []).collect { method -> method.toLowerCase() }.unique() == ['dms']) ? 'AC' : null))
+    def reactiveBases = pipeline_config.rfnorm_reactive_bases ?: ((((sampleMetadata.methods ?: []).collect { method -> method.toLowerCase() }.unique() == ['dms']) ? 'AC' : null))
 
     def args = [
         "-sm ${scoringMethod}",
         "-nm ${normMethod}"
     ]
-    if (params.rfnorm_remap_reactivities as Boolean) args << '--remap-reactivities'
+    if (pipeline_config.rfnorm_remap_reactivities as Boolean) args << '--remap-reactivities'
     if (reactiveBases) args << "--reactive-bases ${reactiveBases}"
-    if (params.rfnorm_norm_window != null) args << "--norm-window ${params.rfnorm_norm_window as Integer}"
-    if (params.rfnorm_window_offset != null) args << "--window-offset ${params.rfnorm_window_offset as Integer}"
-    if (params.rfnorm_dynamic_window != null) args << "--dynamic-window ${params.rfnorm_dynamic_window as Integer}"
-    if (params.rfnorm_norm_independent as Boolean) args << '--norm-independent'
-    if (params.rfnorm_norm_factor) args << "--norm-factor ${params.rfnorm_norm_factor}"
-    if (params.rfnorm_raw as Boolean) args << '--raw'
-    if (params.rfnorm_pseudocount != null) args << "--pseudocount ${params.rfnorm_pseudocount}"
-    if (params.rfnorm_max_score != null) args << "--max-score ${params.rfnorm_max_score}"
-    if (params.rfnorm_ignore_lower_than_untreated as Boolean) args << '--ignore-lower-than-untreated'
-    if (params.rfnorm_max_untreated_mut != null) args << "--max-untreated-mut ${params.rfnorm_max_untreated_mut}"
-    if (params.rfnorm_max_mutation_rate != null) args << "--max-mutation-rate ${params.rfnorm_max_mutation_rate}"
-    def meanCoverage = params.rfnorm_mean_coverage != null ? params.rfnorm_mean_coverage as BigDecimal : 0
-    if (meanCoverage > 0) args << "--mean-coverage ${params.rfnorm_mean_coverage}"
-    def medianCoverage = params.rfnorm_median_coverage != null ? params.rfnorm_median_coverage as BigDecimal : 0
-    if (medianCoverage > 0) args << "--median-coverage ${params.rfnorm_median_coverage}"
-    def nanThreshold = params.rfnorm_nan != null ? params.rfnorm_nan as Integer : 10
+    if (pipeline_config.rfnorm_norm_window != null) args << "--norm-window ${pipeline_config.rfnorm_norm_window as Integer}"
+    if (pipeline_config.rfnorm_window_offset != null) args << "--window-offset ${pipeline_config.rfnorm_window_offset as Integer}"
+    if (pipeline_config.rfnorm_dynamic_window != null) args << "--dynamic-window ${pipeline_config.rfnorm_dynamic_window as Integer}"
+    if (pipeline_config.rfnorm_norm_independent as Boolean) args << '--norm-independent'
+    if (pipeline_config.rfnorm_norm_factor) args << "--norm-factor ${pipeline_config.rfnorm_norm_factor}"
+    if (pipeline_config.rfnorm_raw as Boolean) args << '--raw'
+    if (pipeline_config.rfnorm_pseudocount != null) args << "--pseudocount ${pipeline_config.rfnorm_pseudocount}"
+    if (pipeline_config.rfnorm_max_score != null) args << "--max-score ${pipeline_config.rfnorm_max_score}"
+    if (pipeline_config.rfnorm_ignore_lower_than_untreated as Boolean) args << '--ignore-lower-than-untreated'
+    if (pipeline_config.rfnorm_max_untreated_mut != null) args << "--max-untreated-mut ${pipeline_config.rfnorm_max_untreated_mut}"
+    if (pipeline_config.rfnorm_max_mutation_rate != null) args << "--max-mutation-rate ${pipeline_config.rfnorm_max_mutation_rate}"
+    def meanCoverage = pipeline_config.rfnorm_mean_coverage != null ? pipeline_config.rfnorm_mean_coverage as BigDecimal : 0
+    if (meanCoverage > 0) args << "--mean-coverage ${pipeline_config.rfnorm_mean_coverage}"
+    def medianCoverage = pipeline_config.rfnorm_median_coverage != null ? pipeline_config.rfnorm_median_coverage as BigDecimal : 0
+    if (medianCoverage > 0) args << "--median-coverage ${pipeline_config.rfnorm_median_coverage}"
+    def nanThreshold = pipeline_config.rfnorm_nan != null ? pipeline_config.rfnorm_nan as Integer : 10
     if (nanThreshold != 10) args << "--nan ${nanThreshold}"
     args << '--img'
-    args << "-R ${params.rnaframework_r_path}"
+    args << "-R ${pipeline_config.rnaframework_r_path}"
 
     [
         rfnorm_mode         : "${principle.toUpperCase()} ${hasUntreated ? 'with untreated' : 'treated-only'}${hasDenatured ? ' + denatured' : ''}",

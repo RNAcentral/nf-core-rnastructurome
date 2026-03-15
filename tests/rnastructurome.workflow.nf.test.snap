@@ -1,0 +1,40 @@
+{
+    "Routes RT-stop to bowtie and MaP to bowtie2": {
+        "content": [
+            [
+                [
+                    {
+                        "id": "map_sample",
+                        "sample_id": "map_sample",
+                        "principle": "MaP",
+                        "organism": "Mus musculus",
+                        "single_end": true,
+                        "cell_line": "map_line",
+                        "replicate": "rep1",
+                        "condition": "treated"
+                    },
+                    "map_sample.bam:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ],
+                [
+                    {
+                        "id": "rtstop_sample",
+                        "sample_id": "rtstop_sample",
+                        "principle": "RT-stop",
+                        "organism": "Homo sapiens",
+                        "single_end": true,
+                        "cell_line": "rtstop_line",
+                        "replicate": "rep1",
+                        "condition": "treated"
+                    },
+                    "rtstop_sample.bam:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ]
+            ],
+            "nf_core_rnastructurome_software_mqc_versions.yml:md5,e2517ea57a8d0d62dd88fb05cdf42eed"
+        ],
+        "timestamp": "2026-03-13T16:44:56.340395",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "25.10.3"
+        }
+    }
+}

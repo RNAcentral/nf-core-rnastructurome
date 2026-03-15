@@ -14,6 +14,7 @@ workflow UTILS_NEXTFLOW_PIPELINE {
     dump_parameters      // boolean: dump parameters
     outdir               //    path: base directory used to publish pipeline results
     check_conda_channels // boolean: check conda channels
+    entry_params         //    map: params captured at the entry workflow
 
     main:
 
@@ -29,7 +30,7 @@ workflow UTILS_NEXTFLOW_PIPELINE {
     // Dump pipeline parameters to a JSON file
     //
     if (dump_parameters && outdir) {
-        dumpParametersToJSON(outdir)
+        dumpParametersToJSON(outdir, entry_params ?: [:])
     }
 
     //
@@ -70,11 +71,11 @@ def getWorkflowVersion() {
 //
 // Dump pipeline parameters to a JSON file
 //
-def dumpParametersToJSON(outdir) {
+def dumpParametersToJSON(outdir, entry_params) {
     def timestamp = new java.util.Date().format('yyyy-MM-dd_HH-mm-ss')
     def filename  = "params_${timestamp}.json"
     def temp_pf   = new File(workflow.launchDir.toString(), ".${filename}")
-    def jsonStr   = groovy.json.JsonOutput.toJson(params)
+    def jsonStr   = groovy.json.JsonOutput.toJson(entry_params ?: [:])
     temp_pf.text  = groovy.json.JsonOutput.prettyPrint(jsonStr)
 
     nextflow.extension.FilesEx.copyTo(temp_pf.toPath(), "${outdir}/pipeline_info/params_${timestamp}.json")

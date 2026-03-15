@@ -20,9 +20,6 @@ process MULTIQC {
     path "*_plots"             , optional:true, emit: plots
     path "versions.yml"        , emit: versions
 
-    when:
-    task.ext.when == null || task.ext.when
-
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ? "--filename ${task.ext.prefix}.html" : ''

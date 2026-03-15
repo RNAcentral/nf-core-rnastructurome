@@ -19,23 +19,12 @@ process RNAFRAMEWORK_RFCOUNT {
     tuple val(meta), path("*_rfcount/plots/*.pdf"), optional: true, emit: plots
     path "versions.yml"          , emit: versions
 
-    when:
-    task.ext.when == null || task.ext.when
-
     script:
     def args   = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def fallback_fasta = params.fasta ?: (
-        meta_ref?.organism && params.genomes?.containsKey(meta_ref.organism)
-            ? (params.genomes[meta_ref.organism]?.transcript_fasta ?: params.genomes[meta_ref.organism]?.transcriptome ?: params.genomes[meta_ref.organism]?.cdna ?: '')
-            : ''
-    )
     def outdir = "${prefix}_rfcount"
     """
     FASTA_PATH="${fasta}"
-    if [[ ! -f "\${FASTA_PATH}" && -n "${fallback_fasta}" ]]; then
-        FASTA_PATH="${fallback_fasta}"
-    fi
 
     export TERM="\${TERM:-xterm}"
 

@@ -22,6 +22,7 @@ workflow UTILS_NFSCHEMA_PLUGIN {
     before_text         // string:   text to show before the help message and parameters summary
     after_text          // string:   text to show after the help message and parameters summary
     command             // string:   an example command of the pipeline
+    help_value          // string|boolean: raw --help value passed from the entry workflow
 
     main:
 
@@ -38,37 +39,35 @@ workflow UTILS_NFSCHEMA_PLUGIN {
         }
         log.info paramsHelp(
             help_options,
-            params.help instanceof String ? params.help : "",
+            help_value instanceof String ? help_value : "",
         )
-        exit 0
-    }
+    } else {
+        //
+        // Print parameter summary to stdout. This will display the parameters
+        // that differ from the default given in the JSON schema
+        //
 
-    //
-    // Print parameter summary to stdout. This will display the parameters
-    // that differ from the default given in the JSON schema
-    //
-
-    summary_options = [:]
-    if(parameters_schema) {
-        summary_options << [parametersSchema: parameters_schema]
-    }
-    log.info before_text
-    log.info paramsSummaryLog(summary_options, input_workflow)
-    log.info after_text
-
-    //
-    // Validate the parameters using nextflow_schema.json or the schema
-    // given via the validation.parametersSchema configuration option
-    //
-    if(validate_params) {
-        validateOptions = [:]
+        summary_options = [:]
         if(parameters_schema) {
-            validateOptions << [parametersSchema: parameters_schema]
+            summary_options << [parametersSchema: parameters_schema]
         }
-        validateParameters(validateOptions)
+        log.info before_text
+        log.info paramsSummaryLog(summary_options, input_workflow)
+        log.info after_text
+
+        //
+        // Validate the parameters using nextflow_schema.json or the schema
+        // given via the validation.parametersSchema configuration option
+        //
+        if(validate_params) {
+            validateOptions = [:]
+            if(parameters_schema) {
+                validateOptions << [parametersSchema: parameters_schema]
+            }
+            validateParameters(validateOptions)
+        }
     }
 
     emit:
     dummy_emit = true
 }
-

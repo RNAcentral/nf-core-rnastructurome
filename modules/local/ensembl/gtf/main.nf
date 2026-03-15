@@ -7,24 +7,23 @@ process ENSEMBL_GTF {
 
     input:
     tuple val(meta), val(ensembl_species)
+    val ensembl_config_input
 
     output:
     tuple val(meta), path("${meta.id}.annotation.gtf.gz"), emit: gtf
     path "ensembl_source_urls.txt", emit: source_urls
     path "versions.yml", emit: versions
 
-    when:
-    task.ext.when == null || task.ext.when
-
     script:
+    def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
     python - <<'PY'
 import re
 import urllib.request
 
 species = "${ensembl_species}".strip().lower().replace(" ", "_")
-release = "${(params.ensembl_release ?: 'current').toString()}".strip()
-base_url = "${(params.ensembl_base_url ?: 'https://ftp.ensembl.org/pub').toString()}".rstrip("/")
+release = "${ensembl_config.ensembl_release}".strip()
+base_url = "${ensembl_config.ensembl_base_url}".rstrip("/")
 out_gz = "${meta.id}.annotation.gtf.gz"
 
 if release in ("current", "latest"):
@@ -59,11 +58,12 @@ PY
 
     printf '%s\n' \
         '"${task.process}":' \
-        '    ensembl_release: "${(params.ensembl_release ?: 'current').toString()}"' \
+        '    ensembl_release: "${ensembl_config.ensembl_release}"' \
         > versions.yml
     """
 
     stub:
+    def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
     touch ${meta.id}.annotation.gtf.gz
     printf '%s\n' \
@@ -71,7 +71,14 @@ PY
         > ensembl_source_urls.txt
     printf '%s\n' \
         '"${task.process}":' \
-        '    ensembl_release: "${params.ensembl_release ?: 'current'}"' \
+        '    ensembl_release: "${ensembl_config.ensembl_release}"' \
         > versions.yml
     """
+}
+
+def defaultEnsemblConfig() {
+    [
+        ensembl_release : 'current',
+        ensembl_base_url: 'https://ftp.ensembl.org/pub'
+    ]
 }

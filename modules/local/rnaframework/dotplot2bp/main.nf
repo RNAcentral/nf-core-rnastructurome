@@ -13,9 +13,6 @@ process RNAFRAMEWORK_DOTPLOT2BP {
     tuple val(meta), path("${meta.id}_bp/conversion_warnings.log"), optional: true, emit: warnings
     path "versions.yml", emit: versions
 
-    when:
-    task.ext.when == null || task.ext.when
-
     script:
     """
     python - <<'PY'

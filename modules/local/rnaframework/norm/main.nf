@@ -14,9 +14,6 @@ process RNAFRAMEWORK_RFNORM {
     tuple val(meta), path("${prefix}_norm/plots/*.pdf"), optional: true, emit: plots
     path "versions.yml"                           , emit: versions
 
-    when:
-    task.ext.when == null || task.ext.when
-
     script:
     def args          = task.ext.args ?: ''
     prefix            = task.ext.prefix ?: "${meta.id}"

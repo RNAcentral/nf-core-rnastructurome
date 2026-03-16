@@ -9,7 +9,7 @@ def test_utils_nfschema_plugin_has_local_plugin_config() -> None:
 
     text = config_path.read_text(encoding="utf-8")
 
-    assert 'id "nf-schema@2.6.1"' in text
+    assert 'id "nf-schema@2.5.1"' in text
 
 
 def test_nf_core_parent_scope_has_plugin_config() -> None:
@@ -18,4 +18,4 @@ def test_nf_core_parent_scope_has_plugin_config() -> None:
 
     text = config_path.read_text(encoding="utf-8")
 
-    assert 'id "nf-schema@2.6.1"' in text
+    assert 'id "nf-schema@2.5.1"' in text

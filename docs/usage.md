@@ -109,6 +109,10 @@ Default `rf-norm` scoring/normalization is selected automatically based on probi
 - MaP + untreated (and optional denatured): Siegfried (`-sm 3`) + Box-plot (`-nm 3`)
 - MaP only: Zubradt (`-sm 4`) + Box-plot (`-nm 3`)
 
+Advanced override:
+
+- `--rfnorm_norm_method 2|3` forces the `rf-norm` normalisation mode while leaving scoring-method auto-selection unchanged.
+
 ## Preprocessing behavior
 
 ### Cutadapt by principle
@@ -175,6 +179,7 @@ Key parameters:
 - `--rfnorm_dynamic_window`
 - `--rfnorm_norm_independent`
 - `--rfnorm_norm_factor`
+- `--rfnorm_norm_method`
 - `--rfnorm_raw`
 - `--rfnorm_pseudocount`
 - `--rfnorm_max_score`

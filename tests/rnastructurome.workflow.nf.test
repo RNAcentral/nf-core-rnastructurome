@@ -295,6 +295,74 @@ nextflow_workflow {
         }
     }
 
+    test("Allows explicit rf-norm normalization override") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
+                params.genome = null
+                params.rfnorm_norm_method = 2
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.normalized_xml.size() == 1 },
+                { assert workflow.out.normalized_xml[0][0].rfnorm_scoring_method == 1 },
+                { assert workflow.out.normalized_xml[0][0].rfnorm_norm_method == 2 }
+            )
+        }
+    }
+
+    test("Fails on unsupported rf-norm normalization override") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
+                params.genome = null
+                params.rfnorm_norm_method = 99
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("Unsupported rf-norm normalization method '99'") }
+            )
+        }
+    }
+
     test("Selects MaP rf-norm defaults from available controls") {
 
         options "-stub"

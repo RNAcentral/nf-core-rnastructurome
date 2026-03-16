@@ -10,6 +10,8 @@ nextflow_pipeline {
             params {
                 outdir = "$outputDir"
                 input = "${projectDir}/tests/data/samplesheet.nft.csv"
+                fasta = "${projectDir}/tests/data/ref.fa"
+                rfnorm_raw = false
             }
         }
 

@@ -779,7 +779,7 @@ workflow RNASTRUCTUROME {
             def scoringMethod = principle == 'map'
                 ? (hasUntreated ? 3 : 4)
                 : (hasUntreated ? 1 : 2)
-            def normMethod = scoringMethod == 2 ? 2 : 3
+            def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
             def gmeta = base_meta + [
                 id                    : group,
                 rfnorm_has_untreated  : hasUntreated,
@@ -1034,6 +1034,7 @@ def defaultPipelineConfig() {
         rfnorm_dynamic_window             : null,
         rfnorm_norm_independent           : false,
         rfnorm_norm_factor                : null,
+        rfnorm_norm_method                : null,
         rfnorm_raw                        : false,
         rfnorm_pseudocount                : null,
         rfnorm_max_score                  : null,
@@ -1306,7 +1307,7 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
     def hasUntreated = conditions.contains('untreated')
     def hasDenatured = conditions.contains('denatured')
     def scoringMethod = principle == 'map' ? (hasUntreated ? 3 : 4) : (hasUntreated ? 1 : 2)
-    def normMethod = scoringMethod == 2 ? 2 : 3
+    def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
     def reactiveBases = pipeline_config.rfnorm_reactive_bases ?: ((((sampleMetadata.methods ?: []).collect { method -> method.toLowerCase() }.unique() == ['dms']) ? 'AC' : null))
 
     def args = [
@@ -1341,6 +1342,20 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
         rfnorm_normalisation: "${rfNormNormLabel(normMethod)} (nm=${normMethod})",
         rfnorm_args         : args.join(' ').trim()
     ]
+}
+
+def resolveRfNormNormMethod(pipeline_config, scoringMethod) {
+    def defaultMethod = (scoringMethod as Integer) == 2 ? 2 : 3
+    if (pipeline_config.rfnorm_norm_method == null) {
+        return defaultMethod
+    }
+
+    def requestedMethod = pipeline_config.rfnorm_norm_method as Integer
+    if (!(requestedMethod in [2, 3])) {
+        error("Unsupported rf-norm normalization method '${pipeline_config.rfnorm_norm_method}'. Expected one of: 2, 3.")
+    }
+
+    requestedMethod
 }
 
 def rfNormScoringLabel(code) {

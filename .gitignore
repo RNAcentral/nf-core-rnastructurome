@@ -9,7 +9,7 @@ testing*
 *.pyc
 null/
 
-assets/testdata/*
+assets/testdata/yeast/*
 local.config
 nf-metro/old
 nf-metro/final

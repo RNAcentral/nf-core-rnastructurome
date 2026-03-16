@@ -200,6 +200,7 @@ Notes:
 Default behavior:
 
 - Dot-bracket output is default (CT is optional).
+- Windowed folding is enabled by default (`-w`); disable with `--rffold_window false`.
 - Graphical fold reports are always enabled (`-g -R`).
 - RNAplot overlays are enabled via `-vrp` (default `RNAplot`).
 - Dotplot generation is controlled by `--rffold_dotplot` (default `true`).

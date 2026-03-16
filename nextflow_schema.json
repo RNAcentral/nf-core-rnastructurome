@@ -501,7 +501,7 @@
                 "rffold_window": {
                     "type": "boolean",
                     "description": "Enable windowed folding in rf-fold (`-w`).",
-                    "default": false
+                    "default": true
                 },
                 "rffold_unconstrained": {
                     "type": "boolean",

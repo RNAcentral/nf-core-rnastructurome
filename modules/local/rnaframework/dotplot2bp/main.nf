@@ -7,6 +7,7 @@ process RNAFRAMEWORK_DOTPLOT2BP {
 
     input:
     tuple val(meta), path(fold_dir), path(gtf)
+    path dotplot2bp_script
 
     output:
     tuple val(meta), path("${meta.id}_bp/dotplot/*.bp"), optional: true, emit: bp
@@ -15,7 +16,7 @@ process RNAFRAMEWORK_DOTPLOT2BP {
 
     script:
     """
-    python "${projectDir}/bin/rnaframework_dotplot2bp.py" \
+    python "${dotplot2bp_script}" \
         --organism "${meta.organism ?: meta.id}" \
         --prefix "${meta.id}" \
         --fold-dir "${fold_dir}" \

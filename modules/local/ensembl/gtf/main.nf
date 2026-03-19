@@ -8,6 +8,7 @@ process ENSEMBL_GTF {
     input:
     tuple val(meta), val(ensembl_species)
     val ensembl_config_input
+    path ensembl_gtf_script
 
     output:
     tuple val(meta), path("${meta.id}.annotation.gtf.gz"), emit: gtf
@@ -17,7 +18,7 @@ process ENSEMBL_GTF {
     script:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
-    python "${projectDir}/bin/ensembl_gtf.py" \
+    python "${ensembl_gtf_script}" \
         --species "${ensembl_species}" \
         --release "${ensembl_config.ensembl_release}" \
         --base-url "${ensembl_config.ensembl_base_url}" \

@@ -228,7 +228,8 @@ workflow RNASTRUCTUROME {
         [
             ensembl_release : pipeline_config.ensembl_release,
             ensembl_base_url: pipeline_config.ensembl_base_url
-        ]
+        ],
+        file("${projectDir}/bin/ensembl_transcriptome.py", checkIfExists: true)
     )
     ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
 
@@ -275,7 +276,8 @@ workflow RNASTRUCTUROME {
         [
             ensembl_release : pipeline_config.ensembl_release,
             ensembl_base_url: pipeline_config.ensembl_base_url
-        ]
+        ],
+        file("${projectDir}/bin/ensembl_gtf.py", checkIfExists: true)
     )
     ch_versions = ch_versions.mix(ENSEMBL_GTF.out.versions)
 
@@ -844,7 +846,8 @@ workflow RNASTRUCTUROME {
         }
 
     RNAFRAMEWORK_DOTPLOT2BP (
-        ch_dotplot_bp_input
+        ch_dotplot_bp_input,
+        file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
     )
 
     // Add RNAframework outputs to MultiQC input collection.

@@ -1,5 +1,5 @@
 # nf-core/rnastructurome: Output
-
+ // TODO: reflect all output generated once we are sure of what we want
 ## Introduction
 
 This document describes the files produced by the pipeline and where to find them.

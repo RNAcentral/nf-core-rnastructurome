@@ -36,22 +36,45 @@ nextflow run main.nf -profile docker --input samplesheet.csv --fasta transcripts
 ## Required inputs
 
 1. A samplesheet (`--input`)
-2. A transcript reference FASTA (`--fasta`) or an organism/reference key that can be resolved via `params.genomes` or Ensembl
+2. An organism/reference key that can resolve to a transcript FASTA and GTF annotation via explicit inputs, `params.genomes`, or Ensembl
 
 Reference resolution behavior:
 
+- The pipeline resolves a `reference_key` from per-sample `organism` or global `--organism`.
+- Latin binomials such as `Homo sapiens` are normalized automatically to Ensembl species format (`homo_sapiens`).
+- Values already in `genus_species` format are lower-cased and used as-is.
+- Other values such as `human` are left unchanged and must be resolved through `params.genomes` or `--ensembl_species_map`.
+
+Transcript FASTA resolution:
+
 - If `--fasta` is set, that file is used directly and should be a transcript FASTA.
-- If `--fasta` is not set, the pipeline first tries transcript FASTA keys in `params.genomes[reference_key]`, where `reference_key` is resolved from `organism`:
+- Otherwise the pipeline checks `params.genomes[reference_key]` in this order:
   - `transcript_fasta`
   - `transcriptome`
   - `cdna`
-- If no transcript FASTA path is configured, it falls back to Ensembl auto-download by species:
-  - Uses `params.genomes[reference_key].ensembl_species` when defined, then `--ensembl_species_map` aliases, otherwise treats the reference key itself as Ensembl species if it matches `genus_species` (e.g. `homo_sapiens`, `saccharomyces_cerevisiae`).
-  - Latin binomials such as `Homo sapiens` or `Saccharomyces cerevisiae` are normalized automatically to Ensembl species format (`homo_sapiens`, `saccharomyces_cerevisiae`).
-  - Downloads `cdna.all.fa.gz` and, when available, `ncrna.fa.gz` from Ensembl FTP, then merges available files into one transcript FASTA used for mapping and RNAframework.
-- Ensembl source can be tuned with:
-  - `--ensembl_release` (`current` by default; accepts values like `114` or `release-114`)
-  - `--ensembl_base_url` (default `https://ftp.ensembl.org/pub`)
+- If no transcript FASTA path is configured, it falls back to Ensembl species resolution in this order:
+  - `params.genomes[reference_key].ensembl_species`
+  - `--ensembl_species_map[reference_key]`
+  - `reference_key` itself, but only if it already matches `genus_species`
+- The Ensembl transcript download fetches `cdna.all.fa.gz` and, when present, `ncrna.fa.gz`, then merges them into one transcript FASTA used for mapping and RNAframework.
+- If `ncrna.fa.gz` is unavailable, the pipeline continues with `cdna` only.
+- If none of the transcript FASTA or Ensembl species routes resolve, the pipeline errors.
+
+GTF annotation resolution:
+
+- GTF is resolved separately from the transcript FASTA.
+- The pipeline first checks `params.genomes[reference_key].gtf`.
+- If no local GTF is configured, it uses the same Ensembl species resolution order:
+  - `params.genomes[reference_key].ensembl_species`
+  - `--ensembl_species_map[reference_key]`
+  - `reference_key` itself, but only if it already matches `genus_species`
+- Ensembl GTF download prefers non-`abinitio` `.gtf.gz` files when multiple candidates exist.
+- If neither `gtf` nor an Ensembl species can be resolved, the pipeline errors.
+
+Ensembl source can be tuned with:
+
+- `--ensembl_release` (`current` by default; `latest` is treated the same as `current`, and values such as `114` or `release-114` are also accepted)
+- `--ensembl_base_url` (default `https://ftp.ensembl.org/pub`)
 
 ## Samplesheet input
 

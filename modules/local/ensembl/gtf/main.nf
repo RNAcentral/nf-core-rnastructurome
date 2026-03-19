@@ -17,44 +17,12 @@ process ENSEMBL_GTF {
     script:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
-    python - <<'PY'
-import re
-import urllib.request
-
-species = "${ensembl_species}".strip().lower().replace(" ", "_")
-release = "${ensembl_config.ensembl_release}".strip()
-base_url = "${ensembl_config.ensembl_base_url}".rstrip("/")
-out_gz = "${meta.id}.annotation.gtf.gz"
-
-if release in ("current", "latest"):
-    species_root = f"{base_url}/current_gtf/{species}/"
-elif release.startswith("release-"):
-    species_root = f"{base_url}/{release}/gtf/{species}/"
-else:
-    species_root = f"{base_url}/release-{release}/gtf/{species}/"
-
-def fetch_text(url: str) -> str:
-    try:
-        with urllib.request.urlopen(url, timeout=60) as response:
-            return response.read().decode("utf-8", errors="ignore")
-    except Exception:
-        fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
-        with urllib.request.urlopen(fallback_url, timeout=60) as response:
-            return response.read().decode("utf-8", errors="ignore")
-
-listing = fetch_text(species_root)
-matches = [match for match in re.findall(r'href="([^"]+)"', listing) if re.search(r'\\.gtf\\.gz\$', match)]
-preferred_matches = [match for match in matches if 'abinitio' not in match.lower()]
-gtf_name = (preferred_matches or matches or [None])[0]
-if not gtf_name:
-    raise RuntimeError(f"No .gtf.gz file found at {species_root}")
-
-gtf_url = f"{species_root}{gtf_name}"
-urllib.request.urlretrieve(gtf_url, out_gz)
-
-with open("ensembl_source_urls.txt", "w", encoding="utf-8") as handle:
-    handle.write(f"{gtf_url}\\n")
-PY
+    python "${projectDir}/bin/ensembl_gtf.py" \
+        --species "${ensembl_species}" \
+        --release "${ensembl_config.ensembl_release}" \
+        --base-url "${ensembl_config.ensembl_base_url}" \
+        --output "${meta.id}.annotation.gtf.gz" \
+        --source-urls "ensembl_source_urls.txt"
 
     printf '%s\n' \
         '"${task.process}":' \

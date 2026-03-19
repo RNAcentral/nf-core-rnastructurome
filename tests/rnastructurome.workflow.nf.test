@@ -16,7 +16,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
 
                 input[0] = Channel.of(
                     [
@@ -55,7 +54,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
 
                 input[0] = Channel.of(
                     [
@@ -91,7 +89,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
                 params.organism = null
 
                 input[0] = Channel.of(
@@ -122,7 +119,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
                 params.organism = null
 
                 input[0] = Channel.of(
@@ -153,7 +149,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
                 params.bowtie_manual_only = true
                 params.bowtie_mapping_params = '-k 1'
 
@@ -189,7 +184,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
                 params.rfcount_img = true
                 params.rfcount_trim_5prime = 2
                 params.rfcount_primary_only = true
@@ -227,7 +221,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
 
                 input[0] = Channel.of(
                     [
@@ -272,7 +265,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
 
                 input[0] = Channel.of(
                     [
@@ -304,7 +296,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
                 params.rfnorm_norm_method = 2
 
                 input[0] = Channel.of(
@@ -341,7 +332,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
                 params.rfnorm_norm_method = 99
 
                 input[0] = Channel.of(
@@ -372,7 +362,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
 
                 input[0] = Channel.of(
                     [
@@ -420,7 +409,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
 
                 input[0] = Channel.of(
                     [
@@ -450,7 +438,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
 
                 input[0] = Channel.of(
                     [
@@ -481,7 +468,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
 
                 input[0] = Channel.of(
                     [

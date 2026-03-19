@@ -17,6 +17,7 @@ process RNAFRAMEWORK_DOTPLOT2BP {
     """
     python - <<'PY'
 import gzip
+import math
 import re
 from pathlib import Path
 
@@ -90,6 +91,24 @@ def map_transcript_pos(entry, position: int) -> int:
         cursor += exon_len
     raise ValueError(f"Transcript position {position} exceeds transcript length")
 
+color_bins = [
+    (189, 189, 189, "5-10% probability"),
+    (242, 204, 84, "10-40% probability"),
+    (120, 182, 220, "40-70% probability"),
+    (126, 198, 143, "70-100% probability"),
+]
+
+
+def color_index_for_probability(score: float) -> int:
+    probability = math.pow(10.0, -score)
+    if probability >= 0.7:
+        return 3
+    if probability >= 0.4:
+        return 2
+    if probability >= 0.1:
+        return 1
+    return 0
+
 dotplot_paths = sorted(dotplot_in_dir.glob("*.dp")) if dotplot_in_dir.is_dir() else []
 bp_count = 0
 
@@ -118,7 +137,8 @@ for dotplot_path in dotplot_paths:
             warnings.append(f"Malformed dotplot file {dotplot_path.name}; skipping.")
             output_path.unlink(missing_ok=True)
             continue
-        writer.write("color\\t31\\t119\\t180\\tRNAFramework dotplot\\n")
+        for red, green, blue, label in color_bins:
+            writer.write(f"color\\t{red}\\t{green}\\t{blue}\\t{label}\\n")
         converted_any = False
         for raw_line in reader:
             line = raw_line.strip()
@@ -129,10 +149,11 @@ for dotplot_path in dotplot_paths:
                 continue
             left_pos = int(fields[0])
             right_pos = int(fields[1])
+            color_index = color_index_for_probability(float(fields[2]))
             left_genome = map_transcript_pos(entry, left_pos)
             right_genome = map_transcript_pos(entry, right_pos)
             start, end = sorted((left_genome, right_genome))
-            writer.write(f"{entry['seqname']}\\t{start}\\t{start}\\t{end}\\t{end}\\t0\\n")
+            writer.write(f"{entry['seqname']}\\t{start}\\t{start}\\t{end}\\t{end}\\t{color_index}\\n")
             converted_any = True
 
     if converted_any:

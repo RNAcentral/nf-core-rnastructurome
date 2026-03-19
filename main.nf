@@ -107,7 +107,6 @@ def buildPipelineConfig(all_params) {
         organism                         : all_params.organism,
         fasta                            : all_params.fasta,
         genomes                          : all_params.genomes,
-        genome                           : all_params.genome,
         umi_pattern                      : all_params.umi_pattern,
         ensembl_base_url                 : all_params.ensembl_base_url,
         ensembl_release                  : all_params.ensembl_release,

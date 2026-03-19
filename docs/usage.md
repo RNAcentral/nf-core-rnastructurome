@@ -36,7 +36,7 @@ nextflow run main.nf -profile docker --input samplesheet.csv --fasta transcripts
 ## Required inputs
 
 1. A samplesheet (`--input`)
-2. A transcript reference FASTA (`--fasta`) or a genome configuration that resolves to transcript FASTA
+2. A transcript reference FASTA (`--fasta`) or an organism/reference key that can be resolved via `params.genomes` or Ensembl
 
 Reference resolution behavior:
 
@@ -246,7 +246,7 @@ For full output details, see [output documentation](output.md).
 Typical usage:
 
 ```bash
-nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results --genome GRCh37 -profile docker
+nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results --fasta ./transcripts.fa -profile docker
 ```
 
 The pipeline creates:
@@ -266,7 +266,7 @@ nextflow run nf-core/rnastructurome -profile docker -params-file params.yaml
 ```yaml title="params.yaml"
 input: './samplesheet.csv'
 outdir: './results/'
-genome: 'GRCh37'
+fasta: './transcripts.fa'
 ```
 
 > [!WARNING]

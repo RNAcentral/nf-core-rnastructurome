@@ -16,7 +16,6 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
-                params.genome = null
 
                 input[0] = Channel.of(
                     [

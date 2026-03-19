@@ -18,7 +18,9 @@
     "nextflow.files.exclude": [
         ".git",
         ".nf-test",
+        ".nf-test/**",
         "work",
+        "work/**",
         ".venv"
     ]
 }

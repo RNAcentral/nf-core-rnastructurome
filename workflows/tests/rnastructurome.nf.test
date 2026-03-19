@@ -15,17 +15,17 @@ nextflow_workflow {
             workflow {
                 """
                 params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.selected_top3_subset.fa", checkIfExists: true).toString()
 
                 input[0] = Channel.of(
                     [
                         [ id:'workflow_rtstop', sample_id:'workflow_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'workflow_line', replicate:'rep1', condition:'treated' ],
-                        [ file("\${projectDir}/tests/data/test_single.fastq", checkIfExists: true) ]
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.subset.fastq.gz", checkIfExists: true) ]
                     ]
                 )
                 input[1] = [
                     outdir: "$outputDir",
-                    fasta : file("\${projectDir}/tests/data/ref.fa", checkIfExists: true).toString()
+                    fasta : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.selected_top3_subset.fa", checkIfExists: true).toString()
                 ]
                 """
             }

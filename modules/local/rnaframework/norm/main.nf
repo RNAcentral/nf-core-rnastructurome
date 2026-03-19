@@ -47,7 +47,7 @@ process RNAFRAMEWORK_RFNORM {
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     mkdir -p ${prefix}_norm
-    touch ${prefix}_norm/stub.xml
+    touch ${prefix}_norm/${prefix}.xml
     touch ${prefix}_norm/rfnorm.log
 
     printf '"%s":\n    rnaframework: %s\n' \\

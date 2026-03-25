@@ -17,8 +17,11 @@ process RNAFRAMEWORK_RFFOLD {
     def args = task.ext.args ?: ''
     prefix   = task.ext.prefix ?: "${meta.id}"
     def xml_list = xml instanceof List ? xml.join(' ') : "${xml}"
+    def isArm64 = ((System.properties['os.arch'] ?: '').toLowerCase() in ['aarch64', 'arm64'])
+    def perlEnvCleanup = isArm64 ? 'unset PERL5LIB PERL_LOCAL_LIB_ROOT PERL_MB_OPT PERL_MM_OPT' : ''
     """
     export TERM="\${TERM:-xterm}"
+    ${perlEnvCleanup}
 
     log_tmp=\$(mktemp "${prefix}_fold.XXXXXX.log")
 
@@ -75,7 +78,7 @@ process RNAFRAMEWORK_RFFOLD {
 
     printf '"%s":\n    rnaframework: %s\n' \\
         "${task.process}" \\
-        "\$(rf-fold 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")" \\
+        "\$(rf-fold 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
         > versions.yml
     """
 
@@ -89,7 +92,7 @@ process RNAFRAMEWORK_RFFOLD {
 
     printf '"%s":\n    rnaframework: %s\n' \\
         "${task.process}" \\
-        "\$(rf-fold 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")" \\
+        "\$(rf-fold 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
         > versions.yml
     """
 }

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import urllib.error
 import urllib.request
 
 
@@ -22,7 +23,7 @@ def fetch_text(url: str) -> str:
     try:
         with urllib.request.urlopen(url, timeout=60) as response:
             return response.read().decode("utf-8", errors="ignore")
-    except Exception:
+    except urllib.error.URLError:
         fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
         with urllib.request.urlopen(fallback_url, timeout=60) as response:
             return response.read().decode("utf-8", errors="ignore")

@@ -5,6 +5,7 @@ import argparse
 import gzip
 import shutil
 import sys
+import urllib.error
 import urllib.request
 import re
 
@@ -26,7 +27,7 @@ def fetch_text(url: str) -> str:
     try:
         with urllib.request.urlopen(url, timeout=60) as response:
             return response.read().decode("utf-8", errors="ignore")
-    except Exception:
+    except urllib.error.URLError:
         fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
         with urllib.request.urlopen(fallback_url, timeout=60) as response:
             return response.read().decode("utf-8", errors="ignore")
@@ -44,7 +45,7 @@ def find_ensembl_file(listing_url: str, pattern: str) -> str:
 def find_optional_ensembl_file(listing_url: str, pattern: str) -> str | None:
     try:
         listing = fetch_text(listing_url)
-    except Exception:
+    except urllib.error.URLError:
         return None
     matches = re.findall(r'href="([^"]+)"', listing)
     filtered = [match for match in matches if re.search(pattern, match)]

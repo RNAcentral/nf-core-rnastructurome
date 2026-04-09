@@ -30,9 +30,9 @@
 
   > Ewels P, Magnusson M, Lundin S, Käller M. MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics. 2016 Oct 1;32(19):3047-8. doi: 10.1093/bioinformatics/btw354. Epub 2016 Jun 16. PubMed PMID: 27312411; PubMed Central PMCID: PMC5039924.
 
-- [RNAFramework](https://pubmed.ncbi.nlm.nih.gov/28531371/)
+- [RNAFramework](https://pubmed.ncbi.nlm.nih.gov/29893890/)
 
-  > Incarnato D, Neri F, Anselmi F, Oliviero S. RNA structure framework: automated transcriptome-wide reconstruction of RNA secondary structures from high-throughput structure probing data. Bioinformatics. 2016 Aug 15;32(16):2533-5. doi: 10.1093/bioinformatics/btw239. PubMed PMID: 28531371.
+  > Incarnato D, Morandi E, Simon LM, Oliviero S. RNA Framework: an all-in-one toolkit for the analysis of RNA structures and post-transcriptional modifications. Nucleic Acids Res. 2018 Sep 19;46(16):e97. doi: 10.1093/nar/gky486. PubMed PMID: 29893890; PubMed Central PMCID: PMC6144828.
 
 - [SAMtools](https://pubmed.ncbi.nlm.nih.gov/33590861/)
 

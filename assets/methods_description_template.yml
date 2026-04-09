@@ -21,7 +21,7 @@ data: |
     <li>Langmead B, Trapnell C, Pop M, Salzberg SL. (2009). Ultrafast and memory-efficient alignment of short DNA sequences to the human genome. Genome Biology, 10(3), R25. doi: <a href="https://doi.org/10.1186/gb-2009-10-3-r25">10.1186/gb-2009-10-3-r25</a></li>
     <li>Langmead B, Salzberg SL. (2012). Fast gapped-read alignment with Bowtie 2. Nature Methods, 9(4), 357–359. doi: <a href="https://doi.org/10.1038/nmeth.1923">10.1038/nmeth.1923</a></li>
     <li>Danecek P, Bonfield JK, Liddle J, Marshall J, Ohan V, Pollard MO, Whitwham A, Keane T, McCarthy SA, Davies RM, Li H. (2021). Twelve years of SAMtools and BCFtools. GigaScience, 10(2), giab008. doi: <a href="https://doi.org/10.1093/gigascience/giab008">10.1093/gigascience/giab008</a></li>
-    <li>Incarnato D, Neri F, Anselmi F, Oliviero S. (2016). RNA structure framework: automated transcriptome-wide reconstruction of RNA secondary structures from high-throughput structure probing data. Bioinformatics, 32(16), 2533–2535. doi: <a href="https://doi.org/10.1093/bioinformatics/btw239">10.1093/bioinformatics/btw239</a></li>
+    <li>Incarnato D, Morandi E, Simon LM, Oliviero S. (2018). RNA Framework: an all-in-one toolkit for the analysis of RNA structures and post-transcriptional modifications. Nucleic Acids Research, 46(16), e97. doi: <a href="https://doi.org/10.1093/nar/gky486">10.1093/nar/gky486</a></li>
     <li>Ewels P, Magnusson M, Lundin S, Käller M. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics, 32(19), 3047–3048. doi: <a href="https://doi.org/10.1093/bioinformatics/btw354">10.1093/bioinformatics/btw354</a></li>
   </ul>
   <div class="alert alert-info">

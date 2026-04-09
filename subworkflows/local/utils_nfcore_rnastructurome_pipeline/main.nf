@@ -44,6 +44,8 @@ workflow PIPELINE_INITIALISATION {
     def pipeline_config = defaultPipelineConfig() + (pipeline_config_input ?: [:])
     ch_versions = channel.empty()
 
+    validateRequiredPaths(input, outdir)
+
     //
     // Print version and exit if required and dump pipeline parameters to JSON file
     //
@@ -216,6 +218,21 @@ def defaultPipelineConfig() {
 
 def validateInputParameters(pipeline_config) {
     genomeExistsError(pipeline_config)
+}
+
+def validateRequiredPaths(input, outdir) {
+    if (!isSpecifiedPath(input)) {
+        error("Missing required parameter: --input. Provide a samplesheet CSV path.")
+    }
+
+    if (!isSpecifiedPath(outdir)) {
+        error("Missing required parameter: --outdir. Provide an output directory path.")
+    }
+}
+
+def isSpecifiedPath(value) {
+    def normalised = value?.toString()?.trim()
+    return normalised && !normalised.equalsIgnoreCase('null')
 }
 
 //

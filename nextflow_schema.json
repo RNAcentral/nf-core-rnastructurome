@@ -312,10 +312,7 @@
                                 "const": true
                             }
                         },
-                        "required": [
-                            "rfcount_paired_only",
-                            "rfcount_properly_paired"
-                        ]
+                        "required": ["rfcount_paired_only", "rfcount_properly_paired"]
                     }
                 }
             ],

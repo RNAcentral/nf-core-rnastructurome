@@ -98,14 +98,14 @@ HEK293T_untreated_r1,/data/untreated_r1.fastq.gz,,HEK293T,untreated,1
 
 ### Column reference
 
-| Column | Description |
-| --- | --- |
-| `sample` | Sample identifier. Re-used IDs are concatenated before downstream analysis (multi-lane support). |
-| `fastq_1` | Read 1 FASTQ path (`.fastq.gz` / `.fq.gz`). |
-| `fastq_2` | Read 2 FASTQ path for paired-end data (optional). |
-| `cell_line` | Group key used for control pairing in `rf-norm`. |
-| `condition` | One of `treated`, `untreated`, `denatured`. |
-| `replicate` | Replicate key used for control pairing in `rf-norm`. |
+| Column      | Description                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------ |
+| `sample`    | Sample identifier. Re-used IDs are concatenated before downstream analysis (multi-lane support). |
+| `fastq_1`   | Read 1 FASTQ path (`.fastq.gz` / `.fq.gz`).                                                      |
+| `fastq_2`   | Read 2 FASTQ path for paired-end data (optional).                                                |
+| `cell_line` | Group key used for control pairing in `rf-norm`.                                                 |
+| `condition` | One of `treated`, `untreated`, `denatured`.                                                      |
+| `replicate` | Replicate key used for control pairing in `rf-norm`.                                             |
 
 Optional per-sample columns supported by the pipeline include:
 
@@ -140,10 +140,10 @@ Advanced override:
 
 ### Cutadapt by principle
 
-| Principle | `--cutadapt-5quality` | `--cutadapt-3quality` | Notes |
-| --- | --- | --- | --- |
-| `RT-stop` | forced to `0` | default `20` | 5' quality trimming is intentionally disabled |
-| `MaP` | default `20` | default `20` | both are user-configurable |
+| Principle | `--cutadapt-5quality` | `--cutadapt-3quality` | Notes                                         |
+| --------- | --------------------- | --------------------- | --------------------------------------------- |
+| `RT-stop` | forced to `0`         | default `20`          | 5' quality trimming is intentionally disabled |
+| `MaP`     | default `20`          | default `20`          | both are user-configurable                    |
 
 Adapter precedence:
 
@@ -287,9 +287,9 @@ nextflow run nf-core/rnastructurome -profile docker -params-file params.yaml
 ```
 
 ```yaml title="params.yaml"
-input: './samplesheet.csv'
-outdir: './results/'
-fasta: './transcripts.fa'
+input: "./samplesheet.csv"
+outdir: "./results/"
+fasta: "./transcripts.fa"
 ```
 
 > [!WARNING]

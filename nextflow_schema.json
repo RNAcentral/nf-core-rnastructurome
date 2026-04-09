@@ -414,6 +414,11 @@
                     "type": "string",
                     "description": "Use a fixed normalization factor for all transcripts (`--norm-factor`). For 90% Winsorizing provide two comma-separated values for the 5th and 95th percentiles."
                 },
+                "rfnorm_norm_method": {
+                    "type": "integer",
+                    "enum": [2, 3],
+                    "description": "Override rf-norm normalization method (`-nm`)."
+                },
                 "rfnorm_raw": {
                     "type": "boolean",
                     "description": "Score raw reactivities without applying normalization (`--raw`).",
@@ -542,7 +547,7 @@
                 "rnaframework_container": {
                     "type": "string",
                     "description": "Container image used for local RNAframework modules.",
-                    "default": "docker.io/rnastructurome/rnaframework:2.9.6-r1"
+                    "default": "ghcr.io/vicbeg/rnaframework:2.9.6-r2-runtime"
                 },
                 "rnaframework_r_path": {
                     "type": "string",

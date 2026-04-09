@@ -34,7 +34,8 @@ nextflow_workflow {
 
         then {
             assertAll(
-                { assert workflow.success }
+                { assert workflow.success },
+                { assert snapshot(path("${outputDir}/pipeline_info/nf_core_rnastructurome_software_mqc_versions.yml")).match() }
             )
         }
     }

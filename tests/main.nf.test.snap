@@ -1,0 +1,12 @@
+{
+    "Runs the named workflow with a minimal RT-stop sample": {
+        "content": [
+            "nf_core_rnastructurome_software_mqc_versions.yml:md5,7a9ccebcd1c86f51e94458d5924ef3eb"
+        ],
+        "timestamp": "2026-04-09T15:11:17.84077",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "25.10.3"
+        }
+    }
+}

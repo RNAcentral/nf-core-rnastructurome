@@ -18,7 +18,7 @@ report_section_order:
   "nf-core-rnastructurome-summary":
     order: 3
   software_versions:
-    order: 2
+    order: -1000
   "nf-core-rnastructurome-methods-description":
     order: 1
 

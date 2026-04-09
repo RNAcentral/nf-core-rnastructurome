@@ -4,6 +4,7 @@ nf_core_version: 3.5.2
 
 lint:
   files_unchanged:
+    - .gitignore
     - assets/email_template.html
     - assets/nf-core-rnastructurome_logo_light.png
     - docs/images/nf-core-rnastructurome_logo_light.png
@@ -15,7 +16,7 @@ template:
   description: This pipeline analyses chemical-based high-throughput RNA structure
     probing data
   author: RNAcentral
-  version: 1.0.0dev
+  version: 1.0.0
   force: true
   outdir: .
   is_nfcore: true

@@ -31,6 +31,9 @@ include { ENSEMBL_TRANSCRIPTOME } from '../modules/local/ensembl/transcriptome/m
 include { ENSEMBL_GTF          } from '../modules/local/ensembl/gtf/main'
 include { FASTA_SORT            } from '../modules/local/fasta/sort/main'
 include { RNAFRAMEWORK_DOTPLOT2BP } from '../modules/local/rnaframework/dotplot2bp/main'
+include { RNAFRAMEWORK_RFWIGGLE  } from '../modules/local/rnaframework/wiggle/main'
+include { RNAFRAMEWORK_TORDAT    } from '../modules/local/rnaframework/tordat/main'
+include { UCSC_WIGTOBIGWIG       } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -429,32 +432,13 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE_ALIGN.out.log.collect { bowtie_log -> bowtie_log[1] })
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { bowtie2_log -> bowtie2_log[1] })
 
-    ch_sorted_inputs = ch_mapped_bam
-        .combine(ch_reference_fasta_map)
-        .map { combined ->
-            def meta = combined[0]
-            def bam = combined[1]
-            def ref_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
-            def fasta_tuple = ref_map[reference_key]
-            if (!fasta_tuple) {
-                error("No transcript FASTA resolved for reference '${reference_key}' for samtools sort.")
-            }
-            [ [meta, bam], fasta_tuple ]
-        }
-
     //
     // MODULE: samtools sort — coordinate-sort mapped BAMs
+    // FASTA/FAI not needed for BAM output (only required for CRAM); pass empty.
     //
-    def ch_sorted_split = ch_sorted_inputs.multiMap { entry ->
-        bam: entry[0]
-        fasta: entry[1]
-    }
-    def ch_sorted_bam_input = ch_sorted_split.bam
-    def ch_sorted_fasta_input = ch_sorted_split.fasta
     SAMTOOLS_SORT (
-        ch_sorted_bam_input,
-        ch_sorted_fasta_input,
+        ch_mapped_bam,
+        channel.value([ [], [], [] ]),
         false
     )
 
@@ -467,7 +451,7 @@ workflow RNASTRUCTUROME {
 
     ch_sorted_bam_bai = SAMTOOLS_SORT.out.bam
         .map { meta, bam -> [ meta.id.toString(), [meta, bam] ] }
-        .join(SAMTOOLS_INDEX_SORT.out.bai.map { meta, bai -> [ meta.id.toString(), [meta, bai] ] })
+        .join(SAMTOOLS_INDEX_SORT.out.index.map { meta, bai -> [ meta.id.toString(), [meta, bai] ] })
         .map { _sample_id, bam_tuple, bai_tuple ->
             [ bam_tuple[0], bam_tuple[1], bai_tuple[1] ]
         }
@@ -500,43 +484,14 @@ workflow RNASTRUCTUROME {
         false
     )
 
-    ch_reference_fasta_fai_keyed = SAMTOOLS_FAIDX.out.fai
-        .map { meta, fai -> [ meta.id.toString(), [meta, fai] ] }
-        .join(ch_reference_fasta_keyed)
-        .map { reference_key, fai_tuple, fasta_tuple ->
-            [ reference_key, [fasta_tuple[0], fasta_tuple[1], fai_tuple[1]] ]
-        }
-    ch_reference_fasta_fai_map = ch_reference_fasta_fai_keyed
-        .map { key, value -> [ (key): value ] }
-        .collect()
-        .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
-
-    ch_markdup_inputs = dedup_branches.non_umi
-        .combine(ch_reference_fasta_fai_map)
-        .map { combined ->
-            def meta = combined[0]
-            def bam = combined[1]
-            def ref_fai_map = combined[3]
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
-            def fasta_fai_tuple = ref_fai_map[reference_key]
-            if (!fasta_fai_tuple) {
-                error("No FASTA/FAI tuple resolved for reference '${reference_key}' for markdup.")
-            }
-            [ [meta, bam], fasta_fai_tuple ]
-        }
-
     //
     // MODULE: samtools markdup — deduplicate non-UMI BAMs
+    // FASTA/FAI not needed for BAM output; pass empty.
+    // Drop the bai from [meta, bam, bai] — markdup only takes [meta, bam].
     //
-    def ch_markdup_split = ch_markdup_inputs.multiMap { entry ->
-        bam: entry[0]
-        ref: entry[1]
-    }
-    def ch_markdup_bam_input = ch_markdup_split.bam
-    def ch_markdup_ref_input = ch_markdup_split.ref
     SAMTOOLS_MARKDUP (
-        ch_markdup_bam_input,
-        ch_markdup_ref_input
+        dedup_branches.non_umi.map { meta, bam, _bai -> [ meta, bam ] },
+        channel.value([ [], [], [] ])
     )
 
     ch_dedup_bam = UMITOOLS_DEDUP.out.bam.mix(SAMTOOLS_MARKDUP.out.bam)
@@ -552,38 +507,18 @@ workflow RNASTRUCTUROME {
 
     ch_markdup_bam_bai = ch_dedup_bam
         .map { meta, bam -> [ meta.id.toString(), [meta, bam] ] }
-        .join(SAMTOOLS_INDEX_FINAL.out.bai.map { meta, bai -> [ meta.id.toString(), [meta, bai] ] })
+        .join(SAMTOOLS_INDEX_FINAL.out.index.map { meta, bai -> [ meta.id.toString(), [meta, bai] ] })
         .map { _sample_id, bam_tuple, bai_tuple ->
             [ bam_tuple[0], bam_tuple[1], bai_tuple[1] ]
         }
 
-    ch_stats_inputs = ch_markdup_bam_bai
-        .combine(ch_reference_fasta_map)
-        .map { combined ->
-            def meta = combined[0]
-            def bam = combined[1]
-            def bai = combined[2]
-            def ref_map = combined[3]
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
-            def fasta_tuple = ref_map[reference_key]
-            if (!fasta_tuple) {
-                error("No transcript FASTA resolved for reference '${reference_key}' for samtools stats.")
-            }
-            [ [meta, bam, bai], fasta_tuple ]
-        }
-
     //
     // MODULE: samtools stats — collect alignment statistics
+    // FASTA/FAI not needed for transcript BAMs; pass empty.
     //
-    def ch_stats_split = ch_stats_inputs.multiMap { entry ->
-        bam: entry[0]
-        fasta: entry[1]
-    }
-    def ch_stats_bam_input = ch_stats_split.bam
-    def ch_stats_fasta_input = ch_stats_split.fasta
     SAMTOOLS_STATS (
-        ch_stats_bam_input,
-        ch_stats_fasta_input
+        ch_markdup_bam_bai,
+        channel.value([ [], [], [] ])
     )
 
     //
@@ -604,33 +539,8 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_FLAGSTAT.out.flagstat.collect { flagstat_file -> flagstat_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_IDXSTATS.out.idxstats.collect { idxstats_file -> idxstats_file[1] })
 
-    //
-    // Collect software versions for MultiQC.
-    //
-    ch_versions_for_multiqc_files = channel.empty()
-    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(FASTQC_PRE.out.versions.first())
-    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(FASTQC_POST.out.versions.first())
-    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(BOWTIE_BUILD.out.versions)
-    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(BOWTIE_ALIGN.out.versions)
-
-    ch_versions_for_multiqc_tuples = channel.empty()
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(CAT_FASTQ.out.versions_cat)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(UMITOOLS_EXTRACT.out.versions_umitools)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(UMITOOLS_DEDUP.out.versions_umitools)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(CUTADAPT_RTSTOP.out.versions_cutadapt)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(CUTADAPT_MAP.out.versions_cutadapt)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_BUILD.out.versions_bowtie2)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_ALIGN.out.versions_bowtie2)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_ALIGN.out.versions_samtools)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(BOWTIE2_ALIGN.out.versions_pigz)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_SORT.out.versions_samtools)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_INDEX_SORT.out.versions_samtools)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_FAIDX.out.versions_samtools)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_MARKDUP.out.versions_samtools)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_INDEX_FINAL.out.versions_samtools)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_STATS.out.versions_samtools)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_FLAGSTAT.out.versions_samtools)
-    ch_versions_for_multiqc_tuples = ch_versions_for_multiqc_tuples.mix(SAMTOOLS_IDXSTATS.out.versions_samtools)
+    // Software versions are collected later via ch_versions (old-style emit: versions)
+    // and channel.topic("versions") (new-style topic-based modules)
 
     //
     // MODULE: rf-count — per-base RT-stop or mutation counts from deduplicated BAM
@@ -850,6 +760,38 @@ workflow RNASTRUCTUROME {
         file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
     )
 
+    //
+    // MODULE: rf-wiggle — convert rf-norm XML reactivities to WIG + chrom.sizes
+    //
+    RNAFRAMEWORK_RFWIGGLE (
+        RNAFRAMEWORK_RFNORM.out.xml
+    )
+
+    //
+    // MODULE: wigToBigWig — convert merged WIG to BigWig for IGV
+    //
+    UCSC_WIGTOBIGWIG (
+        RNAFRAMEWORK_RFWIGGLE.out.merged_wig,
+        RNAFRAMEWORK_RFWIGGLE.out.chrom_sizes.map { _meta, sizes -> sizes }
+    )
+
+    //
+    // MODULE: tordat — compile rf-norm XML + rf-fold .db structures into RDAT format
+    //
+    def ch_rdat_input = RNAFRAMEWORK_RFNORM.out.xml
+        .map { meta, xml -> [ meta.cell_line.toString(), meta, xml ] }
+        .combine(
+            RNAFRAMEWORK_RFFOLD.out.structures
+                .map { meta, fold_dir -> [ meta.id.toString(), fold_dir ] },
+            by: 0
+        )
+        .map { _key, norm_meta, xml, fold_dir -> [ norm_meta, xml, fold_dir ] }
+
+    RNAFRAMEWORK_TORDAT (
+        ch_rdat_input,
+        file("${projectDir}/bin/rnaframework_to_rdat.py", checkIfExists: true)
+    )
+
     // Add RNAframework outputs to MultiQC input collection.
     ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFCOUNT.out.rc.collect { rc_file -> rc_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFCOUNT.out.plots.collect { plot_file -> plot_file[1] })
@@ -857,11 +799,7 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFNORM.out.plots.collect { plot_file -> plot_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFFOLD.out.structures.collect { fold_dir -> fold_dir[1] })
 
-    // Add RNAframework versions to the MultiQC software-versions input.
-    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_RFCOUNT.out.versions.first())
-    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
-    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
-    ch_versions_for_multiqc_files = ch_versions_for_multiqc_files.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
+    // RNAframework module versions collected via ch_versions below
 
     //
     // MODULE: multiqc — aggregate pipeline quality control reports
@@ -888,26 +826,6 @@ workflow RNASTRUCTUROME {
     ch_methods_description                = channel.value(
         methodsDescriptionText(ch_multiqc_custom_methods_description, pipeline_config))
 
-    def ch_versions_for_multiqc_yaml = softwareVersionsToYAML(ch_versions_for_multiqc_files)
-        .mix(
-            ch_versions_for_multiqc_tuples
-                .map { process, tool, version ->
-                    [ process[process.lastIndexOf(':')+1..-1], "  ${tool}: ${version}" ]
-                }
-                .groupTuple(by:0)
-                .map { process, tool_versions ->
-                    tool_versions.unique().sort()
-                    "${process}:\n${tool_versions.join('\n')}"
-                }
-        )
-        .collectFile(
-            storeDir: "${pipeline_config.outdir}/pipeline_info",
-            name: 'nf_core_' + 'rnastructurome_software_' + 'mqc_' + 'versions_for_multiqc.yml',
-            sort: true,
-            newLine: true
-        )
-
-    ch_multiqc_files = ch_multiqc_files.mix(ch_versions_for_multiqc_yaml)
     ch_multiqc_files = ch_multiqc_files.mix(
         ch_methods_description.collectFile(
             name: 'methods_description_mqc.yaml',
@@ -916,12 +834,7 @@ workflow RNASTRUCTUROME {
     )
 
     MULTIQC (
-        ch_multiqc_files.collect(),
-        ch_multiqc_config.toList(),
-        ch_multiqc_custom_config.toList(),
-        ch_multiqc_logo.toList(),
-        [],
-        []
+        ch_multiqc_files.collect().map { files -> [ [ id: 'multiqc' ], files, [], [], [], [] ] }
     )
 
     //
@@ -932,14 +845,16 @@ workflow RNASTRUCTUROME {
     //   topic-pattern: CUTADAPT_*, BOWTIE2_*, UMITOOLS_*, all SAMTOOLS_* modules
     //   file-pattern:  FASTQC, BOWTIE_BUILD/ALIGN, local modules
     //
-    ch_versions = ch_versions.mix(FASTQC_PRE.out.versions.first())
-    ch_versions = ch_versions.mix(FASTQC_POST.out.versions.first())
+    // FASTQC, SAMtools, cutadapt, bowtie2, umitools use topic: versions → captured by channel.topic("versions") below
+    // Old-style modules (emit: versions) must be mixed in explicitly
     ch_versions = ch_versions.mix(BOWTIE_BUILD.out.versions)
     ch_versions = ch_versions.mix(BOWTIE_ALIGN.out.versions)
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
+    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFWIGGLE.out.versions.first())
+    ch_versions = ch_versions.mix(RNAFRAMEWORK_TORDAT.out.versions.first())
 
     //
     // Collate and save software versions

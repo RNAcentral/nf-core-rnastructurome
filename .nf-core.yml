@@ -8,6 +8,7 @@ lint:
   files_unchanged:
     - .gitignore
     - .github/workflows/linting_comment.yml
+    - subworkflows/nf-core/utils_nfcore_pipeline/main.nf
     - assets/email_template.html
     - assets/nf-core-rnastructurome_logo_light.png
     - docs/images/nf-core-rnastructurome_logo_light.png

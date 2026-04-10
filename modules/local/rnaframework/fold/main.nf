@@ -18,7 +18,10 @@ process RNAFRAMEWORK_RFFOLD {
     prefix   = task.ext.prefix ?: "${meta.id}"
     def xml_list = xml instanceof List ? xml.join(' ') : "${xml}"
     def isArm64 = ((System.properties['os.arch'] ?: '').toLowerCase() in ['aarch64', 'arm64'])
-    def perlEnvCleanup = isArm64 ? 'unset PERL5LIB PERL_LOCAL_LIB_ROOT PERL_MB_OPT PERL_MM_OPT' : ''
+    // Only clear conflicting Perl env vars in container mode — in conda mode these vars
+    // point to the conda-installed ViennaRNA Perl bindings (RNA.pm) and must be preserved.
+    def inContainer = workflow.containerEngine && workflow.containerEngine != 'none'
+    def perlEnvCleanup = (isArm64 && inContainer) ? 'unset PERL5LIB PERL_LOCAL_LIB_ROOT PERL_MB_OPT PERL_MM_OPT' : ''
     """
     export TERM="\${TERM:-xterm}"
     ${perlEnvCleanup}

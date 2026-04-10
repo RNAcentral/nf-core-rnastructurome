@@ -1,5 +1,9 @@
 FROM docker.io/dincarnato/rnaframework:2.9.6 AS source
 
+FROM docker.io/condaforge/miniforge3:latest AS conda-extras
+RUN conda install -y -c bioconda ucsc-bedgraphtobigwig ucsc-wigtobigwig \
+    && conda clean -afy
+
 FROM ubuntu:24.04
 
 # Runtime-only RNAFramework image for Singularity-heavy HPC environments.
@@ -15,6 +19,7 @@ USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
+        python3 \
         r-base \
         r-cran-ggplot2 \
         r-cran-gtable \
@@ -48,6 +53,9 @@ COPY --from=source /home/ubuntu/conda/bin/partition-smp ${RF_RUNTIME_ROOT}/bin/p
 COPY --from=source /home/ubuntu/conda/bin/ProbabilityPlot ${RF_RUNTIME_ROOT}/bin/ProbabilityPlot
 COPY --from=source /home/ubuntu/conda/bin/MaxExpect ${RF_RUNTIME_ROOT}/bin/MaxExpect
 COPY --from=source /home/ubuntu/conda/bin/MaxExpect-smp ${RF_RUNTIME_ROOT}/bin/MaxExpect-smp
+COPY --from=conda-extras /opt/conda/bin/bedGraphToBigWig ${RF_RUNTIME_ROOT}/bin/bedGraphToBigWig
+COPY --from=conda-extras /opt/conda/bin/wigToBigWig ${RF_RUNTIME_ROOT}/bin/wigToBigWig
+COPY --from=conda-extras /opt/conda/lib/libmysqlclient.so.18 ${RF_RUNTIME_ROOT}/lib/libmysqlclient.so.18
 
 RUN ln -sf ${RF_RUNTIME_ROOT}/bin/perl /usr/local/bin/perl \
     && ln -sf ${RF_RUNTIME_ROOT}/bin/samtools /usr/local/bin/samtools \
@@ -68,6 +76,9 @@ RUN ln -sf ${RF_RUNTIME_ROOT}/bin/perl /usr/local/bin/perl \
     && ln -sf /home/ubuntu/rnaframework/rf-count /usr/local/bin/rf-count \
     && ln -sf /home/ubuntu/rnaframework/rf-norm /usr/local/bin/rf-norm \
     && ln -sf /home/ubuntu/rnaframework/rf-fold /usr/local/bin/rf-fold \
+    && ln -sf /home/ubuntu/rnaframework/rf-wiggle /usr/local/bin/rf-wiggle \
+    && ln -sf ${RF_RUNTIME_ROOT}/bin/bedGraphToBigWig /usr/local/bin/bedGraphToBigWig \
+    && ln -sf ${RF_RUNTIME_ROOT}/bin/wigToBigWig /usr/local/bin/wigToBigWig \
     && ln -sf /usr/bin/R /usr/local/bin/R \
     && ln -sf /usr/bin/Rscript /usr/local/bin/Rscript \
     && chmod o+rx /home /home/ubuntu /home/ubuntu/rnaframework ${RF_RUNTIME_ROOT} ${RF_RUNTIME_ROOT}/bin ${RF_RUNTIME_ROOT}/lib

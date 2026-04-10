@@ -90,6 +90,11 @@
                         "git_sha": "156feda0cb6589cd29c04902004fa3b53bc00205",
                         "installed_by": ["modules"]
                     },
+                    "ucsc/wigtobigwig": {
+                        "branch": "master",
+                        "git_sha": "d0afa49c7c23c9e99a47af9bafb4cee449853560",
+                        "installed_by": ["modules"]
+                    },
                     "umitools/dedup": {
                         "branch": "master",
                         "git_sha": "bd6d730b3f32742f402189113ba9480006a3350f",

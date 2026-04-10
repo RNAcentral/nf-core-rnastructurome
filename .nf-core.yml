@@ -3,11 +3,11 @@ repository_type: pipeline
 nf_core_version: 3.5.2
 
 lint:
-  included_configs: false
   module_changes: false
   subworkflow_changes: false
   files_unchanged:
     - .gitignore
+    - .github/workflows/linting_comment.yml
     - assets/email_template.html
     - assets/nf-core-rnastructurome_logo_light.png
     - docs/images/nf-core-rnastructurome_logo_light.png

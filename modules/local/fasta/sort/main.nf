@@ -3,7 +3,7 @@ process FASTA_SORT {
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"
-    container 'docker.io/python:3.12.11'
+    container 'docker.io/library/python:3.12.11'
 
     input:
     tuple val(meta), path(fasta)

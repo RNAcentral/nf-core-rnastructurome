@@ -44,6 +44,11 @@
                 "meta": ["organism"],
                 "description": "Organism name used for transcript reference resolution. Latin binomials such as 'Homo sapiens' are normalised to Ensembl species format."
             },
+            "pH": {
+                "type": "number",
+                "meta": ["pH"],
+                "description": "pH of the DMS reaction. When method is 'dms' and pH >= 8.0, reactive bases are set to 'ACGU' (all four bases); otherwise defaults to 'AC'."
+            },
             "adapter_3p": {
                 "type": "string",
                 "meta": ["adapter_3p"]

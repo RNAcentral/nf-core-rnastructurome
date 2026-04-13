@@ -8,8 +8,6 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 
-RDAT_VERSION = "0.24"
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -84,9 +82,6 @@ def write_rdat(
 ) -> None:
     length = len(rna_sequence)
 
-    # SEQPOS is 1-based list of all positions
-    seqpos = list(range(1, length + 1))
-
     # REACTIVITY: one value per position; NaN for missing
     reactivity_values = []
     for i in range(length):
@@ -94,14 +89,10 @@ def write_rdat(
         reactivity_values.append("NaN" if val is None else f"{val:.6g}")
 
     with out_path.open("wt", encoding="utf-8") as fh:
-        fh.write(f"RDAT_VERSION\t{RDAT_VERSION}\n")
         fh.write(f"NAME\t{transcript_id}\n")
         fh.write(f"SEQUENCE\t{rna_sequence}\n")
         fh.write(f"STRUCTURE\t{dot_bracket}\n")
-        fh.write(f"OFFSET\t0\n")
-        fh.write(f"SEQPOS\t{' '.join(str(p) for p in seqpos)}\n")
-        fh.write(f"MUTPOS\tWT\n")
-        fh.write(f"ANNOTATION\tchemical:unknown\n")
+        fh.write(f"ANNOTATION_DATA:1\tmodifier:DMS\n")
         fh.write(f"REACTIVITY\t{' '.join(reactivity_values)}\n")
 
 

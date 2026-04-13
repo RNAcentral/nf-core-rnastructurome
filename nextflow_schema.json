@@ -544,7 +544,7 @@
                 "rnaframework_container": {
                     "type": "string",
                     "description": "Container image used for local RNAframework modules.",
-                    "default": "ghcr.io/vicbeg/rnaframework:2.9.6-r2-runtime"
+                    "default": "ghcr.io/vicbeg/rnaframework:2.9.6-r5-runtime"
                 },
                 "rnaframework_r_path": {
                     "type": "string",

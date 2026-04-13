@@ -58,8 +58,6 @@ workflow {
 
     main:
     def pipeline_config = buildPipelineConfig(params)
-    def entry_params = buildEntryParamsMap(params)
-
     //
     // SUBWORKFLOW: Run initialisation tasks
     //
@@ -73,8 +71,7 @@ workflow {
         params.help,
         params.help_full,
         params.show_hidden,
-        pipeline_config,
-        entry_params
+        pipeline_config
     )
 
     //
@@ -156,10 +153,6 @@ def buildPipelineConfig(all_params) {
         rfnorm_nan                       : all_params.rfnorm_nan,
         rnaframework_r_path              : all_params.rnaframework_r_path
     ]
-}
-
-def buildEntryParamsMap(all_params) {
-    all_params.collectEntries { key, value -> [(key): value] }
 }
 
 /*

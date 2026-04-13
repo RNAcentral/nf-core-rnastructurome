@@ -11,10 +11,8 @@
 include { UTILS_NFSCHEMA_PLUGIN     } from '../../nf-core/utils_nfschema_plugin'
 include { paramsSummaryMap          } from 'plugin/nf-schema'
 include { samplesheetToList         } from 'plugin/nf-schema'
-include { paramsHelp                } from 'plugin/nf-schema'
 include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
-include { imNotification            } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NEXTFLOW_PIPELINE   } from '../../nf-core/utils_nextflow_pipeline'
 
@@ -37,7 +35,6 @@ workflow PIPELINE_INITIALISATION {
     help_full         // boolean: Show the full help message
     show_hidden       // boolean: Show hidden parameters in the help message
     pipeline_config_input // map: pipeline configuration captured at the entry workflow
-    entry_params_input // map: raw params captured at the entry workflow
 
     main:
 
@@ -53,8 +50,7 @@ workflow PIPELINE_INITIALISATION {
         version,
         true,
         outdir,
-        workflow.profile.tokenize(',').intersect(['conda', 'mamba']).size() >= 1,
-        entry_params_input
+        workflow.profile.tokenize(',').intersect(['conda', 'mamba']).size() >= 1
     )
 
     //
@@ -185,9 +181,6 @@ workflow PIPELINE_COMPLETION {
         }
 
         completionSummary(monochrome_logs)
-        if (hook_url) {
-            imNotification(summary_params, hook_url)
-        }
     }
 
     workflow.onError {

@@ -339,59 +339,6 @@ def completionEmail(summary_params, email, email_on_fail, plaintext_email, outdi
 //
 // Print pipeline summary on completion
 //
-//
-// Send pipeline completion IM notification
-//
-def imNotification(summary_params, hook_url) {
-    def summary = [:]
-    for (group in summary_params.keySet()) {
-        summary << summary_params[group]
-    }
-    def misc_fields = [:]
-    misc_fields['start']                              = workflow.start
-    misc_fields['complete']                           = workflow.complete
-    misc_fields['scriptfile']                         = workflow.scriptFile
-    misc_fields['scriptid']                           = workflow.scriptId
-    if (workflow.repository) misc_fields['repository'] = workflow.repository
-    if (workflow.commitId)   misc_fields['commitid']   = workflow.commitId
-    if (workflow.revision)   misc_fields['revision']   = workflow.revision
-    misc_fields['nxf_version']                        = workflow.nextflow.version
-    misc_fields['nxf_build']                          = workflow.nextflow.build
-    misc_fields['nxf_timestamp']                      = workflow.nextflow.timestamp
-
-    def msg_fields = [:]
-    msg_fields['version']      = getWorkflowVersion()
-    msg_fields['runName']      = workflow.runName
-    msg_fields['success']      = workflow.success
-    msg_fields['dateComplete'] = workflow.complete
-    msg_fields['duration']     = workflow.duration
-    msg_fields['exitStatus']   = workflow.exitStatus
-    msg_fields['errorMessage'] = (workflow.errorMessage ?: 'None')
-    msg_fields['errorReport']  = (workflow.errorReport ?: 'None')
-    msg_fields['commandLine']  = workflow.commandLine
-    msg_fields['projectDir']   = workflow.projectDir
-    msg_fields['summary']      = summary << misc_fields
-
-    // Render the IM notification template
-    def engine       = new groovy.text.GStringTemplateEngine()
-    def tf           = new File("$projectDir/assets/slackreport.json")
-    def json_template = engine.createTemplate(tf).make(msg_fields)
-    def json_message  = json_template.toString()
-
-    // POST
-    def post = new URL(hook_url).openConnection()
-    post.setRequestMethod('POST')
-    post.setDoOutput(true)
-    post.setRequestProperty('Content-Type', 'application/json')
-    post.outputStream.write(json_message.getBytes('UTF-8'))
-    post.connect()
-    def response = [code: post.responseCode, message: post.inputStream.text]
-    if (response.code != 200) {
-        log.warn("[${workflow.manifest.name}] Slack/IM hook returned non-200 status code: ${response.code}")
-    }
-}
-
-//
 def completionSummary(monochrome_logs=true) {
     def colors = logColours(monochrome_logs) as Map
     if (workflow.success) {

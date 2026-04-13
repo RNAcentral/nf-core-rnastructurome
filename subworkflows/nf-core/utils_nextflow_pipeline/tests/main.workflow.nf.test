@@ -17,13 +17,11 @@ nextflow_workflow {
                 dump_parameters      = false
                 outdir               = null
                 check_conda_channels = false
-                entry_params         = [:]
 
                 input[0] = print_version
                 input[1] = dump_parameters
                 input[2] = outdir
                 input[3] = check_conda_channels
-                input[4] = entry_params
                 """
             }
         }
@@ -44,13 +42,11 @@ nextflow_workflow {
                 dump_parameters      = false
                 outdir               = null
                 check_conda_channels = false
-                entry_params         = [:]
 
                 input[0] = print_version
                 input[1] = dump_parameters
                 input[2] = outdir
                 input[3] = check_conda_channels
-                input[4] = entry_params
                 """
             }
         }
@@ -74,13 +70,11 @@ nextflow_workflow {
                 dump_parameters      = true
                 outdir               = 'results'
                 check_conda_channels = false
-                entry_params         = [ outdir: outdir, test_flag: true ]
 
                 input[0] = false
                 input[1] = true
                 input[2] = outdir
                 input[3] = false
-                input[4] = entry_params
                 """
             }
         }
@@ -101,13 +95,11 @@ nextflow_workflow {
                 dump_parameters      = true
                 outdir               = null
                 check_conda_channels = false
-                entry_params         = [ outdir: "results" ]
 
                 input[0] = false
                 input[1] = true
                 input[2] = outdir
                 input[3] = false
-                input[4] = entry_params
                 """
             }
         }

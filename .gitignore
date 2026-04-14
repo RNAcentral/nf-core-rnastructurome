@@ -3,6 +3,7 @@
 work/
 results/
 .DS_Store
+.venv/
 testing/
 testing*
 *.pyc

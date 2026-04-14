@@ -834,7 +834,10 @@ workflow RNASTRUCTUROME {
     )
 
     MULTIQC (
-        ch_multiqc_files.collect().map { files -> [ [ id: 'multiqc' ], files, [], [], [], [] ] }
+        ch_multiqc_files.collect()
+            .combine(ch_multiqc_config.mix(ch_multiqc_custom_config).collect())
+            .combine(ch_multiqc_logo.collect())
+            .map { files, config, logo -> [ [ id: 'multiqc' ], files, config, logo, [], [] ] }
     )
 
     //

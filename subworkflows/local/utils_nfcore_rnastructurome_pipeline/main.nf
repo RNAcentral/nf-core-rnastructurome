@@ -155,7 +155,7 @@ workflow PIPELINE_COMPLETION {
     plaintext_email // boolean: Send plain-text email instead of HTML
     outdir          //    path: Path to output directory where results will be published
     monochrome_logs // boolean: Disable ANSI colour codes in log output
-    hook_url        //  string: hook URL for notifications
+    _hook_url       //  string: hook URL for notifications
     multiqc_report  //  string: Path to MultiQC report
     max_multiqc_email_size // string|memoryunit: maximum MultiQC size to attach to completion emails
 

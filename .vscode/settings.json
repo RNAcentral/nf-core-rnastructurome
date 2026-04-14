@@ -15,5 +15,5 @@
         "**/.nf-test/**": true,
         "**/work/**": true
     },
-    "nextflow.files.exclude": [".git", ".nf-test", ".nf-test/**", "work", "work/**", ".venv"]
+    "nextflow.files.exclude": [".git", ".nf-test", ".nf-test/**", "work", "work/**", ".venv", ".venv/**"]
 }

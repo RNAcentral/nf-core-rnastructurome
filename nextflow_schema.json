@@ -541,6 +541,15 @@
                     "description": "Path to ViennaRNA `RNAplot` binary for SVG structure plots in rf-fold (`-vrp`).",
                     "default": "RNAplot"
                 },
+                "rfwiggle_report_zeroes": {
+                    "type": "boolean",
+                    "description": "Report positions with zero reactivity in the WIG/BigWig output (`-z`). Enabled by default so genome browsers receive complete tracks without gaps.",
+                    "default": true
+                },
+                "rfwiggle_keep_bases": {
+                    "type": "string",
+                    "description": "Restrict WIG output to specific bases using an IUPAC code or combination (e.g. `AC` for DMS probing) (`-kb`). Default: all bases (`N`)."
+                },
                 "rnaframework_container": {
                     "type": "string",
                     "description": "Container image used for local RNAframework modules.",

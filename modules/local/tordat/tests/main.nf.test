@@ -1,0 +1,75 @@
+nextflow_process {
+
+    name "Test Process RNAFRAMEWORK_TORDAT"
+    script "../main.nf"
+    process "RNAFRAMEWORK_TORDAT"
+
+    tag "modules"
+    tag "modules_local"
+    tag "tordat"
+    config "./nextflow.config"
+
+    test("tordat - produces rdat from xml and dotbracket") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group1' ],
+                    file("${projectDir}/modules/local/rnaframework/tordat/tests/fixtures/xml/TX1.xml", checkIfExists: true),
+                    file("${projectDir}/modules/local/rnaframework/tordat/tests/fixtures/fold_group", type: 'dir', checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/bin/rnaframework_to_rdat.py", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.rdat.size() == 1 },
+                {
+                    def rdatOut = process.out.rdat[0][1]
+                    def fileList = rdatOut instanceof List ? rdatOut : [rdatOut]
+                    assert fileList.size() == 1
+                    def lines = path(fileList[0].toString()).text.readLines()
+                    assert lines.any { it == 'NAME\tTX1' }
+                    assert lines.any { it == 'SEQUENCE\tACGUACGUAC' }
+                    assert lines.any { it == 'STRUCTURE\t(((....)))' }
+                    assert lines.any { it.startsWith('REACTIVITY\t') }
+                    def reactLine = lines.find { it.startsWith('REACTIVITY\t') }
+                    def values = reactLine.tokenize('\t')[1].split(' ')
+                    assert values[0] == '0.1'
+                    assert values[2] == 'NaN'
+                    assert values[9] == '1'
+                },
+                { assert path(process.out.versions[0]).text.contains('python:') }
+            )
+        }
+    }
+
+    test("tordat - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group1' ],
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true),
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                ])
+                input[1] = file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.rdat.size() == 1 }
+            )
+        }
+    }
+}

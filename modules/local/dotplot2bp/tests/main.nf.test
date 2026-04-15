@@ -6,8 +6,7 @@ nextflow_process {
 
     tag "modules"
     tag "modules_local"
-    tag "rnaframework"
-    tag "rnaframework/dotplot2bp"
+    tag "dotplot2bp"
     config "./nextflow.config"
 
     test("converts plus and minus strand dotplots into genomic bp arcs") {

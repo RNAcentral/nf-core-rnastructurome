@@ -181,7 +181,7 @@ workflow RNASTRUCTUROME {
     // MODULE: fastqc (post-trim) — quality control on trimmed reads
     //
     FASTQC_POST (
-        ch_trimmed_reads
+        ch_trimmed_reads.map { meta, reads -> [ meta + [id: "${meta.id}_trimmed"], reads ] }
     )
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC_POST.out.zip.collect { fastqc_zip -> fastqc_zip[1] })
 
@@ -598,7 +598,6 @@ workflow RNASTRUCTUROME {
                 [
                     mapped_reads_pre_dedup     : mappedPreLong,
                     mapped_reads_post_dedup    : mappedPostLong,
-                    reads_removed_by_dedup     : removed,
                     pct_removed_by_dedup       : pctRemoved,
                     rfcount_covered_transcripts: covered_transcripts as long
                 ]
@@ -803,6 +802,26 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFNORM.out.xml.collect { xml_file -> xml_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFNORM.out.plots.collect { plot_file -> plot_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFFOLD.out.structures.collect { fold_dir -> fold_dir[1] })
+
+    // RF-norm summary table: one row per normalisation group (cell_line + replicate).
+    def ch_rfnorm_stats_mqc = RNAFRAMEWORK_RFNORM.out.log
+        .map { meta, log -> [ meta.id.toString(), parseRfnormLog(log) ] }
+        .collect()
+        .map { rows -> rfnormStatsMultiqc(rows) }
+
+    ch_multiqc_files = ch_multiqc_files.mix(
+        ch_rfnorm_stats_mqc.collectFile(name: 'rfnorm_stats_mqc.yaml', sort: true)
+    )
+
+    // RF-fold summary table: one row per fold group (cell_line; may span replicates).
+    def ch_rffold_stats_mqc = RNAFRAMEWORK_RFFOLD.out.log
+        .map { meta, log -> [ meta.id.toString(), parseRffoldLog(log) ] }
+        .collect()
+        .map { rows -> rffoldStatsMultiqc(rows) }
+
+    ch_multiqc_files = ch_multiqc_files.mix(
+        ch_rffold_stats_mqc.collectFile(name: 'rffold_stats_mqc.yaml', sort: true)
+    )
 
     // RNAframework module versions collected via ch_versions below
 
@@ -1338,31 +1357,122 @@ def countProgressionMultiqc(rows) {
 
     """id: 'nf-core-rnastructurome-count-progression'
 section_name: 'nf-core/rnastructurome Count Progression'
-description: 'Mapped read retention through deduplication together with rf-count covered transcript totals.'
+description: 'Read counts at each stage of the alignment → deduplication → RF-count pipeline per sample.'
 plot_type: 'table'
 pconfig:
   id: 'nf-core-rnastructurome-count-progression'
   title: 'nf-core/rnastructurome Count Progression'
 headers:
   mapped_reads_pre_dedup:
-    title: 'Mapped Reads Pre-dedup'
+    title: 'Mapped (pre-dedup)'
+    description: 'Reads mapped to the reference before deduplication'
+    scale: 'Blues'
     format: '{:,.0f}'
   mapped_reads_post_dedup:
-    title: 'Mapped Reads Post-dedup'
-    format: '{:,.0f}'
-  reads_removed_by_dedup:
-    title: 'Reads Removed by Dedup'
+    title: 'Mapped (post-dedup)'
+    description: 'Reads retained after UMI/positional deduplication'
+    scale: 'Blues'
     format: '{:,.0f}'
   pct_removed_by_dedup:
-    title: 'Dedup Removed %'
-    format: '{:,.2f}'
+    title: 'Removed by Dedup'
+    description: 'Percentage of mapped reads removed as duplicates'
+    scale: 'Oranges'
+    format: '{:,.1f}'
     suffix: '%'
   rfcount_covered_transcripts:
-    title: 'RFCOUNT Covered Transcripts'
+    title: 'RF-count: Covered Transcripts'
+    description: 'Number of transcripts with sufficient coverage in RF-count'
+    scale: 'Greens'
     format: '{:,.0f}'
 data:
 ${dataBlock}
 """
+}
+
+def parseRfnormLog(logFile) {
+    def covered   = 0L
+    def discarded = 0L
+    logFile.readLines().each { line ->
+        def covM = (line =~ /\[\*\]\s+Covered transcripts:\s+(\d+)/)
+        if (covM.find()) covered = covM.group(1) as long
+        def disM = (line =~ /\[\*\]\s+Discarded transcripts:\s+(\d+)\s+total/)
+        if (disM.find()) discarded = disM.group(1) as long
+    }
+    [covered: covered, discarded: discarded]
+}
+
+def parseRffoldLog(logFile) {
+    def folded    = 0L
+    def discarded = 0L
+    logFile.readLines().each { line ->
+        def foldM = (line =~ /\[\*\]\s+Folded transcripts:\s+(\d+)/)
+        if (foldM.find()) folded = foldM.group(1) as long
+        def disM  = (line =~ /\[\*\]\s+Discarded transcripts:\s+(\d+)\s+total/)
+        if (disM.find()) discarded = disM.group(1) as long
+    }
+    [folded: folded, discarded: discarded]
+}
+
+def buildSimpleMultiqcTable(rows, id, sectionName, description, headers) {
+    def rowEntries
+    if (rows instanceof List && rows.size() == 2 && rows[1] instanceof Map && !(rows[0] instanceof List)) {
+        rowEntries = [rows]
+    } else if (rows instanceof List && rows.every { row -> row instanceof List && row.size() == 2 && row[1] instanceof Map }) {
+        rowEntries = rows
+    } else {
+        rowEntries = []
+    }
+    def orderedRows = rowEntries.sort { a, b -> a[0] <=> b[0] }
+    def dataBlock = orderedRows.collect { row ->
+        def sampleId = row[0]
+        def metrics  = row[1]
+        def metricLines = metrics.collect { key, value -> "    ${key}: ${value}" }.join('\n')
+        "  ${sampleId}:\n${metricLines}"
+    }.join('\n')
+    def headerBlock = headers.collect { col, cfg ->
+        def lines = ["  ${col}:"]
+        cfg.each { k, v -> lines << "    ${k}: '${v}'" }
+        lines.join('\n')
+    }.join('\n')
+
+    """id: '${id}'
+section_name: '${sectionName}'
+description: '${description}'
+plot_type: 'table'
+pconfig:
+  id: '${id}'
+  title: '${sectionName}'
+headers:
+${headerBlock}
+data:
+${dataBlock}
+"""
+}
+
+def rfnormStatsMultiqc(rows) {
+    buildSimpleMultiqcTable(
+        rows,
+        'nf-core-rnastructurome-rfnorm-stats',
+        'nf-core/rnastructurome RF-norm Statistics',
+        'Transcript coverage and discard counts from rf-norm (per normalisation group).',
+        [
+            covered  : [title: 'Covered Transcripts',  description: 'Transcripts with sufficient coverage for normalisation', scale: 'Greens', format: '{:,.0f}'],
+            discarded: [title: 'Discarded Transcripts', description: 'Transcripts discarded by rf-norm (insufficient coverage, mismatches, or absent in control)', scale: 'Reds', format: '{:,.0f}']
+        ]
+    )
+}
+
+def rffoldStatsMultiqc(rows) {
+    buildSimpleMultiqcTable(
+        rows,
+        'nf-core-rnastructurome-rffold-stats',
+        'nf-core/rnastructurome RF-fold Statistics',
+        'Folded and discarded transcript counts from rf-fold (per fold group).',
+        [
+            folded   : [title: 'Folded Transcripts',   description: 'Transcripts successfully folded by rf-fold', scale: 'Purples', format: '{:,.0f}'],
+            discarded: [title: 'Discarded Transcripts', description: 'Transcripts discarded by rf-fold (XML parse errors or folding failures)', scale: 'Reds', format: '{:,.0f}']
+        ]
+    )
 }
 
 def cutadaptAdaptersMultiqc(rows) {

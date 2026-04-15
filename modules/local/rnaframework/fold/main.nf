@@ -79,6 +79,15 @@ process RNAFRAMEWORK_RFFOLD {
 
     rm -f "\${expected_list}" "\${folded_list}"
 
+    mv ${prefix}_fold/structures ${prefix}_fold/dotbracket
+    if [[ -d ${prefix}_fold/plots/structures ]]; then
+        mv ${prefix}_fold/plots/structures ${prefix}_fold/2D-structures
+    fi
+    if [[ -d ${prefix}_fold/plots/summaries ]]; then
+        mv ${prefix}_fold/plots/summaries ${prefix}_fold/summaries
+    fi
+    rmdir ${prefix}_fold/plots 2>/dev/null || true
+
     printf '"%s":\n    rnaframework: %s\n' \\
         "${task.process}" \\
         "\$(rf-fold 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
@@ -88,10 +97,11 @@ process RNAFRAMEWORK_RFFOLD {
     stub:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p ${prefix}_fold
-    mkdir -p ${prefix}_fold/structures
+    mkdir -p ${prefix}_fold/dotbracket
+    mkdir -p ${prefix}_fold/2D-structures
+    mkdir -p ${prefix}_fold/summaries
     touch ${prefix}_fold/rffold.log
-    touch ${prefix}_fold/structures/example.db
+    touch ${prefix}_fold/dotbracket/example.db
 
     printf '"%s":\n    rnaframework: %s\n' \\
         "${task.process}" \\

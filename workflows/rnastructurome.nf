@@ -29,7 +29,8 @@ include { RNAFRAMEWORK_RFNORM   } from '../modules/local/rnaframework/norm/main'
 include { RNAFRAMEWORK_RFFOLD   } from '../modules/local/rnaframework/fold/main'
 include { ENSEMBL_TRANSCRIPTOME } from '../modules/local/ensembl/transcriptome/main'
 include { ENSEMBL_GTF          } from '../modules/local/ensembl/gtf/main'
-include { FASTA_SORT            } from '../modules/local/fasta/sort/main'
+include { FASTA_SORT as FASTA_SORT_LOCAL    } from '../modules/local/fasta/sort/main'
+include { FASTA_SORT as FASTA_SORT_ENSEMBL } from '../modules/local/fasta/sort/main'
 include { RNAFRAMEWORK_DOTPLOT2BP } from '../modules/local/rnaframework/dotplot2bp/main'
 include { RNAFRAMEWORK_RFWIGGLE  } from '../modules/local/rnaframework/wiggle/main'
 include { RNAFRAMEWORK_TORDAT    } from '../modules/local/rnaframework/tordat/main'
@@ -284,15 +285,19 @@ workflow RNASTRUCTUROME {
     )
     ch_versions = ch_versions.mix(ENSEMBL_GTF.out.versions)
 
-    ch_all_reference_fasta = ch_reference_local.mix(ENSEMBL_TRANSCRIPTOME.out.fasta)
-    ch_all_reference_gtf   = ch_reference_gtf_local.mix(ENSEMBL_GTF.out.gtf)
+    ch_all_reference_gtf = ch_reference_gtf_local.mix(ENSEMBL_GTF.out.gtf)
 
-    FASTA_SORT (
-        ch_all_reference_fasta
+    FASTA_SORT_LOCAL (
+        ch_reference_local
     )
-    ch_versions = ch_versions.mix(FASTA_SORT.out.versions)
+    ch_versions = ch_versions.mix(FASTA_SORT_LOCAL.out.versions)
 
-    ch_reference_fasta_keyed = FASTA_SORT.out.fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+    FASTA_SORT_ENSEMBL (
+        ENSEMBL_TRANSCRIPTOME.out.fasta
+    )
+    ch_versions = ch_versions.mix(FASTA_SORT_ENSEMBL.out.versions)
+
+    ch_reference_fasta_keyed = FASTA_SORT_LOCAL.out.fasta.mix(FASTA_SORT_ENSEMBL.out.fasta).map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
     ch_reference_gtf_keyed   = ch_all_reference_gtf.map { meta, gtf -> [ meta.id.toString(), [meta, gtf] ] }
     ch_reference_fasta_map   = ch_reference_fasta_keyed
         .map { key, value -> [ (key): value ] }
@@ -480,7 +485,7 @@ workflow RNASTRUCTUROME {
     // MODULE: samtools faidx — index reference FASTA for markdup
     //
     SAMTOOLS_FAIDX (
-        FASTA_SORT.out.fasta.map { meta, fasta -> [meta, fasta, []] },
+        FASTA_SORT_LOCAL.out.fasta.mix(FASTA_SORT_ENSEMBL.out.fasta).map { meta, fasta -> [meta, fasta, []] },
         false
     )
 

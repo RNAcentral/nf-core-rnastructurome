@@ -18,7 +18,7 @@ process RNAFRAMEWORK_TORDAT {
     """
     python "${tordat_script}" \\
         --xml-dir xml \\
-        --structures-dir fold_dir/structures \\
+        --structures-dir fold_dir/dotbracket \\
         --prefix "${prefix}"
 
     printf '"%s":\n    python: %s\n' \\

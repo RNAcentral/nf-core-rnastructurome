@@ -75,19 +75,19 @@ report_section_order:
 # duplication.  Bowtie alignment rate represents the alignment step.
 table_columns_visible:
   FastQC:
-    total_sequences: True       # raw read count entering the pipeline
-    percent_gc: True            # library GC content
-    percent_duplicates: True    # optical/PCR duplicate fraction
+    total_sequences: True # raw read count entering the pipeline
+    percent_gc: True # library GC content
+    percent_duplicates: True # optical/PCR duplicate fraction
     avg_sequence_length: False
     median_sequence_length: False
     percent_fails: False
   Cutadapt:
-    percent_trimmed: True       # fraction of bases removed by trimming
+    percent_trimmed: True # fraction of bases removed by trimming
     r_with_adapters: False
     r_too_short: False
   "Bowtie 1":
-    reads_aligned_percentage: True   # alignment rate (key mapping metric)
-    reads_aligned: False             # absolute count covered by count progression
+    reads_aligned_percentage: True # alignment rate (key mapping metric)
+    reads_aligned: False # absolute count covered by count progression
   Samtools:
     # All hidden — reads_mapped / mapped_pct repeat Bowtie; detailed counts
     # are in the Count Progression table.

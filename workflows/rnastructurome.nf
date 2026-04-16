@@ -32,6 +32,7 @@ include { ENSEMBL_GTF          } from '../modules/local/ensembl/gtf/main'
 include { FASTA_SORT as FASTA_SORT_LOCAL    } from '../modules/local/fasta/sort/main'
 include { FASTA_SORT as FASTA_SORT_ENSEMBL } from '../modules/local/fasta/sort/main'
 include { RNAFRAMEWORK_DOTPLOT2BP } from '../modules/local/dotplot2bp/main'
+include { MERGE_BP               } from '../modules/local/merge_bp/main'
 include { RNAFRAMEWORK_RFWIGGLE  } from '../modules/local/rnaframework/wiggle/main'
 include { RNAFRAMEWORK_TORDAT    } from '../modules/local/tordat/main'
 include { UCSC_WIGTOBIGWIG       } from '../modules/nf-core/ucsc/wigtobigwig/main'
@@ -765,6 +766,13 @@ workflow RNASTRUCTUROME {
     )
 
     //
+    // MODULE: merge_bp — merge per-transcript .bp files into a single file per fold group for genome browser visualisation
+    //
+    MERGE_BP (
+        RNAFRAMEWORK_DOTPLOT2BP.out.bp
+    )
+
+    //
     // MODULE: rf-wiggle — convert rf-norm XML reactivities to WIG + chrom.sizes
     //
     RNAFRAMEWORK_RFWIGGLE (
@@ -880,6 +888,7 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
+    ch_versions = ch_versions.mix(MERGE_BP.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFWIGGLE.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_TORDAT.out.versions.first())
 
@@ -919,6 +928,7 @@ workflow RNASTRUCTUROME {
     normalized_xml   = RNAFRAMEWORK_RFNORM.out.xml        // channel: [ val(meta), path(xml) ]
     fold_structures  = RNAFRAMEWORK_RFFOLD.out.structures // channel: [ val(meta), path(dir) ]
     fold_bp          = RNAFRAMEWORK_DOTPLOT2BP.out.bp     // channel: [ val(meta), path(bp) ]
+    merged_bp        = MERGE_BP.out.bp                   // channel: [ val(meta), path(*_merged.bp) ]
     versions         = ch_versions                        // channel: [ path(versions.yml) ]
 
 }

@@ -157,7 +157,14 @@ def main() -> int:
                 left_genome = map_transcript_pos(entry, left_pos)
                 right_genome = map_transcript_pos(entry, right_pos)
                 start, end = sorted((left_genome, right_genome))
-                writer.write(f"{entry['seqname']}\t{start}\t{start}\t{end}\t{end}\t{color_index}\n")
+                seqname = entry["seqname"]
+                if not seqname or seqname.lower() == "none":
+                    warnings.append(
+                        f"Skipping base-pair record in {dotplot_path.name}: "
+                        f"empty or null seqname for transcript '{transcript_id}'."
+                    )
+                    continue
+                writer.write(f"{seqname}\t{start}\t{start}\t{end}\t{end}\t{color_index}\n")
                 converted_any = True
 
         if converted_any:

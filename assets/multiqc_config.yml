@@ -115,6 +115,6 @@ table_columns_placement:
   "Bowtie 1":
     reads_aligned_percentage: 300
 
-export_plots: true
+export_plots: false
 
 disable_version_detection: true

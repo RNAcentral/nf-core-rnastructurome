@@ -1,0 +1,44 @@
+name: merge_wig
+description: Merge per-transcript WIG files and derive chrom.sizes from RNAFramework XML
+keywords:
+  - wig
+  - bigwig
+  - merge
+tools:
+  - python:
+      description: Python runtime used for lightweight WIG/XML post-processing
+      homepage: https://www.python.org
+input:
+  - - meta:
+        type: map
+        description: Sample or group metadata map
+    - wig:
+        type: file
+        description: One or more per-transcript WIG files
+        pattern: "*.wig"
+    - xml:
+        type: file
+        description: One or more RNAFramework XML files
+        pattern: "*.xml"
+output:
+  merged_wig:
+    - - meta:
+          type: map
+          description: Sample or group metadata map
+      - "${prefix}.merged.wig":
+          type: file
+          description: Combined WIG file for downstream BigWig conversion
+          pattern: "*.merged.wig"
+  chrom_sizes:
+    - - meta:
+          type: map
+          description: Sample or group metadata map
+      - "${prefix}_chrom.sizes":
+          type: file
+          description: Chromosome sizes derived from transcript lengths in XML
+          pattern: "*_chrom.sizes"
+  versions:
+    - "versions.yml":
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"

@@ -31,9 +31,7 @@ nextflow_process {
         then {
             assertAll(
                 { assert process.success },
-                { assert process.out.wig.size() == 1 },
-                { assert process.out.merged_wig.size() == 1 },
-                { assert process.out.chrom_sizes.size() == 1 }
+                { assert process.out.wig.size() == 1 }
             )
         }
     }
@@ -62,9 +60,7 @@ nextflow_process {
         then {
             assertAll(
                 { assert process.success },
-                { assert process.out.wig.size() == 1 },
-                { assert process.out.merged_wig.size() == 1 },
-                { assert process.out.chrom_sizes.size() == 1 }
+                { assert process.out.wig.size() == 1 }
             )
         }
     }

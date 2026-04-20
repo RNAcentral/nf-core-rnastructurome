@@ -34,6 +34,7 @@ include { FASTA_SORT as FASTA_SORT_ENSEMBL } from '../modules/local/fasta/sort/m
 include { RNAFRAMEWORK_DOTPLOT2BP } from '../modules/local/dotplot2bp/main'
 include { MERGE_BP               } from '../modules/local/merge_bp/main'
 include { RNAFRAMEWORK_RFWIGGLE  } from '../modules/local/rnaframework/wiggle/main'
+include { MERGE_WIG              } from '../modules/local/merge_wig/main'
 include { RNAFRAMEWORK_TORDAT    } from '../modules/local/tordat/main'
 include { UCSC_WIGTOBIGWIG       } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
@@ -779,12 +780,23 @@ workflow RNASTRUCTUROME {
         RNAFRAMEWORK_RFNORM.out.xml
     )
 
+    def ch_merge_wiggle_input = RNAFRAMEWORK_RFWIGGLE.out.wig
+        .map { meta, wig -> [ meta.id.toString(), [meta, wig] ] }
+        .join(RNAFRAMEWORK_RFNORM.out.xml.map { meta, xml -> [ meta.id.toString(), [meta, xml] ] })
+        .map { _sample_id, wig_tuple, xml_tuple ->
+            [ wig_tuple[0], wig_tuple[1], xml_tuple[1] ]
+        }
+
+    MERGE_WIG (
+        ch_merge_wiggle_input
+    )
+
     //
     // MODULE: wigToBigWig — convert merged WIG to BigWig for IGV
     //
     UCSC_WIGTOBIGWIG (
-        RNAFRAMEWORK_RFWIGGLE.out.merged_wig,
-        RNAFRAMEWORK_RFWIGGLE.out.chrom_sizes.map { _meta, sizes -> sizes }
+        MERGE_WIG.out.merged_wig,
+        MERGE_WIG.out.chrom_sizes.map { _meta, sizes -> sizes }
     )
 
     //
@@ -890,6 +902,7 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
     ch_versions = ch_versions.mix(MERGE_BP.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFWIGGLE.out.versions.first())
+    ch_versions = ch_versions.mix(MERGE_WIG.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_TORDAT.out.versions.first())
 
     //

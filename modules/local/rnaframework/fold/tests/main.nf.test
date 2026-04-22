@@ -32,6 +32,7 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.structures.size() == 1 },
+                { assert process.out.shannon_wig.size() == 1 },
                 { assert process.out.log.size() == 1 }
             )
         }
@@ -62,8 +63,10 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.structures.size() == 1 },
+                { assert process.out.shannon_wig.size() == 1 },
                 { assert process.out.log.size() == 1 }
             )
         }
     }
+
 }

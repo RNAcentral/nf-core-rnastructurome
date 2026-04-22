@@ -9,7 +9,7 @@ process MERGE_BP {
     tuple val(meta), path(bp_files, stageAs: "inputs/*.bp")
 
     output:
-    tuple val(meta), path("${meta.id}_merged.bp"), optional: true, emit: bp
+    tuple val(meta), path("${meta.id}.bp"), optional: true, emit: bp
     path "versions.yml", emit: versions
 
     script:
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 bp_files = sorted(Path("inputs").glob("*.bp"))
-output_path = Path("${prefix}_merged.bp")
+output_path = Path("${prefix}.bp")
 
 EXPECTED_DATA_FIELDS = 6
 
@@ -85,7 +85,7 @@ PY
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    touch ${prefix}_merged.bp
+    touch ${prefix}.bp
 
     printf '"%s":\n    python: %s\n' \
         "${task.process}" \

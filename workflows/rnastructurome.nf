@@ -35,8 +35,10 @@ include { RNAFRAMEWORK_DOTPLOT2BP } from '../modules/local/dotplot2bp/main'
 include { MERGE_BP               } from '../modules/local/merge_bp/main'
 include { RNAFRAMEWORK_RFWIGGLE  } from '../modules/local/rnaframework/wiggle/main'
 include { MERGE_WIG              } from '../modules/local/merge_wig/main'
+include { MERGE_SHANNON_WIG      } from '../modules/local/merge_shannon_wig/main'
 include { RNAFRAMEWORK_TORDAT    } from '../modules/local/tordat/main'
-include { UCSC_WIGTOBIGWIG       } from '../modules/nf-core/ucsc/wigtobigwig/main'
+include { UCSC_WIGTOBIGWIG                          } from '../modules/nf-core/ucsc/wigtobigwig/main'
+include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -798,6 +800,26 @@ workflow RNASTRUCTUROME {
         MERGE_WIG.out.merged_wig,
         MERGE_WIG.out.chrom_sizes.map { _meta, sizes -> sizes }
     )
+
+    //
+    // MODULE: merge_shannon_wig + wigToBigWig — merge per-transcript Shannon entropy WIG files
+    // and convert to BigWig for genome browser visualisation
+    //
+    if (params.rffold_shannon_entropy) {
+        def ch_shannon_merge_input = RNAFRAMEWORK_RFFOLD.out.shannon_wig
+            .map { meta, wigs -> [ meta.id.toString(), meta, wigs ] }
+            .join(ch_fold_input.map { meta, xmls -> [ meta.id.toString(), xmls ] })
+            .map { _id, meta, wigs, xmls -> [ meta, wigs, xmls ] }
+
+        MERGE_SHANNON_WIG (
+            ch_shannon_merge_input
+        )
+
+        UCSC_WIGTOBIGWIG_SHANNON (
+            MERGE_SHANNON_WIG.out.merged_wig,
+            MERGE_SHANNON_WIG.out.chrom_sizes.map { _meta, sizes -> sizes }
+        )
+    }
 
     //
     // MODULE: tordat — compile rf-norm XML + rf-fold .db structures into RDAT format

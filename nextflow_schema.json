@@ -534,7 +534,7 @@
                 "rffold_shannon_entropy": {
                     "type": "boolean",
                     "description": "Compute and report Shannon entropy in rf-fold (`-sh`).",
-                    "default": false
+                    "default": true
                 },
                 "rffold_vienna_rnaplot": {
                     "type": "string",

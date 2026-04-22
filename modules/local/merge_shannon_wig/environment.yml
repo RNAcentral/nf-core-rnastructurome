@@ -1,0 +1,5 @@
+name: shannon_wig_merge
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12

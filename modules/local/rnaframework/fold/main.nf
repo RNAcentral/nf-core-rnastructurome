@@ -9,9 +9,10 @@ process RNAFRAMEWORK_RFFOLD {
     tuple val(meta), path(xml)
 
     output:
-    tuple val(meta), path("${prefix}_fold/"), emit: structures
-    tuple val(meta), path("${prefix}_fold/rffold.log"), optional: true, emit: log
-    path "versions.yml"                      , emit: versions
+    tuple val(meta), path("${prefix}_fold/"),             emit: structures
+    tuple val(meta), path("${prefix}_fold/shannon/*.wig"), optional: true, emit: shannon_wig
+    tuple val(meta), path("${prefix}_fold/rffold.log"),   optional: true, emit: log
+    path "versions.yml"                                  , emit: versions
 
     script:
     def args = task.ext.args ?: ''
@@ -100,8 +101,10 @@ process RNAFRAMEWORK_RFFOLD {
     mkdir -p ${prefix}_fold/dotbracket
     mkdir -p ${prefix}_fold/2D-structures
     mkdir -p ${prefix}_fold/summaries
+    mkdir -p ${prefix}_fold/shannon
     touch ${prefix}_fold/rffold.log
     touch ${prefix}_fold/dotbracket/example.db
+    touch ${prefix}_fold/shannon/example.wig
 
     printf '"%s":\n    rnaframework: %s\n' \\
         "${task.process}" \\

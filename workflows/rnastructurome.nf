@@ -35,10 +35,11 @@ include { RNAFRAMEWORK_DOTPLOT2BP } from '../modules/local/dotplot2bp/main'
 include { MERGE_BP               } from '../modules/local/merge_bp/main'
 include { RNAFRAMEWORK_RFWIGGLE  } from '../modules/local/rnaframework/wiggle/main'
 include { MERGE_WIG              } from '../modules/local/merge_wig/main'
+include { AVERAGE_WIG            } from '../modules/local/average_wig/main'
 include { MERGE_SHANNON_WIG      } from '../modules/local/merge_shannon_wig/main'
 include { RNAFRAMEWORK_TORDAT    } from '../modules/local/tordat/main'
-include { UCSC_WIGTOBIGWIG                          } from '../modules/nf-core/ucsc/wigtobigwig/main'
-include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON } from '../modules/nf-core/ucsc/wigtobigwig/main'
+include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_REACTIVITY } from '../modules/nf-core/ucsc/wigtobigwig/main'
+include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON    } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -794,11 +795,42 @@ workflow RNASTRUCTUROME {
     )
 
     //
-    // MODULE: wigToBigWig — convert merged WIG to BigWig for IGV
+    // Group per-replicate merged WIGs by cell_line.
+    // Single replicate: bypass AVERAGE_WIG, keep meta.id = "HEK293T_1" → HEK293T_1_reactivity.bw
+    // Multiple replicates: run AVERAGE_WIG, set meta.id = cell_line   → HEK293T_reactivity.bw
     //
-    UCSC_WIGTOBIGWIG (
-        MERGE_WIG.out.merged_wig,
-        MERGE_WIG.out.chrom_sizes.map { _meta, sizes -> sizes }
+    def ch_reactivity_grouped = MERGE_WIG.out.merged_wig
+        .map { meta, wig -> [ meta.id.toString(), meta, wig ] }
+        .join(MERGE_WIG.out.chrom_sizes.map { meta, sizes -> [ meta.id.toString(), sizes ] })
+        .map { _id, meta, wig, sizes -> [ meta.cell_line.toString(), meta, wig, sizes ] }
+        .groupTuple(by: 0)
+        .map { cell_line, metas, wigs, sizes_list ->
+            def base_meta = wigs.size() == 1
+                ? metas[0]
+                : metas[0] + [ id: cell_line ]
+            [ base_meta, wigs.flatten(), sizes_list[0] ]
+        }
+
+    def ch_reactivity_branches = ch_reactivity_grouped.branch { _meta, wigs, _sizes ->
+        single: wigs.size() == 1
+        multi:  true
+    }
+
+    def ch_single_reactivity = ch_reactivity_branches.single.multiMap { meta, wigs, sizes ->
+        wig:   [ meta, wigs[0] ]
+        sizes: sizes
+    }
+
+    AVERAGE_WIG (
+        ch_reactivity_branches.multi
+    )
+
+    //
+    // MODULE: wigToBigWig — convert merged/averaged WIG to BigWig for IGV
+    //
+    UCSC_WIGTOBIGWIG_REACTIVITY (
+        ch_single_reactivity.wig.mix(AVERAGE_WIG.out.merged_wig),
+        ch_single_reactivity.sizes.mix(AVERAGE_WIG.out.chrom_sizes.map { _meta, sizes -> sizes })
     )
 
     //
@@ -925,6 +957,7 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(MERGE_BP.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFWIGGLE.out.versions.first())
     ch_versions = ch_versions.mix(MERGE_WIG.out.versions.first())
+    ch_versions = ch_versions.mix(AVERAGE_WIG.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_TORDAT.out.versions.first())
 
     //
@@ -1407,6 +1440,7 @@ plot_type: 'table'
 pconfig:
   id: 'nf-core-rnastructurome-count-progression'
   title: 'nf-core/rnastructurome Count Progression'
+  show_table_by_default: true
 headers:
   mapped_reads_pre_dedup:
     title: 'Mapped (pre-dedup)'
@@ -1487,6 +1521,7 @@ plot_type: 'table'
 pconfig:
   id: '${id}'
   title: '${sectionName}'
+  show_table_by_default: true
 headers:
 ${headerBlock}
 data:
@@ -1566,6 +1601,7 @@ plot_type: 'table'
 pconfig:
   id: 'nf-core-rnastructurome-cutadapt-adapters'
   title: 'Cutadapt: Adapter Sequences Used'
+  show_table_by_default: true
 headers:
   cutadapt_mode:
     title: 'Trim Mode'

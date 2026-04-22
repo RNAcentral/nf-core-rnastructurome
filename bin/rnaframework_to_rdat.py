@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import math
 import re
+import statistics
 import sys
 from pathlib import Path
 from xml.etree import ElementTree
@@ -73,12 +75,54 @@ def parse_db(db_path: Path) -> tuple[str, str]:
     return rna_sequence, dot_bracket
 
 
+def resolve_db_path(structures_dir: Path, transcript_id: str, xml_stems: list[str]) -> Path | None:
+    candidates: list[str] = [transcript_id, transcript_id.rsplit(".", 1)[0]]
+    for stem in xml_stems:
+        candidates.extend([stem, stem.rsplit(".", 1)[0]])
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        db_path = structures_dir / f"{candidate}.db"
+        if db_path.exists():
+            return db_path
+
+    return None
+
+
+def aggregate_reactivities(
+    reactivity_sets: list[list[float | None]],
+    length: int,
+) -> tuple[list[float | None], list[float | None] | None]:
+    aggregated: list[float | None] = []
+    errors: list[float | None] | None = [] if len(reactivity_sets) > 1 else None
+
+    for idx in range(length):
+        values = [
+            reactivities[idx]
+            for reactivities in reactivity_sets
+            if idx < len(reactivities) and reactivities[idx] is not None
+        ]
+        aggregated.append(statistics.fmean(values) if values else None)
+
+        if errors is not None:
+            if len(values) >= 2:
+                errors.append(statistics.stdev(values) / math.sqrt(len(values)))
+            else:
+                errors.append(None)
+
+    return aggregated, errors
+
+
 def write_rdat(
     out_path: Path,
     transcript_id: str,
     rna_sequence: str,
     dot_bracket: str,
     reactivities: list[float | None],
+    reactivity_errors: list[float | None] | None = None,
 ) -> None:
     length = len(rna_sequence)
 
@@ -88,12 +132,20 @@ def write_rdat(
         val = reactivities[i] if i < len(reactivities) else None
         reactivity_values.append("NaN" if val is None else f"{val:.6g}")
 
+    error_values = []
+    if reactivity_errors is not None:
+        for i in range(length):
+            val = reactivity_errors[i] if i < len(reactivity_errors) else None
+            error_values.append("NaN" if val is None else f"{val:.6g}")
+
     with out_path.open("wt", encoding="utf-8") as fh:
         fh.write(f"NAME\t{transcript_id}\n")
         fh.write(f"SEQUENCE\t{rna_sequence}\n")
         fh.write(f"STRUCTURE\t{dot_bracket}\n")
         fh.write(f"ANNOTATION_DATA:1\tmodifier:DMS\n")
         fh.write(f"REACTIVITY\t{' '.join(reactivity_values)}\n")
+        if reactivity_errors is not None:
+            fh.write(f"REACTIVITY_ERROR\t{' '.join(error_values)}\n")
 
 
 def main() -> int:
@@ -103,31 +155,33 @@ def main() -> int:
     out_dir = Path(f"{args.prefix}_rdat")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    xml_files = sorted(xml_dir.glob("*.xml"))
+    xml_files = sorted(path for path in xml_dir.rglob("*.xml") if path.is_file())
     if not xml_files:
         print(f"No XML files found in {xml_dir}", file=sys.stderr)
         return 1
 
     written = 0
     skipped = 0
+    transcript_reactivities: dict[str, list[list[float | None]]] = {}
+    transcript_xml_stems: dict[str, list[str]] = {}
 
     for xml_path in xml_files:
         try:
-            transcript_id, dna_sequence, reactivities = parse_xml(xml_path)
+            transcript_id, _dna_sequence, reactivities = parse_xml(xml_path)
         except Exception as exc:
             print(f"WARNING: Could not parse {xml_path.name}: {exc}", file=sys.stderr)
             skipped += 1
             continue
 
-        # Try exact stem match first, then without version suffix
-        db_path = structures_dir / f"{xml_path.stem}.db"
-        if not db_path.exists():
-            base_id = xml_path.stem.rsplit(".", 1)[0]
-            db_path = structures_dir / f"{base_id}.db"
+        transcript_reactivities.setdefault(transcript_id, []).append(reactivities)
+        transcript_xml_stems.setdefault(transcript_id, []).append(xml_path.stem)
 
-        if not db_path.exists():
+    for transcript_id in sorted(transcript_reactivities):
+        xml_stems = transcript_xml_stems.get(transcript_id, [])
+        db_path = resolve_db_path(structures_dir, transcript_id, xml_stems)
+        if db_path is None:
             print(
-                f"WARNING: No .db file found for {xml_path.stem} in {structures_dir}; skipping.",
+                f"WARNING: No .db file found for {transcript_id} in {structures_dir}; skipping.",
                 file=sys.stderr,
             )
             skipped += 1
@@ -140,9 +194,20 @@ def main() -> int:
             skipped += 1
             continue
 
+        aggregated_reactivities, reactivity_errors = aggregate_reactivities(
+            transcript_reactivities[transcript_id],
+            len(rna_sequence),
+        )
         out_path = out_dir / f"{transcript_id}.rdat"
         try:
-            write_rdat(out_path, transcript_id, rna_sequence, dot_bracket, reactivities)
+            write_rdat(
+                out_path,
+                transcript_id,
+                rna_sequence,
+                dot_bracket,
+                aggregated_reactivities,
+                reactivity_errors,
+            )
             written += 1
         except Exception as exc:
             print(f"WARNING: Could not write RDAT for {transcript_id}: {exc}", file=sys.stderr)

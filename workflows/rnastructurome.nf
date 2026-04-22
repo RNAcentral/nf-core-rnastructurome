@@ -856,14 +856,14 @@ workflow RNASTRUCTUROME {
     //
     // MODULE: tordat — compile rf-norm XML + rf-fold .db structures into RDAT format
     //
-    def ch_rdat_input = RNAFRAMEWORK_RFNORM.out.xml
-        .map { meta, xml -> [ meta.cell_line.toString(), meta, xml ] }
+    def ch_rdat_input = ch_fold_input
+        .map { meta, xml -> [ meta.id.toString(), meta, xml ] }
         .combine(
             RNAFRAMEWORK_RFFOLD.out.structures
                 .map { meta, fold_dir -> [ meta.id.toString(), fold_dir ] },
             by: 0
         )
-        .map { _key, norm_meta, xml, fold_dir -> [ norm_meta, xml, fold_dir ] }
+        .map { _key, fold_meta, xml, fold_dir -> [ fold_meta, xml, fold_dir ] }
 
     RNAFRAMEWORK_TORDAT (
         ch_rdat_input,

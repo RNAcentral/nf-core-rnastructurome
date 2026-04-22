@@ -6,7 +6,7 @@ process RNAFRAMEWORK_TORDAT {
     container 'docker.io/library/python:3.12.11'
 
     input:
-    tuple val(meta), path(xml, stageAs: "xml/*"), path(fold_dir, stageAs: "fold_dir")
+    tuple val(meta), path(xml, stageAs: "xml_inputs/rep??/*"), path(fold_dir, stageAs: "fold_dir")
     path tordat_script
 
     output:
@@ -17,7 +17,7 @@ process RNAFRAMEWORK_TORDAT {
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     python "${tordat_script}" \\
-        --xml-dir xml \\
+        --xml-dir xml_inputs \\
         --structures-dir fold_dir/dotbracket \\
         --prefix "${prefix}"
 

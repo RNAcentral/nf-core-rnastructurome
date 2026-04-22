@@ -42,6 +42,60 @@ nextflow_process {
                     assert values[0] == '0.1'
                     assert values[2] == 'NaN'
                     assert values[9] == '1'
+                    assert !lines.any { it.startsWith('REACTIVITY_ERROR\t') }
+                },
+                { assert path(process.out.versions[0]).text.contains('python:') }
+            )
+        }
+    }
+
+    test("tordat - aggregates replicate xml reactivities and writes standard error") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group1' ],
+                    [
+                        file("${projectDir}/modules/local/tordat/tests/fixtures/xml/rep1/TX1.xml", checkIfExists: true),
+                        file("${projectDir}/modules/local/tordat/tests/fixtures/xml/rep2/TX1.xml", checkIfExists: true)
+                    ],
+                    file("${projectDir}/modules/local/tordat/tests/fixtures/fold_group", type: 'dir', checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/bin/rnaframework_to_rdat.py", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.rdat.size() == 1 },
+                {
+                    def rdatOut = process.out.rdat[0][1]
+                    def fileList = rdatOut instanceof List ? rdatOut : [rdatOut]
+                    assert fileList.size() == 1
+                    def lines = path(fileList[0].toString()).text.readLines()
+                    def reactLine = lines.find { it.startsWith('REACTIVITY\t') }
+                    def reactErrLine = lines.find { it.startsWith('REACTIVITY_ERROR\t') }
+                    assert reactLine
+                    assert reactErrLine
+
+                    def reactValues = reactLine.tokenize('\t')[1].split(' ')
+                    assert reactValues[0] == '0.15'
+                    assert reactValues[1] == '0.2'
+                    assert reactValues[2] == '0.3'
+                    assert reactValues[3] == '0.5'
+                    assert reactValues[8] == '1'
+                    assert reactValues[9] == '0.95'
+
+                    def errorValues = reactErrLine.tokenize('\t')[1].split(' ')
+                    assert errorValues[0] == '0.05'
+                    assert errorValues[1] == 'NaN'
+                    assert errorValues[2] == 'NaN'
+                    assert errorValues[3] == '0.1'
+                    assert errorValues[8] == '0.1'
+                    assert errorValues[9] == '0.05'
                 },
                 { assert path(process.out.versions[0]).text.contains('python:') }
             )

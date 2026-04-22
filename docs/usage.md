@@ -217,6 +217,7 @@ Notes:
 
 - For `method=DMS`, pipeline defaults `--rfnorm_reactive_bases` to `AC` if unset.
 - `R` must exist at `--rnaframework_r_path` in the active runtime environment. The default is `/usr/bin/R`.
+- After normalization, per-transcript WIG files are produced by `rf-wiggle` and merged across transcripts. If multiple replicates share the same cell line, their merged tracks are averaged position-by-position before BigWig conversion, producing a single `norm/merged_bw/<cell_line>_reactivity.bw`.
 
 ### `rf-fold`
 
@@ -244,8 +245,12 @@ Supported pipeline options and mapped flags:
 
 Replicate handling:
 
-- The pipeline groups normalized XMLs by `cell_line + principle + method + rf-norm scoring/normalization mode` and folds them together.
+- The pipeline groups normalized XMLs by `cell_line` and folds them together, so replicates are folded as a combined set.
 - Single-XML groups run as standard one-sample `rf-fold`.
+
+BigWig outputs from `rf-fold`:
+
+- Shannon entropy BigWig (`fold/shannon_bw/<cell_line>_shannon.bw`) is produced when `--rffold_shannon_entropy` is enabled (default: `true`). Per-transcript WIG files from `rf-fold` are merged across all transcripts and converted to BigWig format.
 
 ### RNAframework runtime settings
 
@@ -256,11 +261,14 @@ Replicate handling:
 
 Main output areas under `--outdir`:
 
-- `fastqc/`, `cutadapt/`, `bowtie*/`, `samtools*/` for preprocessing and alignment
-- `count/`: count tables and always-on plots
-- `norm/`: normalized XML and always-on normalization plots
-- `fold/`: inferred secondary structures (dot-bracket by default), fold reports, optional CT, optional dotplots
-- `multiqc/`: final aggregated QC report
+- `fastqc/`, `cutadapt/`, `bowtie*/`, `samtools*/` — preprocessing and alignment
+- `count/` — count tables and always-on plots
+- `norm/<group>/` — normalized XML, normalization plots, and per-transcript wiggle tracks
+- `norm/merged_bw/` — per-cell-line reactivity BigWigs (`<cell_line>_reactivity.bw`); reactivity values are averaged across replicates before conversion when multiple replicates are available
+- `fold/<group>/` — inferred secondary structures (dot-bracket by default), fold reports, optional CT, optional dotplots
+- `fold/merged_bp/` — merged base-pair files per cell line (produced from dotplots when `--rffold_dotplot` is enabled)
+- `fold/shannon_bw/` — per-cell-line Shannon entropy BigWigs (`<cell_line>_shannon.bw`; produced when `--rffold_shannon_entropy` is enabled, which is the default)
+- `multiqc/` — final aggregated QC report
 
 For full output details, see [output documentation](output.md).
 

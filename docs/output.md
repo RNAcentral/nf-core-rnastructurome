@@ -20,18 +20,21 @@ All paths below are relative to `--outdir`.
 │   └── <sample>/
 │       └── plots/
 ├── norm/
-│   └── <group>/
-│       ├── plots/
-│       ├── wiggle/
-│       └── xml/
+│   ├── <group>/                       (one per cell_line + replicate combination)
+│   │   ├── xml/
+│   │   ├── plots/
+│   │   └── wiggle/
+│   └── merged_bw/                     (per-cell_line reactivity BigWigs)
 ├── fold/
-│   └── <group>/
-│       ├── dotbracket/
-│       ├── 2D-structures/
-│       ├── summaries/
-│       ├── dotplot/                   (if --rffold_dotplot)
-│       ├── bp/                        (if --rffold_dotplot)
-│       └── rdat/
+│   ├── <group>/                       (one per cell_line)
+│   │   ├── dotbracket/
+│   │   ├── 2D-structures/
+│   │   ├── summaries/
+│   │   ├── dotplot/                   (if --rffold_dotplot)
+│   │   ├── bp/                        (if --rffold_dotplot)
+│   │   └── rdat/
+│   ├── merged_bp/                     (merged base-pair files per cell_line)
+│   └── shannon_bw/                    (if --rffold_shannon_entropy)
 ├── reference/                         (only when reference downloaded from Ensembl)
 ├── multiqc/
 └── pipeline_info/
@@ -113,19 +116,22 @@ Per-sample directories, e.g. `count/<sample>/`.
 - `<sample>.rfcount_summary.tsv` — per-sample summary metrics parsed from the `rf-count` log
 - `plots/base_stats.pdf` — count plots (always generated)
 
-### `norm/` (`rf-norm`)
+### `norm/` (`rf-norm`, `rf-wiggle`)
 
-Per-group directories, e.g. `norm/<group>/`.
+Per-group directories under `norm/<group>/`, where `<group>` is the `cell_line_replicate` combination (e.g. `HEK293T_1`).
 
 - `xml/<transcript>.xml` — normalized reactivity profiles used for downstream folding
 - `rfnorm.log` — raw `rf-norm` console output
 - `plots/<transcript>.pdf` — normalization plots (always generated)
-- `wiggle/<transcript>.wig` — per-transcript reactivity wiggle tracks
-- `<group>.bw` — BigWig reactivity track (merged across transcripts, produced by `rf-wiggle` + `UCSC wigtobigwig`)
+- `wiggle/<transcript>.wig` — per-transcript reactivity wiggle tracks (one file per transcript, produced by `rf-wiggle`)
+
+Merged and averaged BigWig under `norm/merged_bw/`:
+
+- `merged_bw/<cell_line>_reactivity.bw` — genome-browser-ready reactivity BigWig covering all transcripts for a cell line; when multiple replicates are available the per-replicate tracks are averaged position-by-position before conversion to BigWig
 
 ### `fold/` (`rf-fold`)
 
-Per-group directories, e.g. `fold/<group>/`.
+Per-group directories under `fold/<group>/`, where `<group>` is the cell line name (e.g. `HEK293T`). Replicates are folded together when present.
 
 - `dotbracket/<transcript>.db` — predicted secondary structures in dot-bracket format
 - `2D-structures/<transcript>.svg` — 2D structure diagram images
@@ -135,6 +141,14 @@ Per-group directories, e.g. `fold/<group>/`.
 - `rdat/<transcript>.rdat` — RDAT-format file combining reactivity (XML) and structure (dot-bracket)
 - `rffold.log` — raw `rf-fold` console output
 - `conversion_warnings.log` — warnings from dot-plot to base-pair conversion, if any
+
+Merged base-pair files under `fold/merged_bp/`:
+
+- `merged_bp/<cell_line>_merged.bp` — all per-transcript base-pair entries merged into a single file per cell line (for genome browser visualisation)
+
+Shannon entropy BigWigs under `fold/shannon_bw/` (only when `--rffold_shannon_entropy` is enabled, which is the default):
+
+- `shannon_bw/<cell_line>_shannon.bw` — per-position Shannon entropy across the transcript ensemble, covering all transcripts for a cell line
 
 Notes:
 

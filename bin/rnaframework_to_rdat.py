@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Convert RNAframework XML + rf-fold .db files to RDAT format."""
 from __future__ import annotations
 
 import argparse
@@ -6,18 +7,61 @@ import math
 import re
 import statistics
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 from xml.etree import ElementTree
 
 
+SCORING_LABELS: dict[str, str] = {
+    "1": "Ding",
+    "2": "Rouskin",
+    "3": "Siegfried",
+    "4": "Zubradt",
+}
+
+NORM_LABELS: dict[str, str] = {
+    "2": "90% Winsorizing",
+    "3": "Box-plot",
+}
+
+
+@dataclass
+class RdatRecord:
+    """All data needed to write one RDAT entry."""
+
+    transcript_id: str
+    rna_sequence: str
+    dot_bracket: str
+    reactivities: list[float | None]
+    reactivity_errors: list[float | None] | None = None
+    comments: list[str] = field(default_factory=list)
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Convert RNAframework XML reactivity files + rf-fold .db structure files to RDAT format."
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--xml-dir", required=True, help="Directory containing rf-norm XML files"
     )
-    parser.add_argument("--xml-dir", required=True, help="Directory containing rf-norm XML files")
-    parser.add_argument("--structures-dir", required=True, help="Directory containing rf-fold .db files")
-    parser.add_argument("--prefix", required=True, help="Output prefix; files written to <prefix>_rdat/")
+    parser.add_argument(
+        "--structures-dir", required=True, help="Directory containing rf-fold .db files"
+    )
+    parser.add_argument(
+        "--prefix", required=True, help="Output prefix; files written to <prefix>_rdat/"
+    )
+    parser.add_argument(
+        "--fasta", default=None, help="Transcript FASTA used for alignment and counting"
+    )
+    parser.add_argument("--pipeline-version", default=None, help="Pipeline version string")
+    parser.add_argument(
+        "--principle", default=None, help="Probing principle (RT-stop or MaP)"
+    )
+    parser.add_argument(
+        "--rfnorm-scoring-method", default=None, help="rf-norm scoring method code (1-4)"
+    )
+    parser.add_argument(
+        "--rfnorm-norm-method", default=None, help="rf-norm normalisation method code (2-3)"
+    )
     return parser.parse_args()
 
 
@@ -62,20 +106,23 @@ def parse_db(db_path: Path) -> tuple[str, str]:
         Line 2: RNA sequence (may use T or U)
         Line 3: dot-bracket string, optionally followed by whitespace and MFE score
     """
-    lines = [line.rstrip("\n") for line in db_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    raw = db_path.read_text(encoding="utf-8").splitlines()
+    lines = [line.rstrip("\n") for line in raw if line.strip()]
     if len(lines) < 3:
         raise ValueError(f"Malformed .db file (fewer than 3 non-empty lines): {db_path}")
 
     rna_sequence = lines[1].strip().upper().replace("T", "U")
 
     # Strip optional trailing MFE score like " (-770.27)"
-    dot_bracket_field = lines[2].strip()
-    dot_bracket = re.split(r"\s", dot_bracket_field)[0]
+    dot_bracket = re.split(r"\s", lines[2].strip())[0]
 
     return rna_sequence, dot_bracket
 
 
-def resolve_db_path(structures_dir: Path, transcript_id: str, xml_stems: list[str]) -> Path | None:
+def resolve_db_path(
+    structures_dir: Path, transcript_id: str, xml_stems: list[str]
+) -> Path | None:
+    """Return the first matching .db file for transcript_id, or None."""
     candidates: list[str] = [transcript_id, transcript_id.rsplit(".", 1)[0]]
     for stem in xml_stems:
         candidates.extend([stem, stem.rsplit(".", 1)[0]])
@@ -96,6 +143,7 @@ def aggregate_reactivities(
     reactivity_sets: list[list[float | None]],
     length: int,
 ) -> tuple[list[float | None], list[float | None] | None]:
+    """Compute per-position mean (and SEM when >1 replicate) across reactivity sets."""
     aggregated: list[float | None] = []
     errors: list[float | None] | None = [] if len(reactivity_sets) > 1 else None
 
@@ -116,44 +164,60 @@ def aggregate_reactivities(
     return aggregated, errors
 
 
-def write_rdat(
-    out_path: Path,
-    transcript_id: str,
-    rna_sequence: str,
-    dot_bracket: str,
-    reactivities: list[float | None],
-    reactivity_errors: list[float | None] | None = None,
-) -> None:
-    length = len(rna_sequence)
+def write_rdat(out_path: Path, record: RdatRecord) -> None:
+    """Write a single RDAT file from a RdatRecord."""
+    length = len(record.rna_sequence)
 
-    # REACTIVITY: one value per position; NaN for missing
-    reactivity_values = []
-    for i in range(length):
-        val = reactivities[i] if i < len(reactivities) else None
-        reactivity_values.append("NaN" if val is None else f"{val:.6g}")
+    def fmt(values: list[float | None]) -> str:
+        return " ".join("NaN" if v is None else f"{v:.6g}" for v in values)
 
-    error_values = []
-    if reactivity_errors is not None:
-        for i in range(length):
-            val = reactivity_errors[i] if i < len(reactivity_errors) else None
-            error_values.append("NaN" if val is None else f"{val:.6g}")
+    padded_reactivities = list(record.reactivities) + [None] * max(
+        0, length - len(record.reactivities)
+    )
 
     with out_path.open("wt", encoding="utf-8") as fh:
-        fh.write(f"NAME\t{transcript_id}\n")
-        fh.write(f"SEQUENCE\t{rna_sequence}\n")
-        fh.write(f"STRUCTURE\t{dot_bracket}\n")
-        fh.write(f"ANNOTATION_DATA:1\tmodifier:DMS\n")
-        fh.write(f"REACTIVITY\t{' '.join(reactivity_values)}\n")
-        if reactivity_errors is not None:
-            fh.write(f"REACTIVITY_ERROR\t{' '.join(error_values)}\n")
+        fh.write(f"NAME\t{record.transcript_id}\n")
+        fh.write(f"SEQUENCE\t{record.rna_sequence}\n")
+        fh.write(f"STRUCTURE\t{record.dot_bracket}\n")
+        fh.write("ANNOTATION_DATA:1\tmodifier:DMS\n")
+        fh.write(f"REACTIVITY\t{fmt(padded_reactivities[:length])}\n")
+        if record.reactivity_errors is not None:
+            padded_errors = list(record.reactivity_errors) + [None] * max(
+                0, length - len(record.reactivity_errors)
+            )
+            fh.write(f"REACTIVITY_ERROR\t{fmt(padded_errors[:length])}\n")
+        for comment in record.comments:
+            fh.write(f"COMMENT\t{comment}\n")
+
+
+def build_comment(args: argparse.Namespace) -> str | None:
+    """Build a single COMMENT string from pipeline metadata args, or None if empty."""
+    parts: list[str] = []
+    if args.pipeline_version:
+        parts.append(f"Generated by nf-core/rnastructurome v{args.pipeline_version}")
+    if args.fasta:
+        parts.append(f"FASTA: {args.fasta}")
+    if args.principle:
+        parts.append(f"Principle: {args.principle}")
+    if args.rfnorm_scoring_method:
+        sm = str(args.rfnorm_scoring_method)
+        parts.append(f"rf-norm scoring: sm={sm} ({SCORING_LABELS.get(sm, sm)})")
+    if args.rfnorm_norm_method:
+        nm = str(args.rfnorm_norm_method)
+        parts.append(f"normalisation: nm={nm} ({NORM_LABELS.get(nm, nm)})")
+    return "; ".join(parts) if parts else None
 
 
 def main() -> int:
+    """Entry point."""
     args = parse_args()
     xml_dir = Path(args.xml_dir)
     structures_dir = Path(args.structures_dir)
     out_dir = Path(f"{args.prefix}_rdat")
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    comment = build_comment(args)
+    comments = [comment] if comment else []
 
     xml_files = sorted(path for path in xml_dir.rglob("*.xml") if path.is_file())
     if not xml_files:
@@ -168,7 +232,7 @@ def main() -> int:
     for xml_path in xml_files:
         try:
             transcript_id, _dna_sequence, reactivities = parse_xml(xml_path)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             print(f"WARNING: Could not parse {xml_path.name}: {exc}", file=sys.stderr)
             skipped += 1
             continue
@@ -189,7 +253,7 @@ def main() -> int:
 
         try:
             rna_sequence, dot_bracket = parse_db(db_path)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             print(f"WARNING: Could not parse {db_path.name}: {exc}", file=sys.stderr)
             skipped += 1
             continue
@@ -202,14 +266,17 @@ def main() -> int:
         try:
             write_rdat(
                 out_path,
-                transcript_id,
-                rna_sequence,
-                dot_bracket,
-                aggregated_reactivities,
-                reactivity_errors,
+                RdatRecord(
+                    transcript_id=transcript_id,
+                    rna_sequence=rna_sequence,
+                    dot_bracket=dot_bracket,
+                    reactivities=aggregated_reactivities,
+                    reactivity_errors=reactivity_errors,
+                    comments=comments,
+                ),
             )
             written += 1
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             print(f"WARNING: Could not write RDAT for {transcript_id}: {exc}", file=sys.stderr)
             skipped += 1
 

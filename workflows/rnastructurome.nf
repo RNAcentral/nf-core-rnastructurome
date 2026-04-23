@@ -868,6 +868,13 @@ workflow RNASTRUCTUROME {
             by: 0
         )
         .map { _key, fold_meta, xml, fold_dir -> [ fold_meta, xml, fold_dir ] }
+        .map { fold_meta, xml, fold_dir ->
+            def reference_key = resolveReferenceKey(fold_meta, pipeline_config.organism)
+            def fasta_name = pipeline_config.fasta
+                ? file(pipeline_config.fasta.toString()).name
+                : "${reference_key}.transcripts.fa.gz"
+            [ fold_meta + [ fasta_name: fasta_name ], xml, fold_dir ]
+        }
 
     RNAFRAMEWORK_TORDAT (
         ch_rdat_input,

@@ -15,11 +15,21 @@ process RNAFRAMEWORK_TORDAT {
 
     script:
     prefix = task.ext.prefix ?: "${meta.id}"
+    def fasta_str  = meta.fasta_name ?: 'unknown'
+    def principle  = meta.principle  ?: ''
+    def scoring_sm = meta.rfnorm_scoring_method != null ? meta.rfnorm_scoring_method.toString() : ''
+    def norm_nm    = meta.rfnorm_norm_method    != null ? meta.rfnorm_norm_method.toString()    : ''
+    def extra_args = task.ext.args ?: ''
     """
     python "${tordat_script}" \\
         --xml-dir xml_inputs \\
         --structures-dir fold_dir/dotbracket \\
-        --prefix "${prefix}"
+        --prefix "${prefix}" \\
+        --fasta "${fasta_str}" \\
+        --principle "${principle}" \\
+        --rfnorm-scoring-method "${scoring_sm}" \\
+        --rfnorm-norm-method "${norm_nm}" \\
+        ${extra_args}
 
     printf '"%s":\n    python: %s\n' \\
         "${task.process}" \\

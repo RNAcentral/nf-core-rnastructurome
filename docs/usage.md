@@ -24,13 +24,14 @@ nextflow run main.nf \
   -profile docker \
   --input samplesheet.csv \
   --fasta transcripts.fa \
+  --gtf annotation.gtf.gz \
   --outdir results
 ```
 
 If resuming after an interruption or fix:
 
 ```bash
-nextflow run main.nf -profile docker --input samplesheet.csv --fasta transcripts.fa --outdir results -resume
+nextflow run main.nf -profile docker --input samplesheet.csv --fasta transcripts.fa --gtf annotation.gtf.gz --outdir results -resume
 ```
 
 ## Required inputs
@@ -63,7 +64,8 @@ Transcript FASTA resolution:
 GTF annotation resolution:
 
 - GTF is resolved separately from the transcript FASTA.
-- The pipeline first checks `params.genomes[reference_key].gtf`.
+- If `--gtf` is set, that file is used directly.
+- Otherwise the pipeline first checks `params.genomes[reference_key].gtf`.
 - If no local GTF is configured, it uses the same Ensembl species resolution order:
   - `params.genomes[reference_key].ensembl_species`
   - `--ensembl_species_map[reference_key]`
@@ -277,7 +279,7 @@ For full output details, see [output documentation](output.md).
 Typical usage:
 
 ```bash
-nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results --fasta ./transcripts.fa -profile docker
+nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results --fasta ./transcripts.fa --gtf ./annotation.gtf.gz -profile docker
 ```
 
 The pipeline creates:
@@ -298,6 +300,7 @@ nextflow run nf-core/rnastructurome -profile docker -params-file params.yaml
 input: "./samplesheet.csv"
 outdir: "./results/"
 fasta: "./transcripts.fa"
+gtf: "./annotation.gtf.gz"
 ```
 
 > [!WARNING]

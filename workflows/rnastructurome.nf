@@ -245,6 +245,10 @@ workflow RNASTRUCTUROME {
     ch_reference_gtf_requests = ch_samplesheet_for_branching
         .map { meta, _reads ->
             def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+            if (pipeline_config.gtf) {
+                return [ reference_key, "path::${pipeline_config.gtf.toString()}" ]
+            }
+
             def genome_entry = pipeline_config.genomes?.containsKey(reference_key) ? pipeline_config.genomes[reference_key] : null
             def gtf_path = genome_entry?.gtf
             if (gtf_path) {
@@ -253,7 +257,7 @@ workflow RNASTRUCTUROME {
 
             def ensembl_species = genome_entry?.ensembl_species ?: pipeline_config.ensembl_species_map?.get(reference_key) ?: (reference_key ==~ /[a-z]+_[a-z0-9_]+/ ? reference_key : null)
             if (!ensembl_species) {
-                error("No GTF annotation resolved for reference '${reference_key}'. Set params.genomes['${reference_key}'].gtf or params.genomes['${reference_key}'].ensembl_species.")
+                error("No GTF annotation resolved for reference '${reference_key}'. Provide --gtf, set params.genomes['${reference_key}'].gtf, or set params.genomes['${reference_key}'].ensembl_species.")
             }
             [ reference_key, "ensembl::${ensembl_species.toLowerCase()}" ]
         }
@@ -1013,6 +1017,7 @@ def defaultPipelineConfig() {
     [
         organism                          : null,
         fasta                             : null,
+        gtf                               : null,
         genomes                           : null,
         ensembl_species_map               : [
             'human': 'homo_sapiens',

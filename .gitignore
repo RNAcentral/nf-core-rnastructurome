@@ -13,3 +13,4 @@ assets/testdata/yeast/*
 local.config
 nf-metro/old
 nf-metro/final
+tmp/*

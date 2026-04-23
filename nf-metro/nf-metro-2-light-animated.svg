@@ -145,8 +145,8 @@
 <text x="1340.5" y="353.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">count RT-stop</text>
 <text x="1340.5" y="396.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">count MaP</text>
 <text x="700.0" y="106.0" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="auto">UMI-tools Extract</text>
-<text x="1172.0" y="328.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="auto">score with untreated</text>
-<text x="1171.4" y="395.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">score with untreated</text>
+<text x="1172.0" y="328.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="auto">score with control</text>
+<text x="1171.4" y="395.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">score with control</text>
 <text x="1172.0" y="291.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="auto">score without</text>
 <text x="1172.0" y="434.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">score without</text>
 <text x="836.5" y="131.0" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">Cutadapt</text>

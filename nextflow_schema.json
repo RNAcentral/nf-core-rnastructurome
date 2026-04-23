@@ -59,6 +59,16 @@
                     "help_text": "Provide a transcript-level FASTA for rf-count/rf-norm/rf-fold. If omitted, the pipeline will try to resolve transcript FASTA from `params.genomes[organism]` (`transcript_fasta`, `transcriptome`, or `cdna`).",
                     "fa_icon": "far fa-file-code"
                 },
+                "gtf": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "mimetype": "text/plain",
+                    "pattern": "^\\S+\\.gtf(\\.gz)?$",
+                    "description": "Path to transcript annotation GTF file.",
+                    "help_text": "Provide a GTF annotation directly. If omitted, the pipeline will try to resolve GTF from `params.genomes[organism].gtf` or download one from Ensembl.",
+                    "fa_icon": "far fa-file-alt"
+                },
                 "genomes": {
                     "type": "object",
                     "description": "Optional custom reference map keyed by organism/reference name.",

@@ -62,6 +62,8 @@ Now, you can run the pipeline using:
 nextflow run nf-core/rnastructurome \
    -profile <docker/singularity/.../institute> \
    --input samplesheet.csv \
+   --fasta transcripts.fa \
+   --gtf annotation.gtf.gz \
    --outdir <OUTDIR>
 ```
 

@@ -1343,7 +1343,10 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
     def hasDenatured = conditions.contains('denatured')
     def scoringMethod = principle == 'map' ? (hasUntreated ? 3 : 4) : (hasUntreated ? 1 : 2)
     def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
-    def reactiveBases = pipeline_config.rfnorm_reactive_bases ?: ((((sampleMetadata.methods ?: []).collect { method -> method.toLowerCase() }.unique() == ['dms']) ? 'AC' : null))
+    def isDmsOnly = (((sampleMetadata.methods ?: []).collect { method -> method.toLowerCase() }.unique()) == ['dms']
+    def isDmsBroad = isDmsOnly && sampleMetadata.pH != null && (sampleMetadata.pH as Double) >= 8.0
+    def reactiveBases = pipeline_config.rfnorm_reactive_bases ?: (isDmsOnly ? (isDmsBroad ? 'ACGU' : 'AC') : null)
+    def dynamicWindow = pipeline_config.rfnorm_dynamic_window != null ? (pipeline_config.rfnorm_dynamic_window as Integer) : (isDmsOnly && !isDmsBroad ? 50 : null)
 
     def args = [
         "-sm ${scoringMethod}",
@@ -1353,7 +1356,7 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
     if (reactiveBases) args << "--reactive-bases ${reactiveBases}"
     if (pipeline_config.rfnorm_norm_window != null) args << "--norm-window ${pipeline_config.rfnorm_norm_window as Integer}"
     if (pipeline_config.rfnorm_window_offset != null) args << "--window-offset ${pipeline_config.rfnorm_window_offset as Integer}"
-    if (pipeline_config.rfnorm_dynamic_window != null) args << "--dynamic-window ${pipeline_config.rfnorm_dynamic_window as Integer}"
+    if (dynamicWindow != null) args << "--dynamic-window ${dynamicWindow}"
     if (pipeline_config.rfnorm_norm_independent as Boolean) args << '--norm-independent'
     if (pipeline_config.rfnorm_norm_factor) args << "--norm-factor ${pipeline_config.rfnorm_norm_factor}"
     if (pipeline_config.rfnorm_raw as Boolean) args << '--raw'

@@ -103,7 +103,7 @@ Additional `rf-norm` parameters exposed by the pipeline:
 - `--rfnorm_nan <int>`: report positions below this coverage as NaN. Default: `10`.
 - `--rfnorm_img`: generate rf-norm plots. This automatically uses `--rnaframework_r_path` to locate `R` inside the RNAframework container.
 
-If `--rfnorm_reactive_bases` is not provided, the pipeline sets `AC` automatically for samples with `method=DMS`. All other methods fall back to the RNAFramework default (`N`, all bases).
+If `--rfnorm_reactive_bases` is not provided, the pipeline sets `AC` automatically for samples with `method=DMS`, or `ACGU` when `pH >= 8`. If `--rfnorm_dynamic_window` is not provided, DMS samples default to `--dynamic-window 50` only when `pH < 8`. All other methods fall back to the RNAFramework defaults.
 
 Example:
 

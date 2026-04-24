@@ -217,7 +217,7 @@ Key parameters:
 
 Notes:
 
-- For `method=DMS`, pipeline defaults `--rfnorm_reactive_bases` to `AC` if unset.
+- For `method=DMS`, pipeline defaults `--rfnorm_reactive_bases` to `AC`, or `ACGU` when `pH >= 8`. It defaults `--dynamic-window` to `50` only when `pH < 8`.
 - `R` must exist at `--rnaframework_r_path` in the active runtime environment. The default is `/usr/bin/R`.
 - After normalization, per-transcript WIG files are produced by `rf-wiggle` and merged across transcripts. If multiple replicates share the same cell line, their merged tracks are averaged position-by-position before BigWig conversion, producing a single `norm/merged_bw/<cell_line>_reactivity.bw`.
 

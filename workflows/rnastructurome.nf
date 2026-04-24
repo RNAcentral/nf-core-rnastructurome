@@ -1343,7 +1343,7 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
     def hasDenatured = conditions.contains('denatured')
     def scoringMethod = principle == 'map' ? (hasUntreated ? 3 : 4) : (hasUntreated ? 1 : 2)
     def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
-    def isDmsOnly = (((sampleMetadata.methods ?: []).collect { method -> method.toLowerCase() }.unique()) == ['dms']
+    def isDmsOnly = ((sampleMetadata.methods ?: []).collect { method -> method.toLowerCase() }.unique()) == ['dms']
     def isDmsBroad = isDmsOnly && sampleMetadata.pH != null && (sampleMetadata.pH as Double) >= 8.0
     def reactiveBases = pipeline_config.rfnorm_reactive_bases ?: (isDmsOnly ? (isDmsBroad ? 'ACGU' : 'AC') : null)
     def dynamicWindow = pipeline_config.rfnorm_dynamic_window != null ? (pipeline_config.rfnorm_dynamic_window as Integer) : (isDmsOnly && !isDmsBroad ? 50 : null)

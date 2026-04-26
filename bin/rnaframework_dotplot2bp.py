@@ -68,6 +68,8 @@ def load_transcripts(organism: str, gtf_path: Path) -> dict[str, dict[str, objec
             strand = fields[6]
             entry = transcripts.setdefault(transcript_id, {"seqname": seqname, "strand": strand, "exons": []})
             entry["exons"].append((start, end))
+            if "." in transcript_id:
+                transcripts.setdefault(transcript_id.split(".", 1)[0], entry)
 
     for entry in transcripts.values():
         exons = entry["exons"]

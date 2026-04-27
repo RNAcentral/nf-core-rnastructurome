@@ -156,8 +156,14 @@ def main() -> int:
                 left_pos = int(fields[0])
                 right_pos = int(fields[1])
                 color_index = color_index_for_probability(float(fields[2]))
-                left_genome = map_transcript_pos(entry, left_pos)
-                right_genome = map_transcript_pos(entry, right_pos)
+                try:
+                    left_genome = map_transcript_pos(entry, left_pos)
+                    right_genome = map_transcript_pos(entry, right_pos)
+                except ValueError as exc:
+                    warnings.append(
+                        f"Skipping base-pair record in {dotplot_path.name}: {exc}."
+                    )
+                    continue
                 start, end = sorted((left_genome, right_genome))
                 seqname = entry["seqname"]
                 if not seqname or seqname.lower() == "none":

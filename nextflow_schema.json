@@ -161,7 +161,7 @@
                 "cutadapt_min_align": {
                     "type": "integer",
                     "description": "Minimum adapter overlap required for trimming.",
-                    "default": 1
+                    "default": 10
                 },
                 "cutadapt_trim_n": {
                     "type": "boolean",

@@ -10,6 +10,10 @@ import urllib.request
 import re
 
 
+class EnsemblSpeciesNotFound(Exception):
+    pass
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Download and merge Ensembl transcript FASTA files for one species."
@@ -20,6 +24,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", required=True)
     parser.add_argument("--source-urls", required=True)
     parser.add_argument("--warnings-log", required=True)
+    parser.add_argument(
+        "--not-found-file",
+        required=True,
+        help="Path to write (empty) when the species is absent from Ensembl FTP; "
+             "process exits 0 and the NCBI fallback is triggered.",
+    )
     return parser.parse_args()
 
 
@@ -27,6 +37,17 @@ def fetch_text(url: str) -> str:
     try:
         with urllib.request.urlopen(url, timeout=60) as response:
             return response.read().decode("utf-8", errors="ignore")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            raise EnsemblSpeciesNotFound(f"HTTP 404 at {url}")
+        fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
+        try:
+            with urllib.request.urlopen(fallback_url, timeout=60) as response:
+                return response.read().decode("utf-8", errors="ignore")
+        except urllib.error.HTTPError as fallback_exc:
+            if fallback_exc.code == 404:
+                raise EnsemblSpeciesNotFound(f"HTTP 404 at {fallback_url}")
+            raise
     except urllib.error.URLError:
         fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
         with urllib.request.urlopen(fallback_url, timeout=60) as response:
@@ -45,7 +66,7 @@ def find_ensembl_file(listing_url: str, pattern: str) -> str:
 def find_optional_ensembl_file(listing_url: str, pattern: str) -> str | None:
     try:
         listing = fetch_text(listing_url)
-    except urllib.error.URLError:
+    except (urllib.error.URLError, EnsemblSpeciesNotFound):
         return None
     matches = re.findall(r'href="([^"]+)"', listing)
     filtered = [match for match in matches if re.search(pattern, match)]
@@ -71,7 +92,17 @@ def main() -> int:
     cdna_dir = f"{species_root}/cdna/"
     ncrna_dir = f"{species_root}/ncrna/"
 
-    cdna_name = find_ensembl_file(cdna_dir, r"\.cdna\.all\.fa\.gz")
+    try:
+        cdna_name = find_ensembl_file(cdna_dir, r"\.cdna\.all\.fa\.gz")
+    except EnsemblSpeciesNotFound as exc:
+        print(
+            f"[ENSEMBL_TRANSCRIPTOME] Species '{species}' not found on Ensembl FTP "
+            f"— will fall back to NCBI: {exc}",
+            file=sys.stderr,
+        )
+        open(args.not_found_file, "w").close()
+        return 0
+
     ncrna_name = find_optional_ensembl_file(ncrna_dir, r"\.ncrna\.fa\.gz")
     cdna_url = f"{cdna_dir}{cdna_name}"
     ncrna_url = f"{ncrna_dir}{ncrna_name}" if ncrna_name else None

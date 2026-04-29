@@ -29,8 +29,11 @@ include { RNAFRAMEWORK_RFNORM   } from '../modules/local/rnaframework/norm/main'
 include { RNAFRAMEWORK_RFFOLD   } from '../modules/local/rnaframework/fold/main'
 include { ENSEMBL_TRANSCRIPTOME } from '../modules/local/ensembl/transcriptome/main'
 include { ENSEMBL_GTF          } from '../modules/local/ensembl/gtf/main'
+include { NCBI_FASTA           } from '../modules/local/ncbi/fasta/main'
+include { NCBI_GTF             } from '../modules/local/ncbi/gtf/main'
 include { FASTA_SORT as FASTA_SORT_LOCAL    } from '../modules/local/fasta/sort/main'
 include { FASTA_SORT as FASTA_SORT_ENSEMBL } from '../modules/local/fasta/sort/main'
+include { FASTA_SORT as FASTA_SORT_NCBI    } from '../modules/local/fasta/sort/main'
 include { RNAFRAMEWORK_DOTPLOT2BP } from '../modules/local/dotplot2bp/main'
 include { MERGE_BP               } from '../modules/local/merge_bp/main'
 include { RNAFRAMEWORK_RFWIGGLE  } from '../modules/local/rnaframework/wiggle/main'
@@ -193,43 +196,59 @@ workflow RNASTRUCTUROME {
     ch_reference_requests = ch_samplesheet_for_branching
         .map { meta, _reads ->
             def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+            def original_organism = meta.organism?.toString() ?: reference_key
             if (pipeline_config.fasta) {
-                return [ reference_key, "path::${pipeline_config.fasta.toString()}" ]
+                return [ reference_key, "path::${pipeline_config.fasta.toString()}", original_organism ]
             }
 
             def genome_entry = pipeline_config.genomes?.containsKey(reference_key) ? pipeline_config.genomes[reference_key] : null
             def transcript_fasta = genome_entry?.transcript_fasta ?: genome_entry?.transcriptome ?: genome_entry?.cdna
             if (transcript_fasta) {
-                return [ reference_key, "path::${transcript_fasta.toString()}" ]
+                return [ reference_key, "path::${transcript_fasta.toString()}", original_organism ]
             }
 
-            def ensembl_species = genome_entry?.ensembl_species ?: pipeline_config.ensembl_species_map?.get(reference_key) ?: (reference_key ==~ /[a-z]+_[a-z0-9_]+/ ? reference_key : null)
-            if (!ensembl_species) {
-                error("No transcript FASTA resolved for reference '${reference_key}'. Provide --fasta with a transcript FASTA, set params.genomes['${reference_key}'].transcript_fasta (or transcriptome/cdna), or set params.genomes['${reference_key}'].ensembl_species.")
+            def explicit_ensembl = genome_entry?.ensembl_species ?: pipeline_config.ensembl_species_map?.get(reference_key)
+            if (explicit_ensembl) {
+                return [ reference_key, "ensembl::${explicit_ensembl.toLowerCase()}", original_organism ]
             }
-            [ reference_key, "ensembl::${ensembl_species.toLowerCase()}" ]
+
+            // Pre-configured NCBI accessions (e.g. from viral_genomes.config) skip the
+            // Ensembl step entirely — faster and avoids spurious 404 log lines.
+            def ncbi_accessions = genome_entry?.ncbi_accessions ?: pipeline_config.ncbi_accessions_map?.get(reference_key)
+            if (ncbi_accessions) {
+                def acc_str = (ncbi_accessions instanceof List) ? ncbi_accessions.join(',') : ncbi_accessions.toString()
+                return [ reference_key, "ncbi::${acc_str}", original_organism ]
+            }
+
+            // All remaining organisms go to Ensembl first.  If Ensembl returns HTTP 404 the
+            // module emits a not_found signal which is automatically routed to NCBI_FASTA.
+            if (!reference_key) {
+                error("No organism specified for sample '${meta.id}'. Provide --fasta, --organism, or set params.genomes.")
+            }
+            return [ reference_key, "ensembl::${reference_key}", original_organism ]
         }
         .groupTuple()
-        .map { reference_key, resolutions ->
+        .map { reference_key, resolutions, organisms ->
             def unique_resolutions = resolutions.unique()
             if (unique_resolutions.size() != 1) {
                 error("Multiple transcript reference resolutions were detected for reference '${reference_key}': ${unique_resolutions.join(', ')}")
             }
-            [ reference_key, unique_resolutions[0] ]
+            [ reference_key, unique_resolutions[0], organisms[0] ]
         }
 
     ch_reference_local = ch_reference_requests
-        .filter { _reference_key, resolution -> resolution.startsWith('path::') }
-        .map { reference_key, resolution ->
+        .filter { _reference_key, resolution, _org -> resolution.startsWith('path::') }
+        .map { reference_key, resolution, _original_organism ->
             def fasta_path = resolution - 'path::'
             [ [ id: reference_key, organism: reference_key ], file(fasta_path, checkIfExists: true) ]
         }
 
     ch_reference_ensembl_input = ch_reference_requests
-        .filter { _reference_key, resolution -> resolution.startsWith('ensembl::') }
-        .map { reference_key, resolution ->
+        .filter { _reference_key, resolution, _org -> resolution.startsWith('ensembl::') }
+        .map { reference_key, resolution, original_organism ->
             def ensembl_species = resolution - 'ensembl::'
-            [ [ id: reference_key, organism: reference_key, ensembl_species: ensembl_species ], ensembl_species ]
+            [ [ id: reference_key, organism: reference_key, ensembl_species: ensembl_species,
+                original_organism: original_organism ], ensembl_species ]
         }
 
     ENSEMBL_TRANSCRIPTOME (
@@ -242,46 +261,85 @@ workflow RNASTRUCTUROME {
     )
     ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
 
+    // Organisms not found on Ensembl FTP are routed to NCBI_FASTA for automatic accession
+    // search.  meta.original_organism carries the raw samplesheet organism string used as
+    // the esearch query when no accessions are pre-configured.
+    ch_reference_ncbi_from_ensembl = ENSEMBL_TRANSCRIPTOME.out.not_found
+        .map { meta, _not_found_file -> [ meta, "" ] }
+
+    ch_reference_ncbi_explicit = ch_reference_requests
+        .filter { _reference_key, resolution, _org -> resolution.startsWith('ncbi::') }
+        .map { reference_key, resolution, original_organism ->
+            def accessions = resolution - 'ncbi::'
+            [ [ id: reference_key, organism: reference_key, original_organism: original_organism ], accessions ]
+        }
+
+    ch_reference_ncbi_input = ch_reference_ncbi_explicit.mix(ch_reference_ncbi_from_ensembl)
+
+    NCBI_FASTA (
+        ch_reference_ncbi_input,
+        file("${projectDir}/bin/ncbi_fasta.py", checkIfExists: true)
+    )
+    ch_versions = ch_versions.mix(NCBI_FASTA.out.versions)
+
+    NCBI_GTF (
+        NCBI_FASTA.out.fasta,
+        file("${projectDir}/bin/ncbi_gtf.py", checkIfExists: true)
+    )
+    ch_versions = ch_versions.mix(NCBI_GTF.out.versions)
+
     ch_reference_gtf_requests = ch_samplesheet_for_branching
         .map { meta, _reads ->
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+            def reference_key    = resolveReferenceKey(meta, pipeline_config.organism)
+            def original_organism = meta.organism?.toString() ?: reference_key
+
             if (pipeline_config.gtf) {
-                return [ reference_key, "path::${pipeline_config.gtf.toString()}" ]
+                return [ reference_key, "path::${pipeline_config.gtf.toString()}", original_organism ]
             }
 
             def genome_entry = pipeline_config.genomes?.containsKey(reference_key) ? pipeline_config.genomes[reference_key] : null
             def gtf_path = genome_entry?.gtf
             if (gtf_path) {
-                return [ reference_key, "path::${gtf_path.toString()}" ]
+                return [ reference_key, "path::${gtf_path.toString()}", original_organism ]
             }
 
-            def ensembl_species = genome_entry?.ensembl_species ?: pipeline_config.ensembl_species_map?.get(reference_key) ?: (reference_key ==~ /[a-z]+_[a-z0-9_]+/ ? reference_key : null)
-            if (!ensembl_species) {
-                error("No GTF annotation resolved for reference '${reference_key}'. Provide --gtf, set params.genomes['${reference_key}'].gtf, or set params.genomes['${reference_key}'].ensembl_species.")
+            def explicit_ensembl = genome_entry?.ensembl_species ?: pipeline_config.ensembl_species_map?.get(reference_key)
+            if (explicit_ensembl) {
+                return [ reference_key, "ensembl::${explicit_ensembl.toLowerCase()}", original_organism ]
             }
-            [ reference_key, "ensembl::${ensembl_species.toLowerCase()}" ]
+
+            // NCBI references (pre-configured or auto-search via Ensembl 404 fallback) do not
+            // go through the Ensembl GTF route.  Their annotation is generated by NCBI_GTF,
+            // which derives a synthetic transcript record per accession from NCBI_FASTA output.
+            def ncbi_accessions = genome_entry?.ncbi_accessions ?: pipeline_config.ncbi_accessions_map?.get(reference_key)
+            if (ncbi_accessions) {
+                return [ reference_key, "none::", original_organism ]
+            }
+
+            return [ reference_key, "ensembl::${reference_key}", original_organism ]
         }
         .groupTuple()
-        .map { reference_key, resolutions ->
+        .map { reference_key, resolutions, organisms ->
             def unique_resolutions = resolutions.unique()
             if (unique_resolutions.size() != 1) {
                 error("Multiple GTF reference resolutions were detected for reference '${reference_key}': ${unique_resolutions.join(', ')}")
             }
-            [ reference_key, unique_resolutions[0] ]
+            [ reference_key, unique_resolutions[0], organisms[0] ]
         }
 
+    // Local GTF (already in GTF format) — used directly
     ch_reference_gtf_local = ch_reference_gtf_requests
-        .filter { _reference_key, resolution -> resolution.startsWith('path::') }
-        .map { reference_key, resolution ->
-            def gtf_path = resolution - 'path::'
-            [ [ id: reference_key, organism: reference_key ], file(gtf_path, checkIfExists: true) ]
+        .filter { _k, resolution, _o -> resolution.startsWith('path::') }
+        .map { reference_key, resolution, _original_organism ->
+            [ [ id: reference_key, organism: reference_key ], file(resolution - 'path::', checkIfExists: true) ]
         }
 
     ch_reference_gtf_ensembl_input = ch_reference_gtf_requests
-        .filter { _reference_key, resolution -> resolution.startsWith('ensembl::') }
-        .map { reference_key, resolution ->
+        .filter { _k, resolution, _o -> resolution.startsWith('ensembl::') }
+        .map { reference_key, resolution, original_organism ->
             def ensembl_species = resolution - 'ensembl::'
-            [ [ id: reference_key, organism: reference_key, ensembl_species: ensembl_species ], ensembl_species ]
+            [ [ id: reference_key, organism: reference_key, ensembl_species: ensembl_species,
+                original_organism: original_organism ], ensembl_species ]
         }
 
     ENSEMBL_GTF (
@@ -294,7 +352,12 @@ workflow RNASTRUCTUROME {
     )
     ch_versions = ch_versions.mix(ENSEMBL_GTF.out.versions)
 
-    ch_all_reference_gtf = ch_reference_gtf_local.mix(ENSEMBL_GTF.out.gtf)
+    // NCBI references (both pre-configured and Ensembl-not-found): annotation is the synthetic
+    // GTF from NCBI_GTF, which has already run above from NCBI_FASTA.out.fasta.
+    // ENSEMBL_GTF.out.not_found is silently dropped — those organisms have a GTF via NCBI_GTF.
+    ch_all_reference_gtf = ch_reference_gtf_local
+        .mix(ENSEMBL_GTF.out.gtf)
+        .mix(NCBI_GTF.out.gtf)
 
     FASTA_SORT_LOCAL (
         ch_reference_local
@@ -306,7 +369,15 @@ workflow RNASTRUCTUROME {
     )
     ch_versions = ch_versions.mix(FASTA_SORT_ENSEMBL.out.versions)
 
-    ch_reference_fasta_keyed = FASTA_SORT_LOCAL.out.fasta.mix(FASTA_SORT_ENSEMBL.out.fasta).map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+    FASTA_SORT_NCBI (
+        NCBI_FASTA.out.fasta
+    )
+    ch_versions = ch_versions.mix(FASTA_SORT_NCBI.out.versions)
+
+    ch_reference_fasta_keyed = FASTA_SORT_LOCAL.out.fasta
+        .mix(FASTA_SORT_ENSEMBL.out.fasta)
+        .mix(FASTA_SORT_NCBI.out.fasta)
+        .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
     ch_reference_gtf_keyed   = ch_all_reference_gtf.map { meta, gtf -> [ meta.id.toString(), [meta, gtf] ] }
     ch_reference_fasta_map   = ch_reference_fasta_keyed
         .map { key, value -> [ (key): value ] }
@@ -756,16 +827,17 @@ workflow RNASTRUCTUROME {
 
     def ch_dotplot_bp_input = RNAFRAMEWORK_RFFOLD.out.structures
         .combine(ch_reference_gtf_map)
-        .map { combined ->
+        .flatMap { combined ->
             def meta = combined[0]
             def fold_dir = combined[1]
             def gtf_map = combined[2]
             def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def gtf_tuple = gtf_map[reference_key]
             if (!gtf_tuple) {
-                error("No GTF resolved for reference '${reference_key}' for dotplot-to-bp conversion.")
+                log.warn("Skipping dotplot-to-bp conversion for '${reference_key}': no GTF available (expected for NCBI/viral references).")
+                return []
             }
-            [ meta, fold_dir, gtf_tuple[1] ]
+            return [ [ meta, fold_dir, gtf_tuple[1] ] ]
         }
 
     RNAFRAMEWORK_DOTPLOT2BP (
@@ -1017,7 +1089,8 @@ def normaliseEnsemblSpecies(value) {
         ?.toString()
         ?.trim()
         ?.toLowerCase()
-        ?.replaceAll(/\s+/, '_')
+        ?.replaceAll(/[^a-z0-9_]+/, '_')
+        ?.replaceAll(/^_+|_+$/, '')
 }
 
 def defaultPipelineConfig() {
@@ -1034,6 +1107,7 @@ def defaultPipelineConfig() {
         ],
         ensembl_release                   : 'current',
         ensembl_base_url                  : 'https://ftp.ensembl.org/pub',
+        ncbi_accessions_map               : [:],
         multiqc_config                    : null,
         multiqc_logo                      : null,
         multiqc_methods_description       : null,
@@ -1123,6 +1197,7 @@ def parseRfcountCoveredTranscripts(summaryFile) {
 def filterSummaryParams(summaryParams) {
     def hiddenKeys = [
         'ensembl_species_map',
+        'ncbi_accessions_map',
         'genomes',
         'container',
         'configFiles',

@@ -11,10 +11,11 @@ process ENSEMBL_TRANSCRIPTOME {
     path ensembl_transcriptome_script
 
     output:
-    tuple val(meta), path("${meta.id}.transcripts.fa.gz"), emit: fasta
-    path "ensembl_source_urls.txt", emit: source_urls
-    path "ensembl_warnings.log", optional: true, emit: warnings
-    path "versions.yml", emit: versions
+    tuple val(meta), path("${meta.id}.transcripts.fa.gz"), optional: true, emit: fasta
+    path "ensembl_source_urls.txt",                        optional: true, emit: source_urls
+    tuple val(meta), path("${meta.id}.not_found"),         optional: true, emit: not_found
+    path "ensembl_warnings.log",                           optional: true, emit: warnings
+    path "versions.yml",                                                    emit: versions
 
     script:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
@@ -25,7 +26,8 @@ process ENSEMBL_TRANSCRIPTOME {
         --base-url "${ensembl_config.ensembl_base_url}" \
         --output "${meta.id}.transcripts.fa.gz" \
         --source-urls "ensembl_source_urls.txt" \
-        --warnings-log "ensembl_warnings.log"
+        --warnings-log "ensembl_warnings.log" \
+        --not-found-file "${meta.id}.not_found"
 
     printf '%s\n' \
         '"${task.process}":' \

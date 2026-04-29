@@ -1,0 +1,49 @@
+nextflow_process {
+
+    name "Test Process NCBI_FASTA"
+    script "../main.nf"
+    process "NCBI_FASTA"
+
+    tag "modules"
+    tag "modules_local"
+    tag "ncbi"
+    tag "ncbi/fasta"
+    config "./nextflow.config"
+
+    test("downloads and gzip-compresses FASTA for pre-configured accessions using local fixture") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'test_virus', organism:'test virus', original_organism:'test virus' ],
+                    'NC_TEST1.1,NC_TEST2.1'
+                ])
+                input[1] = file("${projectDir}/bin/ncbi_fasta.py", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.fasta.size() == 1 },
+                {
+                    def fastaText = new java.util.zip.GZIPInputStream(
+                        new java.io.FileInputStream(process.out.fasta[0][1])
+                    ).getText('UTF-8')
+                    assert fastaText.contains('>NC_TEST1.1')
+                    assert fastaText.contains('>NC_TEST2.1')
+                    assert fastaText.contains('ATGCATGC')
+                },
+                {
+                    def srcLines = path(process.out.source_accessions[0]).text.readLines().findAll { it }
+                    assert srcLines.size() == 2
+                    assert srcLines.any { it.contains('NC_TEST1.1') }
+                    assert srcLines.any { it.contains('NC_TEST2.1') }
+                },
+                { assert path(process.out.versions[0]).text.contains('python:') }
+            )
+        }
+    }
+}

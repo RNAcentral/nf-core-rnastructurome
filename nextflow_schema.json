@@ -91,6 +91,17 @@
                     "description": "Optional map from organism keys to Ensembl species names used for transcript FASTA auto-resolution.",
                     "hidden": true,
                     "additionalProperties": true
+                },
+                "ncbi_accessions_map": {
+                    "type": "object",
+                    "description": "Internal map from normalized viral organism keys to NCBI accession lists.",
+                    "hidden": true,
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
                 }
             }
         },

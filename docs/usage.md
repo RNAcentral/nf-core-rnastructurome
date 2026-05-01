@@ -252,7 +252,7 @@ Replicate handling:
 
 BigWig outputs from `rf-fold`:
 
-- Shannon entropy BigWig (`fold/shannon_bw/<cell_line>_shannon.bw`) is produced when `--rffold_shannon_entropy` is enabled (default: `true`). Per-transcript WIG files from `rf-fold` are merged across all transcripts and converted to BigWig format.
+- Shannon entropy BigWig (`fold/shannon_bw/<cell_line>_shannon.bw`) is produced when `--rffold_shannon_entropy` is enabled (default: `true`). Per-transcript WIG files from `rf-fold` are merged across all transcripts, remapped through the GTF to genomic coordinates, and converted to BigWig format.
 
 ### RNAframework runtime settings
 
@@ -266,10 +266,10 @@ Main output areas under `--outdir`:
 - `fastqc/`, `cutadapt/`, `bowtie*/`, `samtools*/` — preprocessing and alignment
 - `count/` — count tables and always-on plots
 - `norm/<group>/` — normalized XML, normalization plots, and per-transcript wiggle tracks
-- `norm/merged_bw/` — per-cell-line reactivity BigWigs (`<cell_line>_reactivity.bw`); reactivity values are averaged across replicates before conversion when multiple replicates are available
+- `norm/merged_bw/` — per-cell-line genomic reactivity BigWigs (`<cell_line>_reactivity.bw`); reactivity values are averaged across replicates before genomic remapping and conversion when multiple replicates are available
 - `fold/<group>/` — inferred secondary structures (dot-bracket by default), fold reports, optional CT, optional dotplots
 - `fold/merged_bp/` — merged base-pair files per cell line (produced from dotplots when `--rffold_dotplot` is enabled)
-- `fold/shannon_bw/` — per-cell-line Shannon entropy BigWigs (`<cell_line>_shannon.bw`; produced when `--rffold_shannon_entropy` is enabled, which is the default)
+- `fold/shannon_bw/` — per-cell-line genomic Shannon entropy BigWigs (`<cell_line>_shannon.bw`; produced when `--rffold_shannon_entropy` is enabled, which is the default)
 - `multiqc/` — final aggregated QC report
 
 For full output details, see [output documentation](output.md).

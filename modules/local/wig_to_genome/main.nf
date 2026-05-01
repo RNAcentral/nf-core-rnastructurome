@@ -1,0 +1,46 @@
+process WIG_TO_GENOME {
+    tag "$meta.id"
+    label 'process_medium'
+
+    conda "${moduleDir}/environment.yml"
+    container 'docker.io/library/python:3.12.11'
+
+    input:
+    tuple val(meta), path(wig), path(gtf)
+    path remap_script
+
+    output:
+    tuple val(meta), path("${prefix}.genomic.wig"),          emit: wig
+    tuple val(meta), path("${prefix}_genomic.chrom.sizes"), emit: chrom_sizes
+    path "versions.yml",                                    emit: versions
+
+    script:
+    def args = task.ext.args ?: ''
+    prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    python "${remap_script}" \
+        --wig "${wig}" \
+        --gtf "${gtf}" \
+        --output-wig "${prefix}.genomic.wig" \
+        --chrom-sizes "${prefix}_genomic.chrom.sizes" \
+        --organism "${meta.organism ?: meta.id}" \
+        ${args}
+
+    printf '"%s":\n    python: %s\n' \
+        "${task.process}" \
+        "\$(python --version 2>&1 | sed 's/^Python //')" \
+        > versions.yml
+    """
+
+    stub:
+    prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    touch ${prefix}.genomic.wig
+    touch ${prefix}_genomic.chrom.sizes
+
+    printf '"%s":\n    python: %s\n' \
+        "${task.process}" \
+        "\$(python --version 2>&1 | sed 's/^Python //')" \
+        > versions.yml
+    """
+}

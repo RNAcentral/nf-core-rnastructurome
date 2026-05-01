@@ -35,10 +35,10 @@ nextflow_process {
                     def arcLines  = lines.findAll { !it.startsWith('color') }
                     assert colorLines.size() == 4
                     assert colorLines == [
-                        'color\t189\t189\t189\t0-10% probability',
-                        'color\t242\t204\t84\t10-40% probability',
-                        'color\t120\t182\t220\t40-70% probability',
-                        'color\t126\t198\t143\t70-100% probability'
+                        'color:\t189\t189\t189\t0-10% probability',
+                        'color:\t242\t204\t84\t10-40% probability',
+                        'color:\t120\t182\t220\t40-70% probability',
+                        'color:\t126\t198\t143\t70-100% probability'
                     ]
                     assert arcLines.size() == 4
                     assert arcLines.contains('chr1\t100\t100\t200\t200\t0')

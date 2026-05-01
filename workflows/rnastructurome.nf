@@ -40,6 +40,8 @@ include { RNAFRAMEWORK_RFWIGGLE  } from '../modules/local/rnaframework/wiggle/ma
 include { MERGE_WIG              } from '../modules/local/merge_wig/main'
 include { AVERAGE_WIG            } from '../modules/local/average_wig/main'
 include { MERGE_SHANNON_WIG      } from '../modules/local/merge_shannon_wig/main'
+include { WIG_TO_GENOME as WIG_TO_GENOME_REACTIVITY } from '../modules/local/wig_to_genome/main'
+include { WIG_TO_GENOME as WIG_TO_GENOME_SHANNON    } from '../modules/local/wig_to_genome/main'
 include { RNAFRAMEWORK_TORDAT    } from '../modules/local/tordat/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_REACTIVITY } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON    } from '../modules/nf-core/ucsc/wigtobigwig/main'
@@ -902,11 +904,33 @@ workflow RNASTRUCTUROME {
     )
 
     //
-    // MODULE: wigToBigWig — convert merged/averaged WIG to BigWig for IGV
+    // MODULE: wig_to_genome + wigToBigWig — convert merged/averaged transcript WIG
+    // to genomic BigWig for IGV
     //
+    def ch_reactivity_for_bigwig = ch_single_reactivity.wig.mix(AVERAGE_WIG.out.merged_wig)
+    def ch_reactivity_genomic_wig_input = ch_reactivity_for_bigwig
+        .combine(ch_reference_gtf_map)
+        .flatMap { combined ->
+            def meta = combined[0]
+            def wig = combined[1]
+            def gtf_map = combined[2]
+            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+            def gtf_tuple = gtf_map[reference_key]
+            if (!gtf_tuple) {
+                log.warn("Skipping genomic reactivity BigWig for '${reference_key}': no GTF available.")
+                return []
+            }
+            return [ [ meta, wig, gtf_tuple[1] ] ]
+        }
+
+    WIG_TO_GENOME_REACTIVITY (
+        ch_reactivity_genomic_wig_input,
+        file("${projectDir}/bin/remap_wig_to_genome.py", checkIfExists: true)
+    )
+
     UCSC_WIGTOBIGWIG_REACTIVITY (
-        ch_single_reactivity.wig.mix(AVERAGE_WIG.out.merged_wig),
-        ch_single_reactivity.sizes.mix(AVERAGE_WIG.out.chrom_sizes.map { _meta, sizes -> sizes })
+        WIG_TO_GENOME_REACTIVITY.out.wig,
+        WIG_TO_GENOME_REACTIVITY.out.chrom_sizes.map { _meta, sizes -> sizes }
     )
 
     //
@@ -923,9 +947,30 @@ workflow RNASTRUCTUROME {
             ch_shannon_merge_input
         )
 
+        def ch_shannon_genomic_wig_input = MERGE_SHANNON_WIG.out.merged_wig
+            .combine(ch_reference_gtf_map)
+            .flatMap { combined ->
+                def meta = combined[0]
+                def wig = combined[1]
+                def gtf_map = combined[2]
+                def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def gtf_tuple = gtf_map[reference_key]
+                if (!gtf_tuple) {
+                    log.warn("Skipping genomic Shannon BigWig for '${reference_key}': no GTF available.")
+                    return []
+                }
+                return [ [ meta, wig, gtf_tuple[1] ] ]
+            }
+
+        WIG_TO_GENOME_SHANNON (
+            ch_shannon_genomic_wig_input,
+            file("${projectDir}/bin/remap_wig_to_genome.py", checkIfExists: true)
+        )
+        ch_versions = ch_versions.mix(WIG_TO_GENOME_SHANNON.out.versions.first())
+
         UCSC_WIGTOBIGWIG_SHANNON (
-            MERGE_SHANNON_WIG.out.merged_wig,
-            MERGE_SHANNON_WIG.out.chrom_sizes.map { _meta, sizes -> sizes }
+            WIG_TO_GENOME_SHANNON.out.wig,
+            WIG_TO_GENOME_SHANNON.out.chrom_sizes.map { _meta, sizes -> sizes }
         )
     }
 
@@ -1041,6 +1086,7 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFWIGGLE.out.versions.first())
     ch_versions = ch_versions.mix(MERGE_WIG.out.versions.first())
     ch_versions = ch_versions.mix(AVERAGE_WIG.out.versions.first())
+    ch_versions = ch_versions.mix(WIG_TO_GENOME_REACTIVITY.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_TORDAT.out.versions.first())
 
     //

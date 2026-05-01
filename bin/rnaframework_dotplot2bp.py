@@ -144,7 +144,7 @@ def main() -> int:
                 output_path.unlink(missing_ok=True)
                 continue
             for red, green, blue, label in COLOR_BINS:
-                writer.write(f"color\t{red}\t{green}\t{blue}\t{label}\n")
+                writer.write(f"color:\t{red}\t{green}\t{blue}\t{label}\n")
             converted_any = False
             for raw_line in reader:
                 line = raw_line.strip()

@@ -24,7 +24,7 @@ All paths below are relative to `--outdir`.
 │   │   ├── xml/
 │   │   ├── plots/
 │   │   └── wiggle/
-│   └── merged_bw/                     (per-cell_line reactivity BigWigs)
+│   └── merged_bw/                     (per-cell_line genomic reactivity BigWigs)
 ├── fold/
 │   ├── <group>/                       (one per cell_line)
 │   │   ├── dotbracket/
@@ -127,7 +127,7 @@ Per-group directories under `norm/<group>/`, where `<group>` is the `cell_line_r
 
 Merged and averaged BigWig under `norm/merged_bw/`:
 
-- `merged_bw/<cell_line>_reactivity.bw` — genome-browser-ready reactivity BigWig covering all transcripts for a cell line; when multiple replicates are available the per-replicate tracks are averaged position-by-position before conversion to BigWig
+- `merged_bw/<cell_line>_reactivity.bw` — genomic-coordinate reactivity BigWig for a cell line; when multiple replicates are available the per-replicate transcript tracks are averaged position-by-position, remapped to genomic coordinates with the GTF, and converted to BigWig
 
 ### `fold/` (`rf-fold`)
 
@@ -148,11 +148,12 @@ Merged base-pair files under `fold/merged_bp/`:
 
 Shannon entropy BigWigs under `fold/shannon_bw/` (only when `--rffold_shannon_entropy` is enabled, which is the default):
 
-- `shannon_bw/<cell_line>_shannon.bw` — per-position Shannon entropy across the transcript ensemble, covering all transcripts for a cell line
+- `shannon_bw/<cell_line>_shannon.bw` — genomic-coordinate per-position Shannon entropy across the transcript ensemble for a cell line
 
 Notes:
 
 - CT output is additionally produced when `--rffold_ct` is enabled.
+- Genomic BigWigs convert common Ensembl chromosome names (`1`, `X`, `MT`) to UCSC-style names (`chr1`, `chrX`, `chrM`) for compatibility with IGV genomes such as `hg38`.
 - If `rf-fold` reports errors or produces no structures, the task fails hard (pipeline stops instead of silently continuing).
 
 ## Reference

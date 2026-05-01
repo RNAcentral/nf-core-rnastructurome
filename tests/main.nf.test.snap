@@ -1,7 +1,7 @@
 {
     "Runs the named workflow with a minimal RT-stop sample": {
         "content": [
-            "nf_core_rnastructurome_software_mqc_versions.yml:md5,745d4443c35dfcda4907cb51eb7cd6c6"
+            "nf_core_rnastructurome_software_mqc_versions.yml:md5,fe5bb8cb93fb48848bec0242ab09f1e7"
         ],
         "timestamp": "2026-04-23T13:20:00",
         "meta": {

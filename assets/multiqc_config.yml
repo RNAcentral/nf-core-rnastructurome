@@ -86,22 +86,24 @@ table_columns_visible:
     r_with_adapters: False
     r_too_short: False
   "Bowtie 1":
-    reads_aligned_percentage: False # % Mapped — dropped per user request
+    reads_aligned_percentage: True  # actual alignment rate — more informative than Samtools % mapped
     reads_aligned: False
     non_primary_alignments: False
-  "Bowtie 2":
-    reads_aligned_percentage: False
+  "Bowtie 2 / HiSAT2":
+    overall_alignment_rate: True    # column key differs from Bowtie 1
     reads_aligned: False
     non_primary_alignments: False
-  Samtools:
+  # samtools submodules each have their own namespace; "Samtools" is ignored by MultiQC
+  "samtools/stats":
+    error_rate: False
+    "non-primary_alignments": False
     reads_mapped: False
     reads_mapped_percent: False
     raw_total_sequences: False
-    non_primary_alignments: False
-    error_rate: False
     insert_size_average: False
     reads_properly_paired_percent: False
     reads_MQ0_percent: False
+  "samtools/flagstat":
     flagstat_total: False
     mapped_passed: False
     mapped_passed_pct: False
@@ -117,6 +119,8 @@ table_columns_placement:
     percent_trimmed: 200
   "Bowtie 1":
     reads_aligned_percentage: 300
+  "Bowtie 2 / HiSAT2":
+    overall_alignment_rate: 310
 
 export_plots: false
 

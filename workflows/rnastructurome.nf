@@ -1585,9 +1585,14 @@ def parseRffoldLog(logFile) {
 def buildSimpleMultiqcTable(rows, id, sectionName, description, headers) {
     def rowEntries
     if (rows instanceof List && rows.size() == 2 && rows[1] instanceof Map && !(rows[0] instanceof List)) {
+        // Single row, collect() flattened [id, map] to a bare 2-element list
         rowEntries = [rows]
     } else if (rows instanceof List && rows.every { row -> row instanceof List && row.size() == 2 && row[1] instanceof Map }) {
+        // Multiple rows as nested [[id, map], ...] (collect(flat:false) behaviour)
         rowEntries = rows
+    } else if (rows instanceof List && rows.size() % 2 == 0 && rows.collate(2).every { pair -> pair.size() == 2 && pair[1] instanceof Map }) {
+        // Multiple rows flattened by Nextflow collect() into [id1, map1, id2, map2, ...]
+        rowEntries = rows.collate(2)
     } else {
         rowEntries = []
     }

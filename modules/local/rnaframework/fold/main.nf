@@ -9,10 +9,16 @@ process RNAFRAMEWORK_RFFOLD {
     tuple val(meta), path(xml)
 
     output:
-    tuple val(meta), path("${prefix}_fold/"),             emit: structures
-    tuple val(meta), path("${prefix}_fold/shannon/*.wig"), optional: true, emit: shannon_wig
-    tuple val(meta), path("${prefix}_fold/rffold.log"),   optional: true, emit: log
-    path "versions.yml"                                  , emit: versions
+    tuple val(meta), path("${prefix}_fold/"),                              emit: structures
+    tuple val(meta), path("${prefix}_fold_publish/dotbracket/*"),  optional: true, emit: dotbracket
+    tuple val(meta), path("${prefix}_fold_publish/2D-structures/*"), optional: true, emit: structure_plots
+    tuple val(meta), path("${prefix}_fold_publish/summaries/*"),   optional: true, emit: summaries
+    tuple val(meta), path("${prefix}_fold_publish/dotplot/*"),     optional: true, emit: dotplot
+    tuple val(meta), path("${prefix}_fold_publish/shannon/*.wig"), optional: true, emit: shannon_wig
+    tuple val(meta), path("${prefix}_fold_publish/rffold.log"),    optional: true, emit: log
+    tuple val(meta), path("${prefix}_fold_publish/missing_transcripts.txt"), optional: true, emit: missing_transcripts
+    tuple val(meta), path("${prefix}_fold_publish/partial_fold_warning.log"), optional: true, emit: partial_warning
+    path "versions.yml"                                                   , emit: versions
 
     script:
     def args = task.ext.args ?: ''
@@ -89,6 +95,14 @@ process RNAFRAMEWORK_RFFOLD {
     fi
     rmdir ${prefix}_fold/plots 2>/dev/null || true
 
+    rm -rf "${prefix}_fold_publish"
+    find "${prefix}_fold" -type f -print | while IFS= read -r file; do
+        rel="\${file#${prefix}_fold/}"
+        dest="${prefix}_fold_publish/\${rel}"
+        mkdir -p "\$(dirname "\${dest}")"
+        ln "\${file}" "\${dest}" 2>/dev/null || cp -p "\${file}" "\${dest}"
+    done
+
     printf '"%s":\n    rnaframework: %s\n' \\
         "${task.process}" \\
         "\$(rf-fold 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
@@ -105,6 +119,14 @@ process RNAFRAMEWORK_RFFOLD {
     touch ${prefix}_fold/rffold.log
     touch ${prefix}_fold/dotbracket/example.db
     touch ${prefix}_fold/shannon/example.wig
+
+    rm -rf "${prefix}_fold_publish"
+    find "${prefix}_fold" -type f -print | while IFS= read -r file; do
+        rel="\${file#${prefix}_fold/}"
+        dest="${prefix}_fold_publish/\${rel}"
+        mkdir -p "\$(dirname "\${dest}")"
+        ln "\${file}" "\${dest}" 2>/dev/null || cp -p "\${file}" "\${dest}"
+    done
 
     printf '"%s":\n    rnaframework: %s\n' \\
         "${task.process}" \\

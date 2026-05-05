@@ -26,7 +26,33 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefix", required=True)
     parser.add_argument("--fold-dir", required=True)
     parser.add_argument("--gtf", required=True)
+    parser.add_argument(
+        "--ucsc-common-chrom-names",
+        action="store_true",
+        help="Convert common Ensembl chromosome names such as 1, X, MT to chr1, chrX, chrM.",
+    )
+    parser.add_argument(
+        "--min-color-index",
+        type=int,
+        default=0,
+        choices=[0, 1, 2, 3],
+        help="Minimum color index to include (0=all, 1=>=10%%, 2=>=40%%, 3=>=70%% probability).",
+    )
     return parser.parse_args()
+
+
+def to_ucsc_common_chrom_name(seqname: str) -> str:
+    if seqname.startswith("chr"):
+        return seqname
+    if seqname == "MT":
+        return "chrM"
+    if seqname == "M":
+        return "chrM"
+    if seqname in {"X", "Y"}:
+        return f"chr{seqname}"
+    if seqname.isdigit():
+        return f"chr{seqname}"
+    return seqname
 
 
 def normalize_transcript_id(organism: str, transcript_id: str) -> str:
@@ -104,6 +130,8 @@ def color_index_for_probability(score: float) -> int:
 def main() -> int:
     args = parse_args()
     organism = args.organism.strip().lower().replace(" ", "_")
+    ucsc_chr = args.ucsc_common_chrom_names
+    min_color_index = args.min_color_index
     fold_dir = Path(args.fold_dir)
     gtf_path = Path(args.gtf)
     out_dir = Path(f"{args.prefix}_bp")
@@ -172,6 +200,10 @@ def main() -> int:
                         f"empty or null seqname for transcript '{transcript_id}'."
                     )
                     continue
+                if color_index < min_color_index:
+                    continue
+                if ucsc_chr:
+                    seqname = to_ucsc_common_chrom_name(seqname)
                 writer.write(f"{seqname}\t{start}\t{start}\t{end}\t{end}\t{color_index}\n")
                 converted_any = True
 

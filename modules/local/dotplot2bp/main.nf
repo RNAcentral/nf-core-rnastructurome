@@ -15,12 +15,14 @@ process RNAFRAMEWORK_DOTPLOT2BP {
     path "versions.yml", emit: versions
 
     script:
+    def args = task.ext.args ?: ''
     """
     python "${dotplot2bp_script}" \
         --organism "${meta.organism ?: meta.id}" \
         --prefix "${meta.id}" \
         --fold-dir "${fold_dir}" \
-        --gtf "${gtf}"
+        --gtf "${gtf}" \
+        ${args}
 
     printf '"%s":\n    python: %s\n' \
         "${task.process}" \

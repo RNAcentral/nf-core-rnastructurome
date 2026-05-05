@@ -36,6 +36,7 @@ include { FASTA_SORT as FASTA_SORT_ENSEMBL } from '../modules/local/fasta/sort/m
 include { FASTA_SORT as FASTA_SORT_NCBI    } from '../modules/local/fasta/sort/main'
 include { RNAFRAMEWORK_DOTPLOT2BP } from '../modules/local/dotplot2bp/main'
 include { MERGE_BP               } from '../modules/local/merge_bp/main'
+include { MERGE_BP as MERGE_TRANSCRIPT_BP } from '../modules/local/merge_bp/main'
 include { RNAFRAMEWORK_RFWIGGLE  } from '../modules/local/rnaframework/wiggle/main'
 include { MERGE_WIG              } from '../modules/local/merge_wig/main'
 include { AVERAGE_WIG            } from '../modules/local/average_wig/main'
@@ -43,8 +44,10 @@ include { MERGE_SHANNON_WIG      } from '../modules/local/merge_shannon_wig/main
 include { WIG_TO_GENOME as WIG_TO_GENOME_REACTIVITY } from '../modules/local/wig_to_genome/main'
 include { WIG_TO_GENOME as WIG_TO_GENOME_SHANNON    } from '../modules/local/wig_to_genome/main'
 include { RNAFRAMEWORK_TORDAT    } from '../modules/local/tordat/main'
-include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_REACTIVITY } from '../modules/nf-core/ucsc/wigtobigwig/main'
-include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON    } from '../modules/nf-core/ucsc/wigtobigwig/main'
+include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_REACTIVITY            } from '../modules/nf-core/ucsc/wigtobigwig/main'
+include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON               } from '../modules/nf-core/ucsc/wigtobigwig/main'
+include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_REACTIVITY_TRANSCRIPT } from '../modules/nf-core/ucsc/wigtobigwig/main'
+include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON_TRANSCRIPT    } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -854,6 +857,10 @@ workflow RNASTRUCTUROME {
         RNAFRAMEWORK_DOTPLOT2BP.out.bp
     )
 
+    MERGE_TRANSCRIPT_BP (
+        RNAFRAMEWORK_DOTPLOT2BP.out.transcript_bp
+    )
+
     //
     // MODULE: rf-wiggle — convert rf-norm XML reactivities to WIG + chrom.sizes
     //
@@ -933,6 +940,25 @@ workflow RNASTRUCTUROME {
         WIG_TO_GENOME_REACTIVITY.out.chrom_sizes.map { _meta, sizes -> sizes }
     )
 
+    // Transcript-level reactivity BigWig — use merged WIG directly with transcript chrom.sizes
+    def ch_reactivity_transcript_sizes_by_id =
+        ch_reactivity_branches.single.map { meta, _wigs, sizes -> [ meta.id.toString(), sizes ] }
+        .mix(AVERAGE_WIG.out.chrom_sizes.map { meta, sizes -> [ meta.id.toString(), sizes ] })
+
+    def ch_reactivity_transcript_bw = ch_reactivity_for_bigwig
+        .map { meta, wig -> [ meta.id.toString(), meta, wig ] }
+        .join(ch_reactivity_transcript_sizes_by_id)
+        .map { _id, meta, wig, sizes -> [ meta, wig, sizes ] }
+        .multiMap { meta, wig, sizes ->
+            wig_ch:   [ meta, wig ]
+            sizes_ch: sizes
+        }
+
+    UCSC_WIGTOBIGWIG_REACTIVITY_TRANSCRIPT (
+        ch_reactivity_transcript_bw.wig_ch,
+        ch_reactivity_transcript_bw.sizes_ch
+    )
+
     //
     // MODULE: merge_shannon_wig + wigToBigWig — merge per-transcript Shannon entropy WIG files
     // and convert to BigWig for genome browser visualisation
@@ -971,6 +997,19 @@ workflow RNASTRUCTUROME {
         UCSC_WIGTOBIGWIG_SHANNON (
             WIG_TO_GENOME_SHANNON.out.wig,
             WIG_TO_GENOME_SHANNON.out.chrom_sizes.map { _meta, sizes -> sizes }
+        )
+
+        // Transcript-level shannon BigWig — use merged WIG directly with transcript chrom.sizes from XML
+        def ch_shannon_transcript_bw = MERGE_SHANNON_WIG.out.merged_wig
+            .join(MERGE_SHANNON_WIG.out.chrom_sizes)
+            .multiMap { meta, wig, sizes ->
+                wig_ch:   [ meta, wig ]
+                sizes_ch: sizes
+            }
+
+        UCSC_WIGTOBIGWIG_SHANNON_TRANSCRIPT (
+            ch_shannon_transcript_bw.wig_ch,
+            ch_shannon_transcript_bw.sizes_ch
         )
     }
 

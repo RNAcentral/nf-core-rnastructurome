@@ -93,20 +93,24 @@ table_columns_visible:
     overall_alignment_rate: True    # column key differs from Bowtie 1
     reads_aligned: False
     non_primary_alignments: False
-  # samtools submodules each have their own namespace; "Samtools" is ignored by MultiQC
-  "samtools/stats":
+  # samtools submodule namespaces are "<ModuleName>: <submodule>" (colon+space, case-insensitive)
+  "Samtools: stats":
     error_rate: False
-    "non-primary_alignments": False
+    non_primary_alignments: False
     reads_mapped: False
     reads_mapped_percent: False
     raw_total_sequences: False
     insert_size_average: False
     reads_properly_paired_percent: False
     reads_MQ0_percent: False
-  "samtools/flagstat":
+  "Samtools: flagstat":
     flagstat_total: False
     mapped_passed: False
     mapped_passed_pct: False
+  # UMI-tools: hide dedup unique-read count and extract rate (covered by count progression table)
+  "UMI-tools":
+    dedup_output_reads: False
+    extract_percent_passing: False
 
 # Column placement sets left-to-right order in the General Statistics table,
 # mirroring pipeline execution: raw reads → quality → trimming → alignment.

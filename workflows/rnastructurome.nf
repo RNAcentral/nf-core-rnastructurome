@@ -1083,8 +1083,21 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFFOLD.out.structures.collect { fold_dir -> fold_dir[1] })
 
     // RF-norm summary table: one row per normalisation group (cell_line + replicate).
+    // Join RF-count covered transcript counts per group (max across treated replicates).
+    def ch_rfcount_covered_by_group = ch_rc_by_group
+        .filter  { _group, condition, _meta, _rc, _rci -> condition == 'treated' }
+        .map     { group, _condition, meta, _rc, _rci -> [ meta.id.toString(), group ] }
+        .join(ch_rfcount_covered_transcripts)
+        .map     { _sample_id, group, covered -> [ group, covered as long ] }
+        .groupTuple()
+        .map     { group, covered_list -> [ group, covered_list.max() ] }
+
     def ch_rfnorm_stats_mqc = RNAFRAMEWORK_RFNORM.out.log
         .map { meta, log -> [ meta.id.toString(), parseRfnormLog(log) ] }
+        .join(ch_rfcount_covered_by_group, remainder: true)
+        .map { group_id, rfnorm_stats, rfcount_covered ->
+            [ group_id, [ rfcount_covered: (rfcount_covered ?: 0L) as long, covered: rfnorm_stats.covered ] ]
+        }
         .collect()
         .map { rows -> rfnormStatsMultiqc(rows) }
 
@@ -1752,10 +1765,10 @@ def rfnormStatsMultiqc(rows) {
         rows,
         'nf-core-rnastructurome-rfnorm-stats',
         'nf-core/rnastructurome RF-norm Statistics',
-        'Transcript coverage and discard counts from rf-norm (per normalisation group).',
+        'Transcript coverage statistics from RF-count and RF-norm (per normalisation group).',
         [
-            covered  : [title: 'Covered Transcripts',  description: 'Transcripts with sufficient coverage for normalisation', scale: 'Greens', format: '{:,.0f}'],
-            discarded: [title: 'Discarded Transcripts', description: 'Transcripts discarded by rf-norm (insufficient coverage, mismatches, or absent in control)', scale: 'Reds', format: '{:,.0f}']
+            rfcount_covered: [title: 'RF-count Covered', description: 'Transcripts covered by RF-count (input to RF-norm)', scale: 'Blues',  format: '{:,.0f}'],
+            covered        : [title: 'RF-norm Covered',  description: 'Transcripts passing RF-norm normalisation (sufficient coverage)', scale: 'Greens', format: '{:,.0f}']
         ]
     )
 }

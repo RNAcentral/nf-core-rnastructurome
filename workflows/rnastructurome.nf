@@ -1016,6 +1016,43 @@ workflow RNASTRUCTUROME {
     //
     // MODULE: tordat — compile rf-norm XML + rf-fold .db structures into RDAT format
     //
+    // Build per-reference source file name channels so the RDAT COMMENT records
+    // the exact Ensembl filenames (e.g. Homo_sapiens.GRCh38.114.cdna.all.fa.gz)
+    // or NCBI accessions (e.g. EU081230.1) rather than the generic pipeline names.
+    def ch_ref_fasta_names
+    def ch_ref_gtf_names
+    if (pipeline_config.fasta) {
+        def local_fasta_name = file(pipeline_config.fasta.toString()).name
+        def local_gtf_name   = pipeline_config.gtf ? file(pipeline_config.gtf.toString()).name : ''
+        ch_ref_fasta_names = FASTA_SORT_LOCAL.out.fasta
+            .map { meta, _ -> [ meta.id.toString(), local_fasta_name ] }
+        ch_ref_gtf_names = FASTA_SORT_LOCAL.out.fasta
+            .map { meta, _ -> [ meta.id.toString(), local_gtf_name ] }
+    } else {
+        ch_ref_fasta_names = ENSEMBL_TRANSCRIPTOME.out.source_urls
+            .map { meta, urls_file ->
+                def names = urls_file.readLines().findAll { it.trim() }
+                    .collect { it.tokenize('/').last() }.join(' + ')
+                [ meta.id.toString(), names ]
+            }
+            .mix(NCBI_FASTA.out.source_accessions
+                .map { meta, acc_file ->
+                    def accs = acc_file.readLines()
+                        .findAll { it.trim() && !it.startsWith('stub:') }
+                        .collect { it.tokenize('/').last() }.join(', ')
+                    [ meta.id.toString(), accs ?: meta.id.toString() ]
+                })
+        ch_ref_gtf_names = ENSEMBL_GTF.out.source_urls
+            .map { meta, urls_file ->
+                def name = urls_file.readLines().find { it.trim() }?.tokenize('/')?.last() ?: ''
+                [ meta.id.toString(), name ]
+            }
+            .mix(ch_reference_gtf_local
+                .map { meta, gtf_file -> [ meta.id.toString(), gtf_file.name ] })
+            .mix(NCBI_FASTA.out.source_accessions
+                .map { meta, _ -> [ meta.id.toString(), '' ] })
+    }
+
     def ch_rdat_input = ch_fold_input
         .map { meta, xml -> [ meta.id.toString(), meta, xml ] }
         .combine(
@@ -1023,13 +1060,14 @@ workflow RNASTRUCTUROME {
                 .map { meta, fold_dir -> [ meta.id.toString(), fold_dir ] },
             by: 0
         )
-        .map { _key, fold_meta, xml, fold_dir -> [ fold_meta, xml, fold_dir ] }
-        .map { fold_meta, xml, fold_dir ->
+        .map { _key, fold_meta, xml, fold_dir ->
             def reference_key = resolveReferenceKey(fold_meta, pipeline_config.organism)
-            def fasta_name = pipeline_config.fasta
-                ? file(pipeline_config.fasta.toString()).name
-                : "${reference_key}.transcripts.fa.gz"
-            [ fold_meta + [ fasta_name: fasta_name ], xml, fold_dir ]
+            [ reference_key.toString(), fold_meta, xml, fold_dir ]
+        }
+        .combine(ch_ref_fasta_names, by: 0)
+        .combine(ch_ref_gtf_names, by: 0)
+        .map { _ref_key, fold_meta, xml, fold_dir, fasta_name, gtf_name ->
+            [ fold_meta + [ fasta_name: fasta_name, gtf_name: gtf_name ], xml, fold_dir ]
         }
 
     RNAFRAMEWORK_TORDAT (

@@ -12,7 +12,7 @@ process ENSEMBL_TRANSCRIPTOME {
 
     output:
     tuple val(meta), path("${meta.id}.transcripts.fa.gz"), optional: true, emit: fasta
-    path "ensembl_source_urls.txt",                        optional: true, emit: source_urls
+    tuple val(meta), path("ensembl_source_urls.txt"),      optional: true, emit: source_urls
     tuple val(meta), path("${meta.id}.not_found"),         optional: true, emit: not_found
     path "ensembl_warnings.log",                           optional: true, emit: warnings
     path "versions.yml",                                                    emit: versions

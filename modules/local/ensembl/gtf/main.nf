@@ -12,7 +12,7 @@ process ENSEMBL_GTF {
 
     output:
     tuple val(meta), path("${meta.id}.annotation.gtf.gz"), optional: true, emit: gtf
-    path "ensembl_source_urls.txt",                         optional: true, emit: source_urls
+    tuple val(meta), path("ensembl_source_urls.txt"),       optional: true, emit: source_urls
     tuple val(meta), path("${meta.id}.not_found"),          optional: true, emit: not_found
     path "versions.yml",                                                     emit: versions
 

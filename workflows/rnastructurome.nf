@@ -1025,32 +1025,32 @@ workflow RNASTRUCTUROME {
         def local_fasta_name = file(pipeline_config.fasta.toString()).name
         def local_gtf_name   = pipeline_config.gtf ? file(pipeline_config.gtf.toString()).name : ''
         ch_ref_fasta_names = FASTA_SORT_LOCAL.out.fasta
-            .map { meta, _ -> [ meta.id.toString(), local_fasta_name ] }
+            .map { meta, _fasta -> [ meta.id.toString(), local_fasta_name ] }
         ch_ref_gtf_names = FASTA_SORT_LOCAL.out.fasta
-            .map { meta, _ -> [ meta.id.toString(), local_gtf_name ] }
+            .map { meta, _fasta -> [ meta.id.toString(), local_gtf_name ] }
     } else {
         ch_ref_fasta_names = ENSEMBL_TRANSCRIPTOME.out.source_urls
             .map { meta, urls_file ->
-                def names = urls_file.readLines().findAll { it.trim() }
-                    .collect { it.tokenize('/').last() }.join(' + ')
+                def names = urls_file.readLines().findAll { line -> line.trim() }
+                    .collect { line -> line.tokenize('/').last() }.join(' + ')
                 [ meta.id.toString(), names ]
             }
             .mix(NCBI_FASTA.out.source_accessions
                 .map { meta, acc_file ->
                     def accs = acc_file.readLines()
-                        .findAll { it.trim() && !it.startsWith('stub:') }
-                        .collect { it.tokenize('/').last() }.join(', ')
+                        .findAll { line -> line.trim() && !line.startsWith('stub:') }
+                        .collect { line -> line.tokenize('/').last() }.join(', ')
                     [ meta.id.toString(), accs ?: meta.id.toString() ]
                 })
         ch_ref_gtf_names = ENSEMBL_GTF.out.source_urls
             .map { meta, urls_file ->
-                def name = urls_file.readLines().find { it.trim() }?.tokenize('/')?.last() ?: ''
+                def name = urls_file.readLines().find { line -> line.trim() }?.tokenize('/')?.last() ?: ''
                 [ meta.id.toString(), name ]
             }
             .mix(ch_reference_gtf_local
                 .map { meta, gtf_file -> [ meta.id.toString(), gtf_file.name ] })
             .mix(NCBI_FASTA.out.source_accessions
-                .map { meta, _ -> [ meta.id.toString(), '' ] })
+                .map { meta, _acc -> [ meta.id.toString(), '' ] })
     }
 
     def ch_rdat_input = ch_fold_input

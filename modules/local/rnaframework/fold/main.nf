@@ -6,24 +6,23 @@ process RNAFRAMEWORK_RFFOLD {
     container 'ghcr.io/vicbeg/rnaframework:2.9.6-r2-runtime'
 
     input:
-    tuple val(meta), path(xml)
+    tuple val(meta), path(xml, stageAs: "input*/*")
 
     output:
-    tuple val(meta), path("${prefix}_fold/"),                              emit: structures
-    tuple val(meta), path("${prefix}_fold_publish/dotbracket/*"),  optional: true, emit: dotbracket
+    tuple val(meta), path("${prefix}_fold/"),                                        emit: structures
+    tuple val(meta), path("${prefix}_fold_publish/dotbracket/*"),  optional: true,   emit: dotbracket
     tuple val(meta), path("${prefix}_fold_publish/2D-structures/*"), optional: true, emit: structure_plots
-    tuple val(meta), path("${prefix}_fold_publish/summaries/*"),   optional: true, emit: summaries
-    tuple val(meta), path("${prefix}_fold_publish/dotplot/*"),     optional: true, emit: dotplot
-    tuple val(meta), path("${prefix}_fold_publish/shannon/*.wig"), optional: true, emit: shannon_wig
-    tuple val(meta), path("${prefix}_fold_publish/rffold.log"),    optional: true, emit: log
+    tuple val(meta), path("${prefix}_fold_publish/summaries/*"),   optional: true,   emit: summaries
+    tuple val(meta), path("${prefix}_fold_publish/dotplot/*"),     optional: true,   emit: dotplot
+    tuple val(meta), path("${prefix}_fold_publish/shannon/*.wig"), optional: true,   emit: shannon_wig
+    tuple val(meta), path("${prefix}_fold_publish/rffold.log"),    optional: true,   emit: log
     tuple val(meta), path("${prefix}_fold_publish/missing_transcripts.txt"), optional: true, emit: missing_transcripts
     tuple val(meta), path("${prefix}_fold_publish/partial_fold_warning.log"), optional: true, emit: partial_warning
-    path "versions.yml"                                                   , emit: versions
+    path "versions.yml",                                                             emit: versions
 
     script:
     def args = task.ext.args ?: ''
     prefix   = task.ext.prefix ?: "${meta.id}"
-    def xml_list = xml instanceof List ? xml.join(' ') : "${xml}"
     def isArm64 = ((System.properties['os.arch'] ?: '').toLowerCase() in ['aarch64', 'arm64'])
     // Only clear conflicting Perl env vars in container mode — in conda mode these vars
     // point to the conda-installed ViennaRNA Perl bindings (RNA.pm) and must be preserved.
@@ -33,6 +32,9 @@ process RNAFRAMEWORK_RFFOLD {
     export TERM="\${TERM:-xterm}"
     ${perlEnvCleanup}
 
+    rffold_dedup_xml.sh
+    xml_list=\$(find unique_xml -name '*.xml' | sort | tr '\\n' ' ')
+
     log_tmp=\$(mktemp "${prefix}_fold.XXXXXX.log")
 
     rf-fold \\
@@ -40,13 +42,11 @@ process RNAFRAMEWORK_RFFOLD {
         -o ${prefix}_fold \\
         -ow \\
         ${args} \\
-        ${xml_list} 2>&1 | tee "\${log_tmp}"
+        \${xml_list} 2>&1 | tee "\${log_tmp}"
 
     mkdir -p ${prefix}_fold
     mv "\${log_tmp}" ${prefix}_fold/rffold.log
 
-    # rf-fold can return exit 0 even when all folds fail and details are written to error.out.
-    # Treat this as a hard failure so the pipeline does not continue with empty fold outputs.
     if [[ -s ${prefix}_fold/error.out ]]; then
         echo "[RNAFRAMEWORK_RFFOLD] rf-fold reported errors:" >&2
         cat ${prefix}_fold/error.out >&2
@@ -58,52 +58,16 @@ process RNAFRAMEWORK_RFFOLD {
         exit 1
     fi
 
-    missing_list="${prefix}_fold/missing_transcripts.txt"
-    warning_log="${prefix}_fold/partial_fold_warning.log"
-
-    expected_list=\$(mktemp)
-    folded_list=\$(mktemp)
-
-    printf '%s\n' ${xml_list} | sed 's#.*/##; s#\\.xml\$##' | sort -u >| "\${expected_list}"
-    find ${prefix}_fold/structures -maxdepth 1 -type f -name '*.db' -print \\
-        | sed 's#.*/##; s#\\.db\$##' | sort -u >| "\${folded_list}"
-    comm -23 "\${expected_list}" "\${folded_list}" >| "\${missing_list}"
-
-    expected_count=\$(wc -l < "\${expected_list}" | tr -d ' ')
-    folded_count=\$(wc -l < "\${folded_list}" | tr -d ' ')
-    missing_count=\$(wc -l < "\${missing_list}" | tr -d ' ')
-
-    if [[ "\${missing_count}" -gt 0 ]]; then
-        {
-            printf '[RNAFRAMEWORK_RFFOLD] Partial fold output detected.\\n'
-            printf '[RNAFRAMEWORK_RFFOLD] Expected %s transcript(s), folded %s, missing %s.\\n' "\${expected_count}" "\${folded_count}" "\${missing_count}"
-            printf '[RNAFRAMEWORK_RFFOLD] Missing transcript IDs:\\n'
-            cat "\${missing_list}"
-        } | tee "\${warning_log}" >&2
-    else
-        rm -f "\${warning_log}" "\${missing_list}"
-    fi
-
-    rm -f "\${expected_list}" "\${folded_list}"
+    rffold_check_missing.sh ${prefix}_fold unique_xml
 
     mv ${prefix}_fold/structures ${prefix}_fold/dotbracket
-    if [[ -d ${prefix}_fold/plots/structures ]]; then
-        mv ${prefix}_fold/plots/structures ${prefix}_fold/2D-structures
-    fi
-    if [[ -d ${prefix}_fold/plots/summaries ]]; then
-        mv ${prefix}_fold/plots/summaries ${prefix}_fold/summaries
-    fi
+    [[ -d ${prefix}_fold/plots/structures ]] && mv ${prefix}_fold/plots/structures ${prefix}_fold/2D-structures
+    [[ -d ${prefix}_fold/plots/summaries  ]] && mv ${prefix}_fold/plots/summaries  ${prefix}_fold/summaries
     rmdir ${prefix}_fold/plots 2>/dev/null || true
 
-    rm -rf "${prefix}_fold_publish"
-    find "${prefix}_fold" -type f -print | while IFS= read -r file; do
-        rel="\${file#${prefix}_fold/}"
-        dest="${prefix}_fold_publish/\${rel}"
-        mkdir -p "\$(dirname "\${dest}")"
-        ln "\${file}" "\${dest}" 2>/dev/null || cp -p "\${file}" "\${dest}"
-    done
+    rffold_publish.sh ${prefix}_fold ${prefix}_fold_publish
 
-    printf '"%s":\n    rnaframework: %s\n' \\
+    printf '"%s":\\n    rnaframework: %s\\n' \\
         "${task.process}" \\
         "\$(rf-fold 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
         > versions.yml
@@ -112,23 +76,12 @@ process RNAFRAMEWORK_RFFOLD {
     stub:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p ${prefix}_fold/dotbracket
-    mkdir -p ${prefix}_fold/2D-structures
-    mkdir -p ${prefix}_fold/summaries
-    mkdir -p ${prefix}_fold/shannon
-    touch ${prefix}_fold/rffold.log
-    touch ${prefix}_fold/dotbracket/example.db
-    touch ${prefix}_fold/shannon/example.wig
+    mkdir -p ${prefix}_fold/dotbracket ${prefix}_fold/2D-structures ${prefix}_fold/summaries ${prefix}_fold/shannon
+    touch ${prefix}_fold/rffold.log ${prefix}_fold/dotbracket/example.db ${prefix}_fold/shannon/example.wig
 
-    rm -rf "${prefix}_fold_publish"
-    find "${prefix}_fold" -type f -print | while IFS= read -r file; do
-        rel="\${file#${prefix}_fold/}"
-        dest="${prefix}_fold_publish/\${rel}"
-        mkdir -p "\$(dirname "\${dest}")"
-        ln "\${file}" "\${dest}" 2>/dev/null || cp -p "\${file}" "\${dest}"
-    done
+    rffold_publish.sh ${prefix}_fold ${prefix}_fold_publish
 
-    printf '"%s":\n    rnaframework: %s\n' \\
+    printf '"%s":\\n    rnaframework: %s\\n' \\
         "${task.process}" \\
         "\$(rf-fold 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
         > versions.yml

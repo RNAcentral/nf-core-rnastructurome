@@ -30,13 +30,13 @@ for sf in sorted(Path("sizes").glob("*.sizes")):
         line = line.strip()
         if not line:
             continue
-        tid, length = line.split("\t", 1)
+        tid, length = line.split("\\t", 1)
         length = int(length)
         if tid not in sizes_map or length > sizes_map[tid]:
             sizes_map[tid] = length
 with sizes_out.open("w") as fh:
     for tid, length in sorted(sizes_map.items()):
-        fh.write(f"{tid}\t{length}\n")
+        fh.write(f"{tid}\\t{length}\\n")
 
 if len(wig_files) == 1:
     output_path.write_bytes(wig_files[0].read_bytes())

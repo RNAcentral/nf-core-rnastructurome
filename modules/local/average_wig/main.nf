@@ -6,7 +6,7 @@ process AVERAGE_WIG {
     container 'docker.io/library/python:3.12.11'
 
     input:
-    tuple val(meta), path(wigs, stageAs: "inputs/*.wig"), path(chrom_sizes)
+    tuple val(meta), path(wigs, stageAs: "inputs/*.wig"), path(chrom_sizes, stageAs: "sizes/*.sizes")
 
     output:
     tuple val(meta), path("${prefix}.merged.wig"),  emit: merged_wig
@@ -17,7 +17,6 @@ process AVERAGE_WIG {
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     python - <<'PY'
-import shutil
 import sys
 from pathlib import Path
 
@@ -25,10 +24,22 @@ wig_files = sorted(Path("inputs").glob("*.wig"))
 output_path = Path("${prefix}.merged.wig")
 sizes_out   = Path("${prefix}_chrom.sizes")
 
-shutil.copy("${chrom_sizes}", sizes_out)
+sizes_map = {}
+for sf in sorted(Path("sizes").glob("*.sizes")):
+    for line in sf.read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        tid, length = line.split("\t", 1)
+        length = int(length)
+        if tid not in sizes_map or length > sizes_map[tid]:
+            sizes_map[tid] = length
+with sizes_out.open("w") as fh:
+    for tid, length in sorted(sizes_map.items()):
+        fh.write(f"{tid}\t{length}\n")
 
 if len(wig_files) == 1:
-    shutil.copy(wig_files[0], output_path)
+    output_path.write_bytes(wig_files[0].read_bytes())
 else:
     def parse_wig(filepath):
         data = {}

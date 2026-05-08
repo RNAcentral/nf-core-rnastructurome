@@ -893,7 +893,7 @@ workflow RNASTRUCTUROME {
             def base_meta = wigs.size() == 1
                 ? metas[0]
                 : metas[0] + [ id: cell_line ]
-            [ base_meta, wigs.flatten(), sizes_list[0] ]
+            [ base_meta, wigs.flatten(), sizes_list.flatten() ]
         }
 
     def ch_reactivity_branches = ch_reactivity_grouped.branch { _meta, wigs, _sizes ->

@@ -15,6 +15,8 @@ include { BOWTIE_ALIGN          } from '../modules/nf-core/bowtie/align/main'
 include { BOWTIE2_BUILD         } from '../modules/nf-core/bowtie2/build/main'
 include { BOWTIE2_ALIGN         } from '../modules/nf-core/bowtie2/align/main'
 include { SAMTOOLS_SORT         } from '../modules/nf-core/samtools/sort/main'
+include { SAMTOOLS_SORT as SAMTOOLS_SORT_NAME } from '../modules/nf-core/samtools/sort/main'
+include { SAMTOOLS_FIXMATE      } from '../modules/nf-core/samtools/fixmate/main'
 include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_SORT    } from '../modules/nf-core/samtools/index/main'
 include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_FINAL   } from '../modules/nf-core/samtools/index/main'
 include { SAMTOOLS_MARKDUP      } from '../modules/nf-core/samtools/markdup/main'
@@ -518,9 +520,22 @@ workflow RNASTRUCTUROME {
         false
     )
 
-    ch_mapped_bam = BOWTIE_ALIGN.out.bam.mix(BOWTIE2_ALIGN.out.bam)
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE_ALIGN.out.log.collect { bowtie_log -> bowtie_log[1] })
     ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { bowtie2_log -> bowtie2_log[1] })
+
+    //
+    // MaP (PE) BAMs need name-sort → fixmate → coordinate-sort to add the MC tag
+    // required by samtools markdup. RT-stop (SE) BAMs skip this step.
+    //
+    SAMTOOLS_SORT_NAME (
+        BOWTIE2_ALIGN.out.bam,
+        channel.value([ [], [], [] ]),
+        false
+    )
+    SAMTOOLS_FIXMATE (
+        SAMTOOLS_SORT_NAME.out.bam
+    )
+    ch_mapped_bam = BOWTIE_ALIGN.out.bam.mix(SAMTOOLS_FIXMATE.out.bam)
 
     //
     // MODULE: samtools sort — coordinate-sort mapped BAMs

@@ -481,7 +481,7 @@ workflow RNASTRUCTUROME {
             if (!fasta_tuple) {
                 error("No transcript FASTA resolved for reference '${reference_key}' in MaP alignment.")
             }
-            [ [meta, reads], index_tuple, fasta_tuple ]
+            [ [meta, reads], index_tuple, [ fasta_tuple[0], fasta_tuple[1], [] ] ]
         }
 
     //

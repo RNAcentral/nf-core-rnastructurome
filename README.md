@@ -31,7 +31,16 @@
 
 <!-- TODO nf-core: Include a figure that guides the user through the major workflow steps. Many nf-core
      workflows use the "tube map" design for that. See https://nf-co.re/docs/guidelines/graphic_design/workflow_diagrams#examples for examples.   -->
-<!-- TODO nf-core: Fill in short bullet-pointed list of the default steps in the pipeline -->1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))2. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
+1. Read QC, pre- and post-trim ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
+2. UMI extraction ([`UMI-tools`](https://github.com/CGATOxford/UMI-tools))
+3. Adapter and quality trimming ([`Cutadapt`](https://cutadapt.readthedocs.io/)) — RT-stop or MaP mode
+4. Alignment to transcriptome ([`Bowtie`](https://bowtie-bio.sourceforge.net/) for RT-stop, [`Bowtie2`](https://bowtie-bio.sourceforge.net/bowtie2/) for MaP)
+5. BAM sorting and indexing, UMI-aware deduplication and stats ([`Samtools`](http://www.htslib.org/), [`UMI-tools`](https://github.com/CGATOxford/UMI-tools))
+6. Per-base reactivity counting ([`RNAFramework rf-count`](https://rnaframework.readthedocs.io/en/latest/rf-count/))
+7. Reactivity normalisation ([`RNAFramework rf-norm`](https://rnaframework.readthedocs.io/en/latest/rf-norm/))
+8. RNA secondary-structure prediction ([`RNAFramework rf-fold`](https://rnaframework.readthedocs.io/en/latest/rf-fold/))
+9. Conversion of reactivity and Shannon-entropy tracks to genome-space BigWig ([`UCSC wigToBigWig`](https://genome.ucsc.edu/goldenPath/help/bigWig.html))
+10. Aggregated QC report ([`MultiQC`](http://multiqc.info/))
 
 ## Usage
 

@@ -21,7 +21,7 @@ process RNAFRAMEWORK_RFWIGGLE {
         -o ${prefix}_wiggle \\
         -ow \\
         ${args} \\
-        xml/*.xml
+        xml/
 
     printf '"%s":\\n    rnaframework: %s\\n' \\
         "${task.process}" \\

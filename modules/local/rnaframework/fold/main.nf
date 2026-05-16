@@ -33,7 +33,6 @@ process RNAFRAMEWORK_RFFOLD {
     ${perlEnvCleanup}
 
     rffold_dedup_xml.sh
-    xml_list=\$(find unique_xml -name '*.xml' | sort | tr '\\n' ' ')
 
     log_tmp=\$(mktemp "${prefix}_fold.XXXXXX.log")
 
@@ -42,15 +41,20 @@ process RNAFRAMEWORK_RFFOLD {
         -o ${prefix}_fold \\
         -ow \\
         ${args} \\
-        \${xml_list} 2>&1 | tee "\${log_tmp}"
+        unique_xml/ 2>&1 | tee "\${log_tmp}"
 
     mkdir -p ${prefix}_fold
     mv "\${log_tmp}" ${prefix}_fold/rffold.log
 
     if [[ -s ${prefix}_fold/error.out ]]; then
-        echo "[RNAFRAMEWORK_RFFOLD] rf-fold reported errors:" >&2
-        cat ${prefix}_fold/error.out >&2
-        exit 1
+        if grep -qv "Unable to open RNAplot" ${prefix}_fold/error.out; then
+            echo "[RNAFRAMEWORK_RFFOLD] rf-fold reported errors:" >&2
+            cat ${prefix}_fold/error.out >&2
+            exit 1
+        else
+            echo "[RNAFRAMEWORK_RFFOLD] rf-fold reported RNAplot warnings (non-fatal):" >&2
+            cat ${prefix}_fold/error.out >&2
+        fi
     fi
 
     if [[ ! -d ${prefix}_fold/structures ]] || ! find ${prefix}_fold/structures -type f -print -quit | grep -q .; then

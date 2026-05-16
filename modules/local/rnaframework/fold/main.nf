@@ -47,8 +47,8 @@ process RNAFRAMEWORK_RFFOLD {
     mv "\${log_tmp}" ${prefix}_fold/rffold.log
 
     if [[ -s ${prefix}_fold/error.out ]]; then
-        exception_count=\$(grep -c "\[!\] Exception" ${prefix}_fold/error.out || true)
-        rnaplot_count=\$(grep -c "Unable to open RNAplot" ${prefix}_fold/error.out || true)
+        exception_count=\$(grep -Fc "[!] Exception" ${prefix}_fold/error.out || true)
+        rnaplot_count=\$(grep -Fc "Unable to open RNAplot" ${prefix}_fold/error.out || true)
         if [[ \$exception_count -gt 0 && \$exception_count -ne \$rnaplot_count ]]; then
             echo "[RNAFRAMEWORK_RFFOLD] rf-fold reported errors:" >&2
             cat ${prefix}_fold/error.out >&2

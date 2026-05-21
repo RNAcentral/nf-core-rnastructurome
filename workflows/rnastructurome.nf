@@ -1111,7 +1111,7 @@ workflow RNASTRUCTUROME {
         .map { meta, log -> [ meta.id.toString(), parseRfnormLog(log) ] }
         .join(ch_rfcount_covered_by_group, remainder: true)
         .map { group_id, rfnorm_stats, rfcount_covered ->
-            [ group_id, [ rfcount_covered: (rfcount_covered ?: 0L) as long, covered: rfnorm_stats.covered ] ]
+            [ group_id, [ rfcount_covered: (rfcount_covered ?: 0L) as long, covered: rfnorm_stats?.covered ?: 0L ] ]
         }
         .collect()
         .map { rows -> rfnormStatsMultiqc(rows) }

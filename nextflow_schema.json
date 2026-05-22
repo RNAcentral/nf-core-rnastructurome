@@ -202,7 +202,7 @@
                     "description": "Report up to this number of alignments per read (`-k`)."
                 },
                 "bowtie_all": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
                     "description": "Report all valid alignments (`-a`).",
                     "default": false
                 },

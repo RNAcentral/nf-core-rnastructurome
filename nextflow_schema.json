@@ -490,10 +490,10 @@
                     "description": "Deprecated: rf-norm plot generation (`--img`) is always enabled.",
                     "default": true
                 },
-                "rffold_img": {
+                "vienna_structures": {
                     "type": "boolean",
-                    "description": "Deprecated: rf-fold graphical structure reports (`-g`) are always enabled.",
-                    "default": true
+                    "description": "Generate ViennaRNA RNAplot structure diagrams via rf-fold (`-g`). Disabled by default; use `--r2dt` for template-based diagrams instead.",
+                    "default": false
                 },
                 "rffold_ct": {
                     "type": "boolean",
@@ -561,6 +561,11 @@
                     "type": "string",
                     "description": "Path to ViennaRNA `RNAplot` binary for SVG structure plots in rf-fold (`-vrp`).",
                     "default": "RNAplot"
+                },
+                "r2dt": {
+                    "type": "boolean",
+                    "description": "Generate template-based 2D RNA structure diagrams using R2DT, coloured by normalised SHAPE/chemical-probing reactivity.",
+                    "default": true
                 },
                 "rfwiggle_report_zeroes": {
                     "type": "boolean",

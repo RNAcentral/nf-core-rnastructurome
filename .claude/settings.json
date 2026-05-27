@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.r2dt.bio)",
+      "Bash(gh api *)",
+      "Bash(curl -s https://api.github.com/repos/r2dt-bio/r2dt/readme)",
+      "Bash(curl -s https://api.github.com/repos/r2dt-bio/r2dt/contents/)",
+      "Bash(curl -s https://raw.githubusercontent.com/r2dt-bio/r2dt/main/docs/usage.md)",
+      "Bash(curl -s https://raw.githubusercontent.com/r2dt-bio/r2dt/main/docs/installation.md)",
+      "Bash(curl -s https://raw.githubusercontent.com/r2dt-bio/r2dt/main/Dockerfile)",
+      "Bash(curl -s https://raw.githubusercontent.com/r2dt-bio/r2dt/main/docs/covariation.md)"
+    ]
+  }
+}

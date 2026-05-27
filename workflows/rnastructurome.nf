@@ -911,7 +911,8 @@ workflow RNASTRUCTUROME {
 
         R2DT(
             ch_r2dt_input,
-            file("${projectDir}/bin/r2dt_colour_svg.py", checkIfExists: true)
+            file("${projectDir}/bin/r2dt_colour_svg.py",         checkIfExists: true),
+            file("${projectDir}/bin/r2dt_extract_sequences.py",  checkIfExists: true)
         )
         ch_versions = ch_versions.mix(R2DT.out.versions.first())
     }

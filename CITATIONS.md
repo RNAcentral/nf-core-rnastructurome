@@ -30,13 +30,23 @@
 
   > Ewels P, Magnusson M, Lundin S, Käller M. MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics. 2016 Oct 1;32(19):3047-8. doi: 10.1093/bioinformatics/btw354. Epub 2016 Jun 16. PubMed PMID: 27312411; PubMed Central PMCID: PMC5039924.
 
+- [R2DT](https://pubmed.ncbi.nlm.nih.gov/34556868/)
+
+  > Sweeney BA, Petrov AI, Ribas CE, Finn RD, Bateman A, Szymanski M, et al. R2DT is a framework for predicting and visualising RNA secondary structure using templates. Nat Commun. 2021 Sep 23;12(1):3494. doi: 10.1038/s41467-021-23555-5. PubMed PMID: 34556868; PubMed Central PMCID: PMC8461225.
+
 - [RNAFramework](https://pubmed.ncbi.nlm.nih.gov/29893890/)
 
   > Incarnato D, Morandi E, Simon LM, Oliviero S. RNA Framework: an all-in-one toolkit for the analysis of RNA structures and post-transcriptional modifications. Nucleic Acids Res. 2018 Sep 19;46(16):e97. doi: 10.1093/nar/gky486. PubMed PMID: 29893890; PubMed Central PMCID: PMC6144828.
 
 - [SAMtools](https://pubmed.ncbi.nlm.nih.gov/33590861/)
 
+- [SAMtools](https://pubmed.ncbi.nlm.nih.gov/33590861/)
+
   > Danecek P, Bonfield JK, Liddle J, Marshall J, Ohan V, Pollard MO, Whitwham A, Keane T, McCarthy SA, Davies RM, Li H. Twelve years of SAMtools and BCFtools. Gigascience. 2021 Feb 16;10(2):giab008. doi: 10.1093/gigascience/giab008. PubMed PMID: 33590861; PubMed Central PMCID: PMC7931819.
+
+- [ViennaRNA](https://pubmed.ncbi.nlm.nih.gov/21300348/)
+
+  > Lorenz R, Bernhart SH, Höner zu Siederdissen C, Tafer H, Flamm C, Stadler PF, Hofacker IL. ViennaRNA Package 2.0. Algorithms Mol Biol. 2011 Nov 26;6:26. doi: 10.1186/1748-7188-6-26. PubMed PMID: 21300348; PubMed Central PMCID: PMC3319429.
 
 - [UMI-tools](https://pubmed.ncbi.nlm.nih.gov/28100584/)
 

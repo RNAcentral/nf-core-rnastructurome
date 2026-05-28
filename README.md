@@ -21,42 +21,46 @@
 
 ## Introduction
 
-**nf-core/rnastructurome** is a bioinformatics pipeline for the analysis of chemical-based high-throughput RNA structure probing data. It accepts FASTQ files from SHAPE or DMS experiments using either the **RT-stop** or **mutational profiling (MaP)** principle, and processes them from raw reads through alignment and deduplication to per-base reactivity scores and RNA secondary structure predictions using the [RNAFramework](https://rnaframework.readthedocs.io) toolkit.
+**nf-core/rnastructurome** is a bioinformatics pipeline for the analysis of chemical-based high-throughput RNA structure probing data. It accepts FASTQ files from SHAPE or DMS experiments using either the **RT-stop** or **mutational profiling (MaP)** principle, and processes them from raw reads through alignment and deduplication to per-base reactivity scores, RNA secondary structure predictions, and publication-quality 2D structure diagrams.
 
-<!-- TODO nf-core:
-   Complete this sentence with a 2-3 sentence summary of what types of data the pipeline ingests, a brief overview of the
-   major pipeline sections and the types of output it produces. You're giving an overview to someone new
-   to nf-core here, in 15-20 seconds. For an example, see https://github.com/nf-core/rnaseq/blob/master/README.md#introduction
--->
+The pipeline handles reference resolution automatically: supply a transcript FASTA and GTF directly, configure them via `params.genomes`, or let the pipeline download them from Ensembl by organism name. Samples are grouped by cell line and replicate so that treated, untreated, and denatured controls are paired correctly for normalisation.
 
-<!-- TODO nf-core: Include a figure that guides the user through the major workflow steps. Many nf-core
-     workflows use the "tube map" design for that. See https://nf-co.re/docs/guidelines/graphic_design/workflow_diagrams#examples for examples.   -->
-<!-- TODO nf-core: Fill in short bullet-pointed list of the default steps in the pipeline -->1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))2. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
+Default pipeline steps:
+
+1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
+2. Adapter and quality trimming ([`Cutadapt`](https://cutadapt.readthedocs.io/)) with principle-aware settings (5′ quality trimming disabled for RT-stop)
+3. Optional UMI extraction ([`UMI-tools`](https://umi-tools.readthedocs.io/))
+4. Alignment to transcript reference ([`Bowtie`](http://bowtie-bio.sourceforge.net/) for RT-stop; [`Bowtie2`](http://bowtie-bio.sourceforge.net/bowtie2/) for MaP)
+5. BAM sorting, indexing, and QC ([`SAMtools`](https://www.htslib.org/))
+6. Optional UMI-aware deduplication ([`UMI-tools dedup`](https://umi-tools.readthedocs.io/)) or duplicate marking ([`SAMtools markdup`](https://www.htslib.org/))
+7. Per-base reactivity counting ([`rf-count`](https://rnaframework.readthedocs.io/en/latest/rf-count/))
+8. Reactivity normalisation with automatic control-pairing and scoring-method selection ([`rf-norm`](https://rnaframework.readthedocs.io/en/latest/rf-norm/))
+9. RNA secondary structure prediction ([`rf-fold`](https://rnaframework.readthedocs.io/en/latest/rf-fold/))
+10. Reactivity WIG tracks and genomic BigWig files ([`rf-wiggle`](https://rnaframework.readthedocs.io/en/latest/rf-wiggle/))
+11. 2D structure diagram drawing: template-matched diagrams via [`R2DT`](https://github.com/RNAcentral/R2DT) where a template exists, [`ViennaRNA`](https://www.tbi.univie.ac.at/RNA/) RNAplot fallback for the remainder, both coloured by reactivity
+12. RDAT export combining per-transcript reactivity and structure ([`rnaframework_to_rdat`](bin/rnaframework_to_rdat.py))
+13. Aggregated QC report ([`MultiQC`](http://multiqc.info/))
 
 ## Usage
 
 > [!NOTE]
 > If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/usage/installation) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/usage/introduction#how-to-run-a-pipeline) with `-profile test` before running the workflow on actual data.
 
-<!-- TODO nf-core: Describe the minimum required steps to execute the pipeline, e.g. how to prepare samplesheets.
-     Explain what rows and columns represent. For instance (please edit as appropriate):
-
-First, prepare a samplesheet with your input data that looks as follows:
+First, prepare a samplesheet with your input data:
 
 `samplesheet.csv`:
 
 ```csv
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
+sample,fastq_1,fastq_2,cell_line,condition,replicate
+HEK293T_treated_rep1,HEK293T_treated_rep1.fastq.gz,,HEK293T,treated,1
+HEK293T_untreated_rep1,HEK293T_untreated_rep1.fastq.gz,,HEK293T,untreated,1
 ```
 
-Each row represents a fastq file (single-end) or a pair of fastq files (paired end).
+Each row is one sample. `fastq_2` is optional (leave empty for single-end). `cell_line`, `condition`, and `replicate` are used to pair treated/untreated/denatured controls for `rf-norm`.
 
--->
+Supported `condition` values: `treated`, `untreated`, `denatured`.
 
-Now, you can run the pipeline using:
-
-<!-- TODO nf-core: update the following command to include all required parameters for a minimal example -->
+Now run the pipeline:
 
 ```bash
 nextflow run nf-core/rnastructurome \
@@ -67,51 +71,7 @@ nextflow run nf-core/rnastructurome \
    --outdir <OUTDIR>
 ```
 
-For `rf-norm`, the samplesheet must include `cell_line`, `condition`, and `replicate` columns so samples are paired correctly during normalisation.
-
-The minimum required samplesheet columns are `sample`, `fastq_1`, `cell_line`, `condition`, and `replicate`.
-
-- Samples are grouped by identical `cell_line` and `replicate`.
-- `treated` may be analysed on its own.
-- `untreated` requires a matching `treated` sample with the same `cell_line` and `replicate`.
-- `denatured` requires matching `treated` and `untreated` samples with the same `cell_line` and `replicate`.
-
-`rf-norm` defaults are selected automatically from the probing principle and available controls:
-
-- `RT-stop` with matching `untreated`: Ding scoring (`-sm 1`) with Box-plot normalisation (`-nm 3`)
-- `RT-stop` without `untreated`: Rouskin scoring (`-sm 2`) with 90% Winsorizing (`-nm 2`)
-- `MaP` with matching `untreated` and optional `denatured`: Siegfried scoring (`-sm 3`) with Box-plot normalisation (`-nm 3`)
-- `MaP` without `untreated`: Zubradt scoring (`-sm 4`) with Box-plot normalisation (`-nm 3`)
-
-Additional `rf-norm` parameters exposed by the pipeline:
-
-- `--rfnorm_remap_reactivities`: remap normalized reactivities to the 0-1 range.
-- `--rfnorm_reactive_bases <string>`: set the reactive bases used for normalization windows, e.g. `AC` for DMS.
-- `--rfnorm_norm_window <int>`: set the normalization window size.
-- `--rfnorm_window_offset <int>`: set the normalization window offset.
-- `--rfnorm_dynamic_window <int>`: use dynamic normalization windows with at least this many reactive bases.
-- `--rfnorm_norm_independent`: normalize each reactive base independently.
-- `--rfnorm_norm_factor <float[,float]>`: supply a fixed normalization factor for all transcripts. For 90% Winsorizing, provide two comma-separated values.
-- `--rfnorm_raw`: score raw reactivities without applying normalization.
-- `--rfnorm_pseudocount <float>`: set the Ding pseudocount.
-- `--rfnorm_max_score <float>`: set the Ding maximum score.
-- `--rfnorm_ignore_lower_than_untreated`: set reactivities lower than untreated to zero for Ding/Siegfried methods.
-- `--rfnorm_max_untreated_mut <float>`: set the Siegfried untreated mutation cutoff.
-- `--rfnorm_max_mutation_rate <float>`: set the MaP mutation-rate cutoff.
-- `--rfnorm_mean_coverage <float>`: discard transcripts below this mean coverage.
-- `--rfnorm_median_coverage <float>`: discard transcripts below this median coverage.
-- `--rfnorm_nan <int>`: report positions below this coverage as NaN. Default: `10`.
-- `--rfnorm_img`: generate rf-norm plots. This automatically uses `--rnaframework_r_path` to locate `R` inside the RNAframework container.
-
-If `--rfnorm_reactive_bases` is not provided, the pipeline sets `AC` automatically for samples with `method=DMS`, or `ACGU` when `pH >= 8`. If `--rfnorm_dynamic_window` is not provided, DMS samples default to `--dynamic-window 50` only when `pH < 8`. All other methods fall back to the RNAFramework defaults.
-
-Example:
-
-```csv
-sample,fastq_1,cell_line,condition,replicate
-HEK293T_treated_rep1,HEK293T_treated_rep1.fastq.gz,HEK293T,treated,1
-HEK293T_untreated_rep1,HEK293T_untreated_rep1.fastq.gz,HEK293T,untreated,1
-```
+If you omit `--fasta` and `--gtf`, add an `organism` column to your samplesheet (e.g. `Homo sapiens`) and the pipeline will download the reference from Ensembl automatically.
 
 > [!WARNING]
 > Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files).
@@ -139,8 +99,6 @@ If you would like to contribute to this pipeline, please see the [contributing g
 For further information or help, don't hesitate to get in touch on the [Slack `#rnastructurome` channel](https://nfcore.slack.com/channels/rnastructurome) (you can join with [this invite](https://nf-co.re/join/slack)).
 
 ## Citations
-
-<!-- TODO nf-core: Add bibliography of tools and data used in your pipeline -->
 
 An extensive list of references for the tools used by the pipeline can be found in the [`CITATIONS.md`](CITATIONS.md) file.
 

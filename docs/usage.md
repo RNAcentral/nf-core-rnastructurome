@@ -259,6 +259,35 @@ BigWig outputs from `rf-fold`:
 - `--rnaframework_container`: RNAframework image for local modules when using container-based profiles
 - `--rnaframework_r_path`: `R` binary used by RNAframework plotting (default: `/usr/bin/R`)
 
+## 2D structure visualisation
+
+After `rf-fold`, the pipeline draws coloured 2D structure diagrams for every transcript that passes coverage filters.
+
+### R2DT (template-matched diagrams)
+
+[R2DT](https://github.com/RNAcentral/R2DT) draws structures using a curated library of templates derived from known RNA families (rRNA, snRNA, tRNA, etc.). When a template exists for a transcript, R2DT produces a layout that is directly comparable across organisms and studies.
+
+- Diagrams are generated for all transcripts in the fold output for which R2DT finds a matching template.
+- Nucleotides are coloured by normalised SHAPE/DMS reactivity averaged across replicates.
+- Transcripts drawn by R2DT are recorded in `r2dt_drawn_ids.txt` so ViennaRNA does not duplicate them.
+
+### ViennaRNA (fallback diagrams)
+
+For transcripts without an R2DT template, the pipeline uses [`ViennaRNA`](https://www.tbi.univie.ac.at/RNA/) RNAplot to draw an energy-minimised 2D diagram from the dot-bracket structure produced by `rf-fold`.
+
+- All transcripts not covered by R2DT receive a ViennaRNA diagram.
+- Nucleotides are coloured with the same reactivity scale as R2DT diagrams.
+
+Both diagram types are published to `fold/<group>/2D-structures/`.
+
+## RDAT export
+
+The pipeline produces [RDAT](https://rmdb.stanford.edu/tools/rdat_format/)-format files that bundle per-transcript reactivity profiles (from the normalised XML) with the predicted secondary structure (from `rf-fold` dot-bracket output). RDAT is a community standard for depositing structure probing data in the RNA Mapping Database (RMDB).
+
+- One `.rdat` file is written per transcript that has both a normalised reactivity profile and a predicted structure.
+- Files are published under `fold/<group>/rdat/`.
+- Use `--rnaframework_container` to point to the RNAFramework container image if running without a network connection to pull images automatically.
+
 ## Outputs at a glance
 
 Main output areas under `--outdir`:

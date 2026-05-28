@@ -86,11 +86,11 @@ table_columns_visible:
     r_with_adapters: False
     r_too_short: False
   "Bowtie 1":
-    reads_aligned_percentage: True  # actual alignment rate — more informative than Samtools % mapped
+    reads_aligned_percentage: True # actual alignment rate — more informative than Samtools % mapped
     reads_aligned: False
     non_primary_alignments: False
   "Bowtie 2 / HiSAT2":
-    overall_alignment_rate: True    # column key differs from Bowtie 1
+    overall_alignment_rate: True # column key differs from Bowtie 1
     reads_aligned: False
     non_primary_alignments: False
   # samtools submodule namespaces are "<ModuleName>: <submodule>" (colon+space, case-insensitive)

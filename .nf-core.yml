@@ -1,6 +1,6 @@
 repository_type: pipeline
 
-nf_core_version: 3.5.2
+nf_core_version: 4.0.2
 
 lint:
   module_changes: false
@@ -8,11 +8,26 @@ lint:
   files_unchanged:
     - .gitignore
     - .github/workflows/linting_comment.yml
+    - .github/workflows/linting.yml
     - subworkflows/nf-core/utils_nfcore_pipeline/main.nf
     - assets/email_template.html
     - assets/nf-core-rnastructurome_logo_light.png
     - docs/images/nf-core-rnastructurome_logo_light.png
     - docs/images/nf-core-rnastructurome_logo_dark.png
+  # bowtie_all: JSON false parses as Python False, Groovy false parses as string
+  # "false" — nf-core string-compares them and flags a mismatch for multi-type params.
+  nextflow_config:
+    - params.bowtie_all
+    - config_defaults:
+        - params.bowtie_all
+  # ensembl_species_map / ncbi_accessions_map have complex Groovy map defaults
+  # that nf-core's config parser cannot evaluate; the params are valid.
+  schema_params: false
+  # ElementTree namespace syntax (triple-brace SVG NS) is falsely detected as Jinja.
+  template_strings:
+    - bin/r2dt_colour_svg.py
+    - bin/viennarna_colour_svg.py
+    - tests/test_r2dt_colour_svg.py
 
 template:
   org: nf-core

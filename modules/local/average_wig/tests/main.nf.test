@@ -9,7 +9,7 @@ nextflow_process {
     tag "average_wig"
     config "./nextflow.config"
 
-    test("passes through a single wiggle file unchanged and copies chrom sizes") {
+    test("passes through a single wiggle file unchanged") {
 
         when {
             params {
@@ -17,10 +17,10 @@ nextflow_process {
             }
             process {
                 """
+                input[1] = file("${projectDir}/bin/average_wig.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'group1' ],
-                    file("${projectDir}/modules/local/average_wig/tests/fixtures/single_input.wig", checkIfExists: true),
-                    file("${projectDir}/modules/local/average_wig/tests/fixtures/input_chrom.sizes", checkIfExists: true)
+                    file("${projectDir}/modules/local/average_wig/tests/fixtures/single_input.wig", checkIfExists: true)
                 ])
                 """
             }
@@ -30,7 +30,6 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.merged_wig.size() == 1 },
-                { assert process.out.chrom_sizes.size() == 1 },
                 {
                     def mergedText = path(process.out.merged_wig[0][1]).text
                     assert mergedText.readLines() == [
@@ -38,13 +37,6 @@ nextflow_process {
                         'fixedStep chrom=chr1 start=1 step=1',
                         '1',
                         '2'
-                    ]
-                },
-                {
-                    def sizesText = path(process.out.chrom_sizes[0][1]).text
-                    assert sizesText.readLines() == [
-                        'chr1\t10',
-                        'chr2\t20'
                     ]
                 },
                 { assert path(process.out.versions[0]).text.contains('python:') }
@@ -60,13 +52,13 @@ nextflow_process {
             }
             process {
                 """
+                input[1] = file("${projectDir}/bin/average_wig.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'group1' ],
                     [
                         file("${projectDir}/modules/local/average_wig/tests/fixtures/rep1.wig", checkIfExists: true),
                         file("${projectDir}/modules/local/average_wig/tests/fixtures/rep2.wig", checkIfExists: true)
-                    ],
-                    file("${projectDir}/modules/local/average_wig/tests/fixtures/input_chrom.sizes", checkIfExists: true)
+                    ]
                 ])
                 """
             }
@@ -76,7 +68,6 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.merged_wig.size() == 1 },
-                { assert process.out.chrom_sizes.size() == 1 },
                 {
                     def mergedText = path(process.out.merged_wig[0][1]).text
                     assert mergedText.readLines() == [
@@ -87,13 +78,6 @@ nextflow_process {
                         'variableStep chrom=chr2',
                         '1 4',
                         '2 7'
-                    ]
-                },
-                {
-                    def sizesText = path(process.out.chrom_sizes[0][1]).text
-                    assert sizesText.readLines() == [
-                        'chr1\t10',
-                        'chr2\t20'
                     ]
                 },
                 { assert path(process.out.versions[0]).text.contains('python:') }
@@ -111,10 +95,10 @@ nextflow_process {
             }
             process {
                 """
+                input[1] = file("${projectDir}/bin/average_wig.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'group1' ],
-                    file("${projectDir}/modules/local/average_wig/tests/fixtures/single_input.wig", checkIfExists: true),
-                    file("${projectDir}/modules/local/average_wig/tests/fixtures/input_chrom.sizes", checkIfExists: true)
+                    file("${projectDir}/modules/local/average_wig/tests/fixtures/single_input.wig", checkIfExists: true)
                 ])
                 """
             }
@@ -124,7 +108,6 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.merged_wig.size() == 1 },
-                { assert process.out.chrom_sizes.size() == 1 },
                 { assert path(process.out.versions[0]).text.contains('python:') }
             )
         }

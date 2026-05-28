@@ -126,6 +126,6 @@ table_columns_placement:
   "Bowtie 2 / HiSAT2":
     overall_alignment_rate: 310
 
-export_plots: false
+export_plots: true
 
 disable_version_detection: true

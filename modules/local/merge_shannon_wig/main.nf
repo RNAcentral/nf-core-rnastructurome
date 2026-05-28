@@ -6,11 +6,10 @@ process MERGE_SHANNON_WIG {
     container 'docker.io/library/python:3.12.11'
 
     input:
-    tuple val(meta), path(wig), path(xml, stageAs: "xml*/*")
+    tuple val(meta), path(wig)
 
     output:
-    tuple val(meta), path("*.merged.wig"),  emit: merged_wig
-    tuple val(meta), path("*_chrom.sizes"), emit: chrom_sizes
+    tuple val(meta), path("*.merged.wig"), emit: merged_wig
     path "versions.yml", emit: versions
 
     script:
@@ -28,7 +27,6 @@ process MERGE_SHANNON_WIG {
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.merged.wig
-    touch ${prefix}_chrom.sizes
 
     printf '"%s":\\n    python: %s\\n' \\
         "${task.process}" \\

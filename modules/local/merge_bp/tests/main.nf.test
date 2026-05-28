@@ -14,6 +14,7 @@ nextflow_process {
         when {
             process {
                 """
+                input[1] = file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'test_group' ],
                     [
@@ -56,6 +57,7 @@ nextflow_process {
         when {
             process {
                 """
+                input[1] = file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'single_group' ],
                     file("${projectDir}/modules/local/merge_bp/tests/fixtures/chr1_arcs.bp", checkIfExists: true)
@@ -87,6 +89,7 @@ nextflow_process {
         when {
             process {
                 """
+                input[1] = file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'malformed_group' ],
                     file("${projectDir}/modules/local/merge_bp/tests/fixtures/chr3_malformed.bp", checkIfExists: true)
@@ -122,6 +125,7 @@ nextflow_process {
         when {
             process {
                 """
+                input[1] = file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'stub_group' ],
                     file("${projectDir}/modules/local/merge_bp/tests/fixtures/chr1_arcs.bp", checkIfExists: true)

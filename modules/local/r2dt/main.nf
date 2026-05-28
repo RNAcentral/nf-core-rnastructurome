@@ -29,7 +29,6 @@ process R2DT {
 
     if [[ ! -s r2dt_input.fa ]]; then
         echo "[R2DT] No sequences extracted — skipping." >&2
-        mkdir -p ${prefix}_r2dt
         touch r2dt_drawn_ids.txt
         cat <<END_VERSIONS > versions.yml
 "${task.process}":
@@ -47,22 +46,27 @@ END_VERSIONS
         r2dt_raw
 
     # ── 3. Overlay reactivities onto SVGs ──────────────────────────────────────
-    mkdir -p ${prefix}_r2dt
-
     if ls r2dt_raw/results/svg/*.svg 1>/dev/null 2>&1; then
+        mkdir -p ${prefix}_r2dt
         python3 ${colour_script} \\
             --svg-dir       r2dt_raw/results/svg \\
             --xml-search-dir . \\
             --out-dir       ${prefix}_r2dt
     else
-        echo "[R2DT] No template matches — output will be empty." >&2
+        echo "[R2DT] No template matches — skipping." >&2
     fi
 
     # Write list of transcript IDs that R2DT successfully drew
-    for _f in ${prefix}_r2dt/*.svg; do
-        [[ -f "\$_f" ]] || continue
-        basename "\$_f" .svg
-    done > r2dt_drawn_ids.txt
+    # Remove output directory if empty so optional: true suppresses publishing
+    if [[ -d ${prefix}_r2dt ]]; then
+        for _f in ${prefix}_r2dt/*.svg; do
+            [[ -f "\$_f" ]] || continue
+            basename "\$_f" .svg
+        done > r2dt_drawn_ids.txt
+        find ${prefix}_r2dt -maxdepth 1 -name '*.svg' | grep -q . || rm -rf ${prefix}_r2dt
+    else
+        touch r2dt_drawn_ids.txt
+    fi
 
     cat <<END_VERSIONS > versions.yml
 "${task.process}":

@@ -136,12 +136,10 @@ def main() -> int:
     gtf_path = Path(args.gtf)
     out_dir = Path(f"{args.prefix}_bp")
     dotplot_out_dir = out_dir / "dotplot"
-    transcript_out_dir = out_dir / "transcript"
     warnings_path = out_dir / "conversion_warnings.log"
     dotplot_in_dir = fold_dir / "dotplot"
 
     dotplot_out_dir.mkdir(parents=True, exist_ok=True)
-    transcript_out_dir.mkdir(parents=True, exist_ok=True)
     warnings: list[str] = []
     transcripts = load_transcripts(organism, gtf_path)
     dotplot_paths = sorted(dotplot_in_dir.glob("*.dp")) if dotplot_in_dir.is_dir() else []
@@ -166,24 +164,19 @@ def main() -> int:
             )
 
         output_path = dotplot_out_dir / f"{transcript_id}.bp"
-        transcript_path = transcript_out_dir / f"{transcript_id}.bp"
         with (
             dotplot_path.open("rt", encoding="utf-8") as reader,
             output_path.open("wt", encoding="utf-8") as writer,
-            transcript_path.open("wt", encoding="utf-8") as tx_writer,
         ):
             first_line = reader.readline()
             header_line = reader.readline()
             if not first_line or not header_line:
                 warnings.append(f"Malformed dotplot file {dotplot_path.name}; skipping.")
                 output_path.unlink(missing_ok=True)
-                transcript_path.unlink(missing_ok=True)
                 continue
             for red, green, blue, label in COLOR_BINS:
                 writer.write(f"color:\t{red}\t{green}\t{blue}\t{label}\n")
-                tx_writer.write(f"color:\t{red}\t{green}\t{blue}\t{label}\n")
             converted_any = False
-            tx_converted_any = False
             for raw_line in reader:
                 line = raw_line.strip()
                 if not line:
@@ -194,9 +187,6 @@ def main() -> int:
                 left_pos = int(fields[0])
                 right_pos = int(fields[1])
                 color_index = color_index_for_probability(float(fields[2]))
-                if color_index >= min_color_index:
-                    tx_writer.write(f"{transcript_id}\t{left_pos}\t{left_pos}\t{right_pos}\t{right_pos}\t{color_index}\n")
-                    tx_converted_any = True
                 try:
                     left_genome = map_transcript_pos(entry, left_pos)
                     right_genome = map_transcript_pos(entry, right_pos)
@@ -225,8 +215,6 @@ def main() -> int:
         else:
             output_path.unlink(missing_ok=True)
             warnings.append(f"No convertible base-pair records found in {dotplot_path.name}; skipping.")
-        if not tx_converted_any:
-            transcript_path.unlink(missing_ok=True)
 
     if warnings:
         warnings_path.write_text("\n".join(warnings) + "\n", encoding="utf-8")

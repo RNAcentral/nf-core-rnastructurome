@@ -11,7 +11,6 @@ process RNAFRAMEWORK_DOTPLOT2BP {
 
     output:
     tuple val(meta), path("${meta.id}_bp/dotplot/*.bp"),    optional: true, emit: bp
-    tuple val(meta), path("${meta.id}_bp/transcript/*.bp"), optional: true, emit: transcript_bp
     tuple val(meta), path("${meta.id}_bp/conversion_warnings.log"), optional: true, emit: warnings
     path "versions.yml", emit: versions
 
@@ -33,9 +32,8 @@ process RNAFRAMEWORK_DOTPLOT2BP {
 
     stub:
     """
-    mkdir -p ${meta.id}_bp/dotplot ${meta.id}_bp/transcript
+    mkdir -p ${meta.id}_bp/dotplot
     touch ${meta.id}_bp/dotplot/stub.bp
-    touch ${meta.id}_bp/transcript/stub.bp
 
     printf '"%s":\n    python: %s\n' \
         "${task.process}" \

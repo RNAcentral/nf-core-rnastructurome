@@ -9,7 +9,7 @@ nextflow_process {
     tag "merge_wig"
     config "./nextflow.config"
 
-    test("merge wiggle files and derive chrom sizes") {
+    test("merge wiggle files") {
 
         when {
             params {
@@ -22,10 +22,6 @@ nextflow_process {
                     [
                         file("${projectDir}/modules/local/merge_wig/tests/fixtures/TX1.wig", checkIfExists: true),
                         file("${projectDir}/modules/local/merge_wig/tests/fixtures/TX2.wig", checkIfExists: true)
-                    ],
-                    [
-                        file("${projectDir}/modules/local/merge_wig/tests/fixtures/TX1.xml", checkIfExists: true),
-                        file("${projectDir}/modules/local/merge_wig/tests/fixtures/TX2.xml", checkIfExists: true)
                     ]
                 ])
                 """
@@ -36,7 +32,6 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.merged_wig.size() == 1 },
-                { assert process.out.chrom_sizes.size() == 1 },
                 {
                     def mergedText = path(process.out.merged_wig[0][1]).text
                     assert mergedText.readLines() == [
@@ -46,13 +41,6 @@ nextflow_process {
                         '2',
                         'variableStep chrom=TX2',
                         '1 5'
-                    ]
-                },
-                {
-                    def sizesText = path(process.out.chrom_sizes[0][1]).text
-                    assert sizesText.readLines() == [
-                        'TX1\t10',
-                        'TX2\t20'
                     ]
                 }
             )
@@ -68,8 +56,7 @@ nextflow_process {
                 """
                 input[0] = Channel.of([
                     [ id:'group1' ],
-                    file("${projectDir}/modules/local/merge_wig/tests/fixtures/TX1.wig", checkIfExists: true),
-                    file("${projectDir}/modules/local/merge_wig/tests/fixtures/TX1.xml", checkIfExists: true)
+                    file("${projectDir}/modules/local/merge_wig/tests/fixtures/TX1.wig", checkIfExists: true)
                 ])
                 """
             }
@@ -78,8 +65,7 @@ nextflow_process {
         then {
             assertAll(
                 { assert process.success },
-                { assert process.out.merged_wig.size() == 1 },
-                { assert process.out.chrom_sizes.size() == 1 }
+                { assert process.out.merged_wig.size() == 1 }
             )
         }
     }

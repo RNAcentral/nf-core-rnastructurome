@@ -33,8 +33,8 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.diagrams.size() == 1 },
-                { assert process.out.diagrams[0][1].isDirectory() },
-                { assert path(process.out.diagrams[0][1]).list().any { it.endsWith('.svg') } },
+                { assert path(process.out.diagrams[0][1].toString()).toFile().isDirectory() },
+                { assert path(process.out.diagrams[0][1].toString()).list().any { it.toString().endsWith('.svg') } },
                 { assert path(process.out.versions[0]).text.contains('r2dt:') }
             )
         }
@@ -96,8 +96,7 @@ nextflow_process {
         then {
             assertAll(
                 { assert process.success },
-                // Published path should strip the <prefix>_r2dt/ prefix
-                { assert path("${outputDir}/r2dt/svg/stub_URS000035F234.svg").exists() }
+                { assert path("${outputDir}/r2dt/group_publish/2D-structures/r2dt/stub_URS000035F234.svg").exists() }
             )
         }
     }

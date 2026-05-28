@@ -6,10 +6,10 @@ Reads RNAframework rf-norm XML files and R2DT SVG outputs, then colours
 each nucleotide according to its normalised reactivity value using the
 standard SHAPE colouring scheme:
 
-  NaN / missing / negative  →  grey    (#808080)
-  0.00 – 0.40               →  black   (#000000)
-  0.40 – 0.85               →  orange  (#E07B54)
-  > 0.85                    →  red     (#C0392B)
+  NaN / missing / negative  →  grey     (#B1B3B6)
+  0.00 – 0.40               →  black    (#000000)
+  0.40 – 0.70               →  yellow   (#FFCD2F)
+  > 0.70                    →  dark red (#9A2322)
 
 When multiple XML files contain data for the same transcript (e.g. biological
 replicates), per-position reactivities are averaged, ignoring NaN values.
@@ -39,12 +39,12 @@ _TITLE_RE = re.compile(r'^(\d+)\s')   # leading integer = 1-based position
 
 def _shape_colour(r) -> str:
     if r is None or (isinstance(r, float) and math.isnan(r)) or r < 0:
-        return '#808080'   # grey   – no data
-    if r < 0.40:
-        return '#000000'   # black  – low reactivity
-    if r < 0.85:
-        return '#E07B54'   # orange – medium reactivity
-    return '#C0392B'       # red    – high reactivity
+        return '#B1B3B6'   # grey     – no data
+    if r <= 0.40:
+        return '#000000'   # black    – low reactivity
+    if r < 0.70:
+        return '#FFCD2F'   # yellow   – medium reactivity
+    return '#9A2322'       # dark red – high reactivity
 
 
 # ── rf-norm XML parser ───────────────────────────────────────────────────────

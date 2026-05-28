@@ -47,6 +47,7 @@ include { WIG_TO_GENOME as WIG_TO_GENOME_REACTIVITY } from '../modules/local/wig
 include { WIG_TO_GENOME as WIG_TO_GENOME_SHANNON    } from '../modules/local/wig_to_genome/main'
 include { RNAFRAMEWORK_TORDAT    } from '../modules/local/tordat/main'
 include { R2DT                   } from '../modules/local/r2dt/main'
+include { VIENNARNA              } from '../modules/local/viennarna/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_REACTIVITY            } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON               } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_REACTIVITY_TRANSCRIPT } from '../modules/nf-core/ucsc/wigtobigwig/main'
@@ -915,6 +916,15 @@ workflow RNASTRUCTUROME {
             file("${projectDir}/bin/r2dt_extract_sequences.py",  checkIfExists: true)
         )
         ch_versions = ch_versions.mix(R2DT.out.versions.first())
+
+        def ch_rnaplot_input = RNAFRAMEWORK_RFFOLD.out.structures
+            .map { meta, dir -> [ meta.id.toString(), meta, dir ] }
+            .join(ch_fold_input.map { meta, xmls -> [ meta.id.toString(), xmls ] })
+            .join(R2DT.out.drawn_ids.map { meta, f -> [ meta.id.toString(), f ] })
+            .map { _id, meta, dir, xmls, drawn -> [ meta, dir, xmls, drawn ] }
+
+        VIENNARNA(ch_rnaplot_input)
+        ch_versions = ch_versions.mix(VIENNARNA.out.versions.first())
     }
 
     //

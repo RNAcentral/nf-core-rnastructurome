@@ -6,13 +6,11 @@ set -euo pipefail
 # Keeps the first occurrence of each transcript XML when replicates overlap.
 
 mkdir -p unique_xml
-declare -A _seen
 
 for _f in input*/*.xml; do
     [[ -f "$_f" ]] || continue
     _base=$(basename "$_f")
-    if [[ -z "${_seen[$_base]:-}" ]]; then
-        _seen[$_base]=1
+    if [[ ! -e "unique_xml/$_base" ]]; then
         ln -sf "$(readlink -f "$_f")" "unique_xml/$_base"
     fi
 done

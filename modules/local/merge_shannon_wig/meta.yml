@@ -1,32 +1,32 @@
-name: merge_wig
-description: Merge per-transcript WIG reactivity files into a single combined WIG file
+name: merge_shannon_wig
+description: Merge per-transcript Shannon entropy WIG files into a single combined WIG file
 keywords:
   - wig
-  - merge
-  - reactivity
+  - shannon
+  - entropy
   - rnaframework
 tools:
   - python:
-      description: Python runtime used for lightweight WIG post-processing
+      description: Python runtime used for WIG merging
       homepage: https://www.python.org/
       documentation: https://docs.python.org/3/
       licence: ["Python-2.0"]
 input:
   - - meta:
         type: map
-        description: Groovy Map containing sample metadata (e.g. id, condition, replicate)
+        description: Groovy Map containing group metadata (e.g. cell_line, condition)
     - wig:
         type: file
-        description: One or more per-transcript WIG reactivity files
+        description: One or more per-transcript Shannon entropy WIG files
         pattern: "*.wig"
 output:
   merged_wig:
     - - meta:
           type: map
-          description: Groovy Map containing sample metadata
+          description: Groovy Map containing group metadata
       - "*.merged.wig":
           type: file
-          description: Combined WIG file for downstream genomic remapping
+          description: Combined Shannon entropy WIG file
           pattern: "*.merged.wig"
   versions:
     - "versions.yml":

@@ -1,0 +1,62 @@
+name: viennarna
+description: Draw RNA secondary structure diagrams using ViennaRNA RNAplot and colour nucleotides by SHAPE/DMS reactivity for transcripts without an R2DT template
+keywords:
+  - viennarna
+  - rna
+  - secondary structure
+  - svg
+  - reactivity
+  - shape
+  - dms
+tools:
+  - viennarna:
+      description: The ViennaRNA Package provides tools for RNA secondary structure prediction and comparison
+      homepage: https://www.tbi.univie.ac.at/RNA/
+      documentation: https://www.tbi.univie.ac.at/RNA/documentation.html
+      licence: ["AFL-2.1"]
+  - python:
+      description: Python runtime used to extract reactivities from XML and colour SVG output
+      homepage: https://www.python.org/
+      documentation: https://docs.python.org/3/
+      licence: ["Python-2.0"]
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing group metadata (e.g. cell_line, condition)
+    - fold_dir:
+        type: directory
+        description: Directory of RNAFramework rf-fold output files (dot-bracket structures)
+    - xml:
+        type: file
+        description: RNAFramework XML reactivity files (one per replicate)
+        pattern: "*.xml"
+    - drawn_ids:
+        type: file
+        description: Text file listing transcript IDs already drawn by R2DT (to avoid duplication)
+        pattern: "r2dt_drawn_ids.txt"
+  - xml_script:
+      type: file
+      description: Python script that extracts per-position reactivities from XML
+      pattern: "viennarna_extract_xml.py"
+  - colour_script:
+      type: file
+      description: Python script that colours SVG diagrams by reactivity
+      pattern: "viennarna_colour_svg.py"
+output:
+  plots:
+    - - meta:
+          type: map
+          description: Groovy Map containing group metadata
+      - "${prefix}_2D_structures/*.svg":
+          type: file
+          description: Reactivity-coloured SVG structure diagrams (absent if no structures were drawn)
+          pattern: "*.svg"
+  versions:
+    - "versions.yml":
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@vicbeg"
+maintainers:
+  - "@vicbeg"

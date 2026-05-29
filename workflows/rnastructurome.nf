@@ -443,7 +443,7 @@ workflow RNASTRUCTUROME {
     // MODULE: bowtie2-build — build Bowtie2 indices for MaP alignment
     //
     BOWTIE2_BUILD (
-        ch_map_reference_fasta.map { meta, fasta -> [ meta, fasta, [] ] }
+        ch_map_reference_fasta
     )
 
     ch_bowtie_index_keyed = BOWTIE_BUILD.out.index.map { meta, index -> [ meta.id.toString(), [meta, index] ] }

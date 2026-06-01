@@ -12,6 +12,7 @@ process R2DT {
     output:
     tuple val(meta), path("${prefix}_r2dt/"), optional: true, emit: diagrams
     tuple val(meta), path("r2dt_drawn_ids.txt"),              emit: drawn_ids
+    tuple val(meta), path("${prefix}_r2dt.log"),                        emit: log
     path "versions.yml",                                       emit: versions
 
     when:
@@ -25,10 +26,11 @@ process R2DT {
     python3 ${extract_script} \\
         --fold-dir ${fold_dir} \\
         --fasta    ${fasta} \\
-        --out      r2dt_input.fa
+        --out      r2dt_input.fa \\
+        2>&1 | tee ${prefix}_r2dt.log
 
     if [[ ! -s r2dt_input.fa ]]; then
-        echo "[R2DT] No sequences extracted — skipping." >&2
+        echo "[R2DT] No sequences extracted — skipping." | tee -a ${prefix}_r2dt.log
         touch r2dt_drawn_ids.txt
         cat <<END_VERSIONS > versions.yml
 "${task.process}":
@@ -43,7 +45,8 @@ END_VERSIONS
         --skip_ribovore_filters \\
         $args \\
         r2dt_input.fa \\
-        r2dt_raw
+        r2dt_raw \\
+        2>&1 | grep -E '^(Analysing|Elapsed time|Traveler crashed|Failed cmalign)' | tee -a ${prefix}_r2dt.log || true
 
     # ── 3. Overlay reactivities onto SVGs ──────────────────────────────────────
     if ls r2dt_raw/results/svg/*.svg 1>/dev/null 2>&1; then
@@ -51,9 +54,10 @@ END_VERSIONS
         python3 ${colour_script} \\
             --svg-dir       r2dt_raw/results/svg \\
             --xml-search-dir . \\
-            --out-dir       ${prefix}_r2dt
+            --out-dir       ${prefix}_r2dt \\
+            2>&1 | tee -a ${prefix}_r2dt.log
     else
-        echo "[R2DT] No template matches — skipping." >&2
+        echo "[R2DT] No template matches — skipping." | tee -a ${prefix}_r2dt.log
     fi
 
     # Write list of transcript IDs that R2DT successfully drew
@@ -81,6 +85,8 @@ END_VERSIONS
     mkdir -p ${prefix}_r2dt
     touch ${prefix}_r2dt/stub_URS000035F234.svg
     echo "stub_URS000035F234" > r2dt_drawn_ids.txt
+    echo "[R2DT] Extracted 1/1 sequences for template search" > ${prefix}_r2dt.log
+    echo "[R2DT colour] 1 SVGs coloured, 0 skipped (no reactivity data or empty SVG)" >> ${prefix}_r2dt.log
     cat <<END_VERSIONS > versions.yml
 "${task.process}":
     r2dt: 2.2.0

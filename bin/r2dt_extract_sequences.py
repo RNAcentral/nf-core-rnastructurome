@@ -13,6 +13,7 @@ from pathlib import Path
 
 
 def main():
+    """Extract FASTA sequences for R2DT input, filtering by length and dotbracket IDs."""
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--fold-dir', required=True, type=Path,
@@ -29,15 +30,25 @@ def main():
         args.out.write_text('')
         return
 
+    # Longest R2DT model is the human LSU (HS_LSU_3D, ~3305 nt); skip anything longer.
+    # If R2DT is updated and adds longer templates, raise this value accordingly.
+    _max_len = 3500
+
     extracted = []
+    skipped   = 0
     hdr = None
     seq = []
 
     def flush(h, s):
+        nonlocal skipped
         if h and h in ids:
-            extracted.append((h, ''.join(s)))
+            joined = ''.join(s)
+            if len(joined) <= _max_len:
+                extracted.append((h, joined))
+            else:
+                skipped += 1
 
-    with open(args.fasta) as fh:
+    with open(args.fasta, encoding='utf-8') as fh:
         for line in fh:
             line = line.rstrip()
             if line.startswith('>'):
@@ -48,12 +59,15 @@ def main():
                 seq.append(line)
     flush(hdr, seq)
 
-    with open(args.out, 'w') as fh:
+    with open(args.out, 'w', encoding='utf-8') as fh:
         for h, s in extracted:
             fh.write(f'>{h}\n{s}\n')
 
-    print(f'[R2DT] Extracted {len(extracted)}/{len(ids)} sequences for template search',
-          file=sys.stderr)
+    print(
+        f'[R2DT] Extracted {len(extracted)}/{len(ids)} sequences for template search'
+        + (f' ({skipped} skipped: >{_max_len} nt)' if skipped else ''),
+        file=sys.stderr,
+    )
 
 
 if __name__ == '__main__':

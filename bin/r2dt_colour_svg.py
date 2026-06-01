@@ -78,21 +78,26 @@ def _parse_rfnorm_xml(path: Path) -> dict:
     return result
 
 
-def load_reactivities(xml_search_dir: Path) -> dict:
+def load_reactivities(xml_search_dir: Path, tids_needed: set) -> dict:
     """
-    Scan xml_search_dir recursively for rf-norm XML files, parse them all,
-    and return {transcript_id: [averaged_reactivities]}.
+    Load rf-norm XML reactivities only for transcripts in tids_needed.
+    Builds a filename index first (fast), then parses only the relevant files.
     Multiple XML files for the same transcript are averaged position-by-position.
     """
-    raw: dict = defaultdict(list)   # tid -> list of reactivity vectors
+    # Index all XML paths by transcript ID (filename stem = transcript ID)
+    xml_index: dict = defaultdict(list)
+    for xml_path in xml_search_dir.rglob('xml_input*/*.xml'):
+        xml_index[xml_path.stem].append(xml_path)
 
-    for xml_path in sorted(xml_search_dir.rglob('xml_input*/*.xml')):
-        for tid, values in _parse_rfnorm_xml(xml_path).items():
-            raw[tid].append(values)
-
-    if not raw:
+    if not xml_index:
         print('[WARN] No reactivity data found in xml_input* directories.', file=sys.stderr)
         return {}
+
+    raw: dict = defaultdict(list)   # tid -> list of reactivity vectors
+    for tid in tids_needed:
+        for xml_path in xml_index.get(tid, []):
+            for _, values in _parse_rfnorm_xml(xml_path).items():
+                raw[tid].append(values)
 
     averaged = {}
     for tid, reps in raw.items():
@@ -163,6 +168,7 @@ def colour_svg(svg_path: Path, reactivities: list, out_path: Path) -> int:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    """Overlay SHAPE reactivities onto R2DT SVGs and report colouring statistics."""
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--svg-dir',        required=True, type=Path,
@@ -174,7 +180,15 @@ def main():
                     help='Output directory for reactivity-coloured SVGs')
     args = ap.parse_args()
 
-    reactivities = load_reactivities(args.xml_search_dir)
+    tids_needed = {
+        svg_path.stem.split('-')[0]
+        for svg_path in args.svg_dir.glob('*.colored.svg')
+    }
+    if not tids_needed:
+        print('[R2DT colour] 0 SVGs coloured, 0 skipped (no SVGs found)', file=sys.stderr)
+        return
+
+    reactivities = load_reactivities(args.xml_search_dir, tids_needed)
     if not reactivities:
         print('[ERROR] No reactivity data loaded — cannot colour SVGs.', file=sys.stderr)
         sys.exit(1)

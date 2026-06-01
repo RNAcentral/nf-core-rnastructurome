@@ -43,6 +43,7 @@ END_VERSIONS
     mkdir -p r2dt_raw
     r2dt.py draw \\
         --skip_ribovore_filters \\
+        --processes ${task.cpus} \\
         $args \\
         r2dt_input.fa \\
         r2dt_raw \\

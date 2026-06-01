@@ -25,26 +25,31 @@ process VIENNARNA {
 
     sort "${drawn_ids}" > .r2dt_drawn.txt
 
-    for _db in ${fold_dir}/dotbracket/*.db; do
-        [[ -f "\$_db" ]] || continue
-        _id=\$(basename "\$_db" .db)
-
-        if grep -qxF "\$_id" .r2dt_drawn.txt 2>/dev/null; then
-            continue
-        fi
-
+    _process_db() {
+        local _db="\$1"
+        local _id=\$(basename "\$_db" .db)
+        grep -qxF "\$_id" .r2dt_drawn.txt 2>/dev/null && return
         python3 "${xml_script}" "\${_id}" xml_input*/*.xml > "\${_id}.shape" || true
-
         "${rnaplot}" --output-format=svg < "\$_db" || true
-
         if [[ -f "\${_id}_ss.svg" ]]; then
             mv "\${_id}_ss.svg" "${prefix}_2D_structures/\${_id}.svg"
-
             if [[ -s "\${_id}.shape" ]]; then
                 python3 "${colour_script}" "\${_id}.shape" "${prefix}_2D_structures/\${_id}.svg" || true
             fi
         fi
+    }
+
+    _n_jobs=0
+    for _db in ${fold_dir}/dotbracket/*.db; do
+        [[ -f "\$_db" ]] || continue
+        _process_db "\$_db" &
+        (( ++_n_jobs ))
+        if (( _n_jobs >= ${task.cpus} )); then
+            wait -n
+            (( --_n_jobs ))
+        fi
     done
+    wait
 
     printf '"%s":\\n    viennarna: %s\\n' \\
         "${task.process}" \\

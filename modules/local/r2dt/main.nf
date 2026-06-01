@@ -43,11 +43,10 @@ END_VERSIONS
     mkdir -p r2dt_raw
     r2dt.py draw \\
         --skip_ribovore_filters \\
-        --processes ${task.cpus} \\
         $args \\
         r2dt_input.fa \\
         r2dt_raw \\
-        2>&1 | grep -E '^(Analysing|Elapsed time|Traveler crashed|Failed cmalign)' | tee -a ${prefix}_r2dt.log || true
+        2>&1 | grep -E '^(Analysing|Elapsed time|Traveler crashed|Failed cmalign|[Ee]rror|usage:)' | tee -a ${prefix}_r2dt.log || true
 
     # ── 3. Overlay reactivities onto SVGs ──────────────────────────────────────
     if ls r2dt_raw/results/svg/*.svg 1>/dev/null 2>&1; then

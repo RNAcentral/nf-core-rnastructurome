@@ -183,12 +183,13 @@ def main():
     n_coloured = 0
     n_skipped  = 0
 
-    for svg_path in sorted(args.svg_dir.glob('*.svg')):
-        tid = svg_path.stem
+    for svg_path in sorted(args.svg_dir.glob('*.colored.svg')):
+        # R2DT names SVGs as {URS_ID}-{TEMPLATE}.colored.svg; extract the URS ID
+        tid = svg_path.stem.split('-')[0]
         if tid not in reactivities:
             n_skipped += 1
             continue
-        n = colour_svg(svg_path, reactivities[tid], args.out_dir / svg_path.name)
+        n = colour_svg(svg_path, reactivities[tid], args.out_dir / (tid + '.svg'))
         if n:
             n_coloured += 1
         else:

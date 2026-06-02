@@ -33,9 +33,7 @@ process VIENNARNA {
         "${rnaplot}" --output-format=svg < "\$_db" || true
         if [[ -f "\${_id}_ss.svg" ]]; then
             mv "\${_id}_ss.svg" "${prefix}_2D_structures/\${_id}.svg"
-            if [[ -s "\${_id}.shape" ]]; then
-                python3 "${colour_script}" "\${_id}.shape" "${prefix}_2D_structures/\${_id}.svg" || true
-            fi
+            python3 "${colour_script}" "\${_id}.shape" "${prefix}_2D_structures/\${_id}.svg" || true
         fi
     }
 

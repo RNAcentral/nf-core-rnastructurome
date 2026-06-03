@@ -14,6 +14,17 @@ class EnsemblSpeciesNotFound(Exception):
     pass
 
 
+# EnsemblGenomes divisions with a flat species-directory structure (same as main Ensembl).
+_EG_FLAT_DIVISIONS = [
+    ("metazoa",  "https://ftp.ensemblgenomes.ebi.ac.uk/pub/metazoa"),
+    ("fungi",    "https://ftp.ensemblgenomes.ebi.ac.uk/pub/fungi"),
+    ("plants",   "https://ftp.ensemblgenomes.ebi.ac.uk/pub/plants"),
+    ("protists", "https://ftp.ensemblgenomes.ebi.ac.uk/pub/protists"),
+]
+# Bacteria uses a bacteria_N_collection/ hierarchy — handled separately.
+_EG_BACTERIA_BASE = "https://ftp.ensemblgenomes.ebi.ac.uk/pub/bacteria"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Download and merge Ensembl transcript FASTA files for one species."
@@ -27,35 +38,35 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--not-found-file",
         required=True,
-        help="Path to write (empty) when the species is absent from Ensembl FTP; "
+        help="Path to write (empty) when the species is absent from all Ensembl FTPs; "
              "process exits 0 and the NCBI fallback is triggered.",
     )
     return parser.parse_args()
 
 
-def fetch_text(url: str) -> str:
+def fetch_text(url: str, timeout: int = 60) -> str:
     try:
-        with urllib.request.urlopen(url, timeout=60) as response:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
             return response.read().decode("utf-8", errors="ignore")
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            raise EnsemblSpeciesNotFound(f"HTTP 404 at {url}")
+            raise EnsemblSpeciesNotFound(f"HTTP 404 at {url}") from exc
         fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
         try:
-            with urllib.request.urlopen(fallback_url, timeout=60) as response:
+            with urllib.request.urlopen(fallback_url, timeout=timeout) as response:
                 return response.read().decode("utf-8", errors="ignore")
         except urllib.error.HTTPError as fallback_exc:
             if fallback_exc.code == 404:
-                raise EnsemblSpeciesNotFound(f"HTTP 404 at {fallback_url}")
+                raise EnsemblSpeciesNotFound(f"HTTP 404 at {fallback_url}") from fallback_exc
             raise
     except urllib.error.URLError:
         fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
-        with urllib.request.urlopen(fallback_url, timeout=60) as response:
+        with urllib.request.urlopen(fallback_url, timeout=timeout) as response:
             return response.read().decode("utf-8", errors="ignore")
 
 
-def find_ensembl_file(listing_url: str, pattern: str) -> str:
-    listing = fetch_text(listing_url)
+def find_ensembl_file(listing_url: str, pattern: str, timeout: int = 60) -> str:
+    listing = fetch_text(listing_url, timeout=timeout)
     matches = re.findall(r'href="([^"]+)"', listing)
     filtered = [match for match in matches if re.search(pattern, match)]
     if not filtered:
@@ -81,6 +92,92 @@ def release_path_for_value(release: str) -> str:
     return f"release-{release}/fasta"
 
 
+def _try_flat_division(base_url: str, release: str, species: str) -> tuple[str, str, str]:
+    """Return (cdna_dir, cdna_name, ncrna_dir) for a flat Ensembl/EnsemblGenomes division.
+
+    Raises EnsemblSpeciesNotFound if the species directory does not exist.
+    """
+    species_root = f"{base_url}/{release_path_for_value(release)}/{species}"
+    cdna_dir = f"{species_root}/cdna/"
+    ncrna_dir = f"{species_root}/ncrna/"
+    cdna_name = find_ensembl_file(cdna_dir, r"\.cdna\.all\.fa\.gz")
+    return cdna_dir, cdna_name, ncrna_dir
+
+
+def _try_bacteria(release: str, species: str) -> tuple[str, str, str]:
+    """Search EnsemblBacteria collections for *species*.
+
+    Fetches the top-level collection listing once, then probes each
+    bacteria_N_collection directory with a short timeout so that missing
+    entries fail quickly.
+
+    Returns (cdna_dir, cdna_name, ncrna_dir) or raises EnsemblSpeciesNotFound.
+    """
+    release_path = release_path_for_value(release)
+    fasta_root = f"{_EG_BACTERIA_BASE}/{release_path}"
+
+    try:
+        listing = fetch_text(f"{fasta_root}/", timeout=30)
+    except Exception as exc:
+        raise EnsemblSpeciesNotFound(f"Cannot access EnsemblBacteria FTP: {exc}") from exc
+
+    collections = sorted(re.findall(r'href="(bacteria_\d+_collection/)"', listing))
+    if not collections:
+        raise EnsemblSpeciesNotFound("No bacteria_N_collection directories found at EnsemblBacteria FTP")
+
+    for collection in collections:
+        collection_name = collection.rstrip("/")
+        cdna_dir = f"{fasta_root}/{collection_name}/{species}/cdna/"
+        try:
+            cdna_name = find_ensembl_file(cdna_dir, r"\.cdna\.all\.fa\.gz", timeout=10)
+            ncrna_dir = f"{fasta_root}/{collection_name}/{species}/ncrna/"
+            print(
+                f"[ENSEMBL_TRANSCRIPTOME] Found '{species}' in EnsemblBacteria "
+                f"collection '{collection_name}'.",
+                file=sys.stderr,
+            )
+            return cdna_dir, cdna_name, ncrna_dir
+        except (EnsemblSpeciesNotFound, RuntimeError):
+            continue
+
+    raise EnsemblSpeciesNotFound(
+        f"Species '{species}' not found in any EnsemblBacteria collection"
+    )
+
+
+def _find_species(base_url: str, release: str, species: str) -> tuple[str, str, str, str]:
+    """Try every Ensembl source in priority order.
+
+    Returns (cdna_dir, cdna_name, ncrna_dir, division_label).
+    Raises EnsemblSpeciesNotFound if the species is absent from all sources.
+    """
+    # 1. Primary URL (main Ensembl — eukaryotes)
+    try:
+        cdna_dir, cdna_name, ncrna_dir = _try_flat_division(base_url, release, species)
+        return cdna_dir, cdna_name, ncrna_dir, "Ensembl"
+    except EnsemblSpeciesNotFound:
+        pass
+
+    # 2. EnsemblGenomes flat divisions (metazoa, fungi, plants, protists)
+    for division_name, division_base in _EG_FLAT_DIVISIONS:
+        try:
+            cdna_dir, cdna_name, ncrna_dir = _try_flat_division(division_base, release, species)
+            return cdna_dir, cdna_name, ncrna_dir, f"EnsemblGenomes/{division_name}"
+        except EnsemblSpeciesNotFound:
+            continue
+
+    # 3. EnsemblBacteria (collection scan — slower)
+    try:
+        cdna_dir, cdna_name, ncrna_dir = _try_bacteria(release, species)
+        return cdna_dir, cdna_name, ncrna_dir, "EnsemblBacteria"
+    except EnsemblSpeciesNotFound:
+        pass
+
+    raise EnsemblSpeciesNotFound(
+        f"Species '{species}' not found on Ensembl, EnsemblGenomes, or EnsemblBacteria FTP"
+    )
+
+
 def main() -> int:
     args = parse_args()
     species = args.species.strip().lower().replace(" ", "_")
@@ -88,20 +185,22 @@ def main() -> int:
     base_url = args.base_url.rstrip("/")
     warnings_log = args.warnings_log
 
-    species_root = f"{base_url}/{release_path_for_value(release)}/{species}"
-    cdna_dir = f"{species_root}/cdna/"
-    ncrna_dir = f"{species_root}/ncrna/"
-
     try:
-        cdna_name = find_ensembl_file(cdna_dir, r"\.cdna\.all\.fa\.gz")
+        cdna_dir, cdna_name, ncrna_dir, division = _find_species(base_url, release, species)
     except EnsemblSpeciesNotFound as exc:
         print(
-            f"[ENSEMBL_TRANSCRIPTOME] Species '{species}' not found on Ensembl FTP "
+            f"[ENSEMBL_TRANSCRIPTOME] Species '{species}' not found on any Ensembl FTP "
             f"— will fall back to NCBI: {exc}",
             file=sys.stderr,
         )
-        open(args.not_found_file, "w").close()
+        with open(args.not_found_file, "w", encoding="utf-8"):
+            pass
         return 0
+
+    print(
+        f"[ENSEMBL_TRANSCRIPTOME] Resolved '{species}' via {division}.",
+        file=sys.stderr,
+    )
 
     ncrna_name = find_optional_ensembl_file(ncrna_dir, r"\.ncrna\.fa\.gz")
     cdna_url = f"{cdna_dir}{cdna_name}"

@@ -12,6 +12,15 @@ class EnsemblSpeciesNotFound(Exception):
     pass
 
 
+_EG_FLAT_DIVISIONS = [
+    ("metazoa",  "https://ftp.ensemblgenomes.ebi.ac.uk/pub/metazoa"),
+    ("fungi",    "https://ftp.ensemblgenomes.ebi.ac.uk/pub/fungi"),
+    ("plants",   "https://ftp.ensemblgenomes.ebi.ac.uk/pub/plants"),
+    ("protists", "https://ftp.ensemblgenomes.ebi.ac.uk/pub/protists"),
+]
+_EG_BACTERIA_BASE = "https://ftp.ensemblgenomes.ebi.ac.uk/pub/bacteria"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Download one Ensembl GTF annotation file for one species."
@@ -24,39 +33,120 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--not-found-file",
         required=True,
-        help="Path to write (empty) when the species is absent from Ensembl FTP; "
+        help="Path to write (empty) when the species is absent from all Ensembl FTPs; "
              "process exits 0 and GTF is silently skipped for this reference.",
     )
     return parser.parse_args()
 
 
-def fetch_text(url: str) -> str:
+def fetch_text(url: str, timeout: int = 60) -> str:
     try:
-        with urllib.request.urlopen(url, timeout=60) as response:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
             return response.read().decode("utf-8", errors="ignore")
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            raise EnsemblSpeciesNotFound(f"HTTP 404 at {url}")
+            raise EnsemblSpeciesNotFound(f"HTTP 404 at {url}") from exc
         fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
         try:
-            with urllib.request.urlopen(fallback_url, timeout=60) as response:
+            with urllib.request.urlopen(fallback_url, timeout=timeout) as response:
                 return response.read().decode("utf-8", errors="ignore")
         except urllib.error.HTTPError as fallback_exc:
             if fallback_exc.code == 404:
-                raise EnsemblSpeciesNotFound(f"HTTP 404 at {fallback_url}")
+                raise EnsemblSpeciesNotFound(f"HTTP 404 at {fallback_url}") from fallback_exc
             raise
     except urllib.error.URLError:
         fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
-        with urllib.request.urlopen(fallback_url, timeout=60) as response:
+        with urllib.request.urlopen(fallback_url, timeout=timeout) as response:
             return response.read().decode("utf-8", errors="ignore")
 
 
-def species_root_for_release(base_url: str, release: str, species: str) -> str:
+def release_path_for_value(release: str) -> str:
     if release in ("current", "latest"):
-        return f"{base_url}/current_gtf/{species}/"
+        return "current_gtf"
     if release.startswith("release-"):
-        return f"{base_url}/{release}/gtf/{species}/"
-    return f"{base_url}/release-{release}/gtf/{species}/"
+        return f"{release}/gtf"
+    return f"release-{release}/gtf"
+
+
+def _find_gtf_in_listing(species_root: str, timeout: int = 60) -> str:
+    listing = fetch_text(species_root, timeout=timeout)
+    matches = [m for m in re.findall(r'href="([^"]+)"', listing) if re.search(r"\.gtf\.gz$", m)]
+    preferred = [m for m in matches if "abinitio" not in m.lower()]
+    gtf_name = (preferred or matches or [None])[0]
+    if not gtf_name:
+        raise RuntimeError(f"No .gtf.gz file found at {species_root}")
+    return gtf_name
+
+
+def _try_flat_division(base_url: str, release: str, species: str) -> tuple[str, str]:
+    """Return (species_root_url, gtf_name) for a flat Ensembl/EnsemblGenomes division."""
+    species_root = f"{base_url}/{release_path_for_value(release)}/{species}/"
+    gtf_name = _find_gtf_in_listing(species_root)
+    return species_root, gtf_name
+
+
+def _try_bacteria(release: str, species: str) -> tuple[str, str]:
+    """Search EnsemblBacteria collections for *species*, return (species_root_url, gtf_name)."""
+    release_path = release_path_for_value(release)
+    gtf_root = f"{_EG_BACTERIA_BASE}/{release_path}"
+
+    try:
+        listing = fetch_text(f"{gtf_root}/", timeout=30)
+    except Exception as exc:
+        raise EnsemblSpeciesNotFound(f"Cannot access EnsemblBacteria GTF FTP: {exc}") from exc
+
+    collections = sorted(re.findall(r'href="(bacteria_\d+_collection/)"', listing))
+    if not collections:
+        raise EnsemblSpeciesNotFound(
+            "No bacteria_N_collection directories found at EnsemblBacteria GTF FTP"
+        )
+
+    for collection in collections:
+        collection_name = collection.rstrip("/")
+        species_root = f"{gtf_root}/{collection_name}/{species}/"
+        try:
+            gtf_name = _find_gtf_in_listing(species_root, timeout=10)
+            print(
+                f"[ENSEMBL_GTF] Found '{species}' GTF in EnsemblBacteria "
+                f"collection '{collection_name}'.",
+                file=sys.stderr,
+            )
+            return species_root, gtf_name
+        except (EnsemblSpeciesNotFound, RuntimeError):
+            continue
+
+    raise EnsemblSpeciesNotFound(
+        f"Species '{species}' GTF not found in any EnsemblBacteria collection"
+    )
+
+
+def _find_species(base_url: str, release: str, species: str) -> tuple[str, str, str]:
+    """Try every Ensembl source in priority order.
+
+    Returns (species_root_url, gtf_name, division_label).
+    """
+    try:
+        species_root, gtf_name = _try_flat_division(base_url, release, species)
+        return species_root, gtf_name, "Ensembl"
+    except EnsemblSpeciesNotFound:
+        pass
+
+    for division_name, division_base in _EG_FLAT_DIVISIONS:
+        try:
+            species_root, gtf_name = _try_flat_division(division_base, release, species)
+            return species_root, gtf_name, f"EnsemblGenomes/{division_name}"
+        except EnsemblSpeciesNotFound:
+            continue
+
+    try:
+        species_root, gtf_name = _try_bacteria(release, species)
+        return species_root, gtf_name, "EnsemblBacteria"
+    except EnsemblSpeciesNotFound:
+        pass
+
+    raise EnsemblSpeciesNotFound(
+        f"Species '{species}' not found on Ensembl, EnsemblGenomes, or EnsemblBacteria FTP"
+    )
 
 
 def main() -> int:
@@ -65,24 +155,22 @@ def main() -> int:
     release = args.release.strip()
     base_url = args.base_url.rstrip("/")
 
-    species_root = species_root_for_release(base_url, release, species)
-
     try:
-        listing = fetch_text(species_root)
+        species_root, gtf_name, division = _find_species(base_url, release, species)
     except EnsemblSpeciesNotFound as exc:
         print(
-            f"[ENSEMBL_GTF] Species '{species}' not found on Ensembl FTP "
+            f"[ENSEMBL_GTF] Species '{species}' not found on any Ensembl FTP "
             f"— dotplot-to-bp conversion will be skipped: {exc}",
             file=sys.stderr,
         )
-        open(args.not_found_file, "w").close()
+        with open(args.not_found_file, "w", encoding="utf-8"):
+            pass
         return 0
 
-    matches = [match for match in re.findall(r'href="([^"]+)"', listing) if re.search(r"\.gtf\.gz$", match)]
-    preferred_matches = [match for match in matches if "abinitio" not in match.lower()]
-    gtf_name = (preferred_matches or matches or [None])[0]
-    if not gtf_name:
-        raise RuntimeError(f"No .gtf.gz file found at {species_root}")
+    print(
+        f"[ENSEMBL_GTF] Resolved '{species}' GTF via {division}.",
+        file=sys.stderr,
+    )
 
     gtf_url = f"{species_root}{gtf_name}"
     urllib.request.urlretrieve(gtf_url, args.output)

@@ -33,6 +33,9 @@ from pathlib import Path
 # SVG namespace used by R2DT / Traveler
 _SVG_NS = 'http://www.w3.org/2000/svg'
 _TITLE_RE = re.compile(r'^(\d+)\s')   # leading integer = 1-based position
+_INSERTION_RE = re.compile(r'(\d+)\s+nucleotides?\s+not\s+shown', re.IGNORECASE)
+_INSERTED_RE  = re.compile(r'^\d+\s+\(inserted\)')   # individually inserted nucleotide
+_MAX_INSERTION_FRACTION = 0.5         # skip SVGs where >50% of nts are insertions
 
 
 # ── SHAPE colour scheme ──────────────────────────────────────────────────────
@@ -119,12 +122,40 @@ def load_reactivities(xml_search_dir: Path, tids_needed: set) -> dict:
 
 # ── SVG colouring ────────────────────────────────────────────────────────────
 
+def _insertion_fraction(root) -> float:
+    """Return fraction of total nucleotides that are insertions (0–1).
+
+    Counts both bulk insertion arcs (<g class="insertion-arc"> with
+    title "N nucleotides not shown") and individually inserted nucleotides
+    (title "N (inserted)"). Template-matched positions contribute to the
+    denominator but not the numerator.
+    """
+    inserted = 0
+    drawn = 0
+    for g in root.iter(f'{{{_SVG_NS}}}g'):
+        title_el = g.find(f'{{{_SVG_NS}}}title')
+        if title_el is None or not title_el.text:
+            continue
+        title = title_el.text.strip()
+        if g.get('class') == 'insertion-arc':
+            m = _INSERTION_RE.search(title)
+            if m:
+                inserted += int(m.group(1))
+        elif _INSERTED_RE.match(title):
+            inserted += 1
+        elif _TITLE_RE.match(title):
+            drawn += 1
+    total = drawn + inserted
+    return inserted / total if total > 0 else 0.0
+
+
 def colour_svg(svg_path: Path, reactivities: list, out_path: Path) -> int:
     """
     Colour nucleotide text elements in an R2DT SVG by SHAPE reactivity.
     Nucleotides are identified by the leading integer in their <title> text,
     which gives the 1-based sequence position.
-    Returns the number of nucleotides coloured.
+    Returns the number of nucleotides coloured, or 0 if the SVG was skipped
+    because too many nucleotides are in insertion arcs.
     """
     ET.register_namespace('', _SVG_NS)
     ET.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
@@ -133,6 +164,15 @@ def colour_svg(svg_path: Path, reactivities: list, out_path: Path) -> int:
         tree = ET.parse(svg_path)
     except ET.ParseError as exc:
         print(f'[WARN] Could not parse SVG {svg_path}: {exc}', file=sys.stderr)
+        return 0
+
+    frac = _insertion_fraction(tree.getroot())
+    if frac > _MAX_INSERTION_FRACTION:
+        print(
+            f'[R2DT colour] Skipping {svg_path.name}: {frac:.0%} of nucleotides '
+            f'in insertion arcs — will be drawn by ViennaRNA instead',
+            file=sys.stderr,
+        )
         return 0
 
     coloured = 0
@@ -203,7 +243,16 @@ def main():
         if tid not in reactivities:
             n_skipped += 1
             continue
-        n = colour_svg(svg_path, reactivities[tid], args.out_dir / (tid + '.svg'))
+        vals = reactivities[tid]
+        if not any(not math.isnan(v) and v >= 0 for v in vals):
+            print(
+                f'[R2DT colour] Skipping {tid}: all-NaN reactivity — '
+                f'no experimental support for template model, will fall back to ViennaRNA',
+                file=sys.stderr,
+            )
+            n_skipped += 1
+            continue
+        n = colour_svg(svg_path, vals, args.out_dir / (tid + '.svg'))
         if n:
             n_coloured += 1
         else:

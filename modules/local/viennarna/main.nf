@@ -29,7 +29,7 @@ process VIENNARNA {
         local _db="\$1"
         local _id=\$(basename "\$_db" .db)
         grep -qxF "\$_id" .r2dt_drawn.txt 2>/dev/null && return
-        python3 "${xml_script}" "\${_id}" xml_input*/*.xml > "\${_id}.shape" || true
+        python3 "${xml_script}" "\${_id}" xml_input*/"\${_id}".xml > "\${_id}.shape" || true
         "${rnaplot}" --output-format=svg < "\$_db" || true
         if [[ -f "\${_id}_ss.svg" ]]; then
             mv "\${_id}_ss.svg" "${prefix}_2D_structures/\${_id}.svg"

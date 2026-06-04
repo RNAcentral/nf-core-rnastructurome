@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def test_remap_wig_to_genome_ucsc_names_and_overlap_mean(tmp_path):
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[4]
     script = repo_root / "bin" / "remap_wig_to_genome.py"
     gtf = repo_root / "modules" / "local" / "wig_to_genome" / "tests" / "fixtures" / "annotation.gtf"
     wig = repo_root / "modules" / "local" / "wig_to_genome" / "tests" / "fixtures" / "transcript.wig"

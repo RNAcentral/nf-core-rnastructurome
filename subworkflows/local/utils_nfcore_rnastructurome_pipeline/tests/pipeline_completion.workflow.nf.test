@@ -19,7 +19,7 @@ nextflow_workflow {
                 input[3] = "$outputDir"
                 input[4] = true
                 input[5] = null
-                input[6] = Channel.of(file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.selected_top3_subset.fa", checkIfExists: true))
+                input[6] = Channel.of(file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true))
                 input[7] = 0
                 """
             }

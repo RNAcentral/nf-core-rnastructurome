@@ -929,6 +929,19 @@ workflow RNASTRUCTUROME {
             file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
         )
         ch_versions = ch_versions.mix(VIENNARNA.out.versions.first())
+    } else {
+        // R2DT is container-only; when running without containers draw all structures with ViennaRNA
+        def ch_rnaplot_input = RNAFRAMEWORK_RFFOLD.out.structures
+            .map { meta, dir -> [ meta.id.toString(), meta, dir ] }
+            .join(ch_fold_input.map { meta, xmls -> [ meta.id.toString(), xmls ] })
+            .map { _id, meta, dir, xmls -> [ meta, dir, xmls, file('/dev/null') ] }
+
+        VIENNARNA(
+            ch_rnaplot_input,
+            file("${projectDir}/bin/viennarna_extract_xml.py",   checkIfExists: true),
+            file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
+        )
+        ch_versions = ch_versions.mix(VIENNARNA.out.versions.first())
     }
 
     //

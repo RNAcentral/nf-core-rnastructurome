@@ -13,7 +13,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
-                def fastq = new File("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.subset.fastq.gz").absolutePath
+                def fastq = new File("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz").absolutePath
                 def samplesheet = new File("$outputDir/samplesheet_init.csv")
                 samplesheet.text = '''sample,sample_id,fastq_1,fastq_2,method,principle,cell_line,condition,replicate,organism,adapter_3p,adapter_5p,umi_pattern
 init_sample,init_sample,''' + fastq + ''',,SHAPE,RT-stop,initline,treated,1,Homo sapiens,,,
@@ -28,7 +28,6 @@ init_sample,init_sample,''' + fastq + ''',,SHAPE,RT-stop,initline,treated,1,Homo
                 input[7] = false
                 input[8] = false
                 input[9] = [:]
-                input[10] = [:]
                 """
             }
         }
@@ -48,7 +47,7 @@ init_sample,init_sample,''' + fastq + ''',,SHAPE,RT-stop,initline,treated,1,Homo
         when {
             workflow {
                 """
-                def fastq = new File("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.subset.fastq.gz").absolutePath
+                def fastq = new File("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz").absolutePath
                 def samplesheet = new File("$outputDir/samplesheet_init.csv")
                 samplesheet.text = '''sample,sample_id,fastq_1,fastq_2,method,principle,cell_line,condition,replicate,organism,adapter_3p,adapter_5p,umi_pattern
 init_sample,init_sample,''' + fastq + ''',,SHAPE,RT-stop,initline,treated,1,Homo sapiens,,,
@@ -63,7 +62,6 @@ init_sample,init_sample,''' + fastq + ''',,SHAPE,RT-stop,initline,treated,1,Homo
                 input[7] = false
                 input[8] = false
                 input[9] = [:]
-                input[10] = [:]
                 """
             }
         }

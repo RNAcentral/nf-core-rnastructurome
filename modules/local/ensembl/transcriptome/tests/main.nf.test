@@ -37,8 +37,8 @@ nextflow_process {
                     assert fastaText.contains('>ENSTCDNA1 cdna')
                     assert fastaText.contains('>ENSTNCRNA1 ncrna')
                 },
-                { assert path(process.out.source_urls[0]).text.contains('/homo_sapiens/cdna/Homo_sapiens.test.cdna.all.fa.gz') },
-                { assert path(process.out.source_urls[0]).text.contains('/homo_sapiens/ncrna/Homo_sapiens.test.ncrna.fa.gz') },
+                { assert path(process.out.source_urls[0][1]).text.contains('/homo_sapiens/cdna/Homo_sapiens.test.cdna.all.fa.gz') },
+                { assert path(process.out.source_urls[0][1]).text.contains('/homo_sapiens/ncrna/Homo_sapiens.test.ncrna.fa.gz') },
                 { assert path(process.out.versions[0]).text.contains('ensembl_release: "current"') }
             )
         }
@@ -72,7 +72,7 @@ nextflow_process {
                     assert !fastaText.contains('ncrna')
                 },
                 {
-                    def urls = path(process.out.source_urls[0]).text.readLines().findAll { it }
+                    def urls = path(process.out.source_urls[0][1]).text.readLines().findAll { it }
                     assert urls.size() == 1
                     assert urls[0].contains('/caenorhabditis_elegans/cdna/Caenorhabditis_elegans.test.cdna.all.fa.gz')
                 },

@@ -37,7 +37,7 @@ nextflow_process {
                     assert fastaText.contains('ATGCATGC')
                 },
                 {
-                    def srcLines = path(process.out.source_accessions[0]).text.readLines().findAll { it }
+                    def srcLines = path(process.out.source_accessions[0][1]).text.readLines().findAll { it }
                     assert srcLines.size() == 2
                     assert srcLines.any { it.contains('NC_TEST1.1') }
                     assert srcLines.any { it.contains('NC_TEST2.1') }

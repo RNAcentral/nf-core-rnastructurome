@@ -104,45 +104,35 @@ def _try_flat_division(base_url: str, release: str, species: str) -> tuple[str, 
     return cdna_dir, cdna_name, ncrna_dir
 
 
-def _try_bacteria(release: str, species: str) -> tuple[str, str, str]:
-    """Search EnsemblBacteria collections for *species*.
+def _prefix_candidates(base_url: str, release: str, prefix: str) -> list[tuple[str | None, str]]:
+    """Return (subcollection_or_None, species) pairs under base_url matching prefix.
 
-    Fetches the top-level collection listing once, then probes each
-    bacteria_N_collection directory with a short timeout so that missing
-    entries fail quickly.
-
-    Returns (cdna_dir, cdna_name, ncrna_dir) or raises EnsemblSpeciesNotFound.
+    Handles both flat FTP layouts (species directly under the release directory)
+    and collection-based layouts where species are nested inside
+    name_N_collection/ subdirectories (as used by EnsemblBacteria).
+    prefix should be '{species}_' so that both exact names and
+    strain/subspecies-suffixed variants are matched.
     """
-    release_path = release_path_for_value(release)
-    fasta_root = f"{_EG_BACTERIA_BASE}/{release_path}"
-
+    root = f"{base_url}/{release_path_for_value(release)}/"
     try:
-        listing = fetch_text(f"{fasta_root}/", timeout=30)
-    except Exception as exc:
-        raise EnsemblSpeciesNotFound(f"Cannot access EnsemblBacteria FTP: {exc}") from exc
-
-    collections = sorted(re.findall(r'href="(bacteria_\d+_collection/)"', listing))
-    if not collections:
-        raise EnsemblSpeciesNotFound("No bacteria_N_collection directories found at EnsemblBacteria FTP")
-
-    for collection in collections:
-        collection_name = collection.rstrip("/")
-        cdna_dir = f"{fasta_root}/{collection_name}/{species}/cdna/"
+        listing = fetch_text(root, timeout=30)
+    except Exception:
+        return []
+    all_dirs = re.findall(r'href="([a-z][a-z0-9_]+)/"', listing)
+    exact = prefix.rstrip("_")
+    results: list[tuple[str | None, str]] = [
+        (None, d) for d in sorted(all_dirs) if d == exact or d.startswith(prefix)
+    ]
+    collections = [d for d in all_dirs if re.match(r'[a-z]+_\d+_collection$', d)]
+    for collection in sorted(collections):
         try:
-            cdna_name = find_ensembl_file(cdna_dir, r"\.cdna\.all\.fa\.gz", timeout=10)
-            ncrna_dir = f"{fasta_root}/{collection_name}/{species}/ncrna/"
-            print(
-                f"[ENSEMBL_TRANSCRIPTOME] Found '{species}' in EnsemblBacteria "
-                f"collection '{collection_name}'.",
-                file=sys.stderr,
-            )
-            return cdna_dir, cdna_name, ncrna_dir
-        except (EnsemblSpeciesNotFound, RuntimeError):
+            coll_listing = fetch_text(f"{root}{collection}/", timeout=30)
+        except Exception:
             continue
-
-    raise EnsemblSpeciesNotFound(
-        f"Species '{species}' not found in any EnsemblBacteria collection"
-    )
+        coll_dirs = re.findall(r'href="([a-z][a-z0-9_]+)/"', coll_listing)
+        for d in sorted(d for d in coll_dirs if d == exact or d.startswith(prefix)):
+            results.append((collection, d))
+    return results
 
 
 def _find_species(base_url: str, release: str, species: str) -> tuple[str, str, str, str]:
@@ -166,12 +156,33 @@ def _find_species(base_url: str, release: str, species: str) -> tuple[str, str, 
         except EnsemblSpeciesNotFound:
             continue
 
-    # 3. EnsemblBacteria (collection scan — slower)
-    try:
-        cdna_dir, cdna_name, ncrna_dir = _try_bacteria(release, species)
-        return cdna_dir, cdna_name, ncrna_dir, "EnsemblBacteria"
-    except EnsemblSpeciesNotFound:
-        pass
+    # 3. Prefix fallback across all sources — handles strain/subspecies suffixes
+    #    (e.g. 'escherichia_coli' matching 'escherichia_coli_k_12').
+    #    _prefix_candidates handles both flat and collection-based FTP layouts.
+    prefix = f"{species}_"
+    all_sources = [("Ensembl", base_url)] + [
+        (f"EnsemblGenomes/{n}", b) for n, b in _EG_FLAT_DIVISIONS
+    ] + [("EnsemblBacteria", _EG_BACTERIA_BASE)]
+
+    for label, src_url in all_sources:
+        for subcollection, candidate in _prefix_candidates(src_url, release, prefix):
+            release_path = release_path_for_value(release)
+            species_root = (
+                f"{src_url}/{release_path}/{subcollection}/{candidate}"
+                if subcollection
+                else f"{src_url}/{release_path}/{candidate}"
+            )
+            cdna_dir = f"{species_root}/cdna/"
+            try:
+                cdna_name = find_ensembl_file(cdna_dir, r"\.cdna\.all\.fa\.gz", timeout=10)
+                ncrna_dir = f"{species_root}/ncrna/"
+                print(
+                    f"[ENSEMBL_TRANSCRIPTOME] '{species}' matched '{candidate}' on {label}.",
+                    file=sys.stderr,
+                )
+                return cdna_dir, cdna_name, ncrna_dir, label
+            except (EnsemblSpeciesNotFound, RuntimeError):
+                continue
 
     raise EnsemblSpeciesNotFound(
         f"Species '{species}' not found on Ensembl, EnsemblGenomes, or EnsemblBacteria FTP"

@@ -495,6 +495,12 @@
                     "description": "Generate ViennaRNA RNAplot structure diagrams via rf-fold (`-g`). Disabled by default; use `--r2dt` for template-based diagrams instead.",
                     "default": false
                 },
+                "jackknife_reference": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Path to a reference `.db` structure file for rf-jackknife normalisation assessment. Required — rf-jackknife always runs between rf-norm and rf-fold."
+                },
                 "rffold_ct": {
                     "type": "boolean",
                     "description": "Write CT format structures with rf-fold (`-ct`). Disabled by default to keep dot-bracket output.",

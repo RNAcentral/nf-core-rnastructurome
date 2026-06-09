@@ -35,8 +35,9 @@ include { RNAFRAMEWORK_RFCOUNT         } from '../modules/local/rnaframework/cou
 include { RNAFRAMEWORK_RFCOUNT_GENOME  } from '../modules/local/rnaframework/count_genome/main'
 include { BEDOPS_GTF2BED               } from '../modules/nf-core/bedops/gtf2bed/main'
 include { RSEQC_INFEREXPERIMENT        } from '../modules/nf-core/rseqc/inferexperiment/main'
-include { RNAFRAMEWORK_RFNORM   } from '../modules/local/rnaframework/norm/main'
-include { RNAFRAMEWORK_RFFOLD   } from '../modules/local/rnaframework/fold/main'
+include { RNAFRAMEWORK_RFNORM      } from '../modules/local/rnaframework/norm/main'
+include { RNAFRAMEWORK_RFJACKKNIFE } from '../modules/local/rnaframework/jackknife/main'
+include { RNAFRAMEWORK_RFFOLD      } from '../modules/local/rnaframework/fold/main'
 include { ENSEMBL_TRANSCRIPTOME } from '../modules/local/ensembl/transcriptome/main'
 include { ENSEMBL_GENOME        } from '../modules/local/ensembl/genome/main'
 include { ENSEMBL_GTF          } from '../modules/local/ensembl/gtf/main'
@@ -440,10 +441,6 @@ workflow RNASTRUCTUROME {
         .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
     ch_reference_genome_fasta_keyed = ch_reference_genome_fasta_keyed
         .mix(ch_reference_genome_ncbi_keyed)
-    ch_reference_genome_fasta_map = ch_reference_genome_fasta_keyed
-        .map { key, value -> [ (key): value ] }
-        .collect()
-        .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
 
     ch_rtstop_reference_fasta = principle_branches.rtstop
         .combine(ch_reference_fasta_map)
@@ -499,8 +496,8 @@ workflow RNASTRUCTUROME {
             }
 
         STAR_GENOMEGENERATE(
-            ch_star_build.map { it[0] },
-            ch_star_build.map { it[1] }
+            ch_star_build.map { entry -> entry[0] },
+            ch_star_build.map { entry -> entry[1] }
         )
 
         ch_star_index_map = STAR_GENOMEGENERATE.out.index
@@ -563,7 +560,7 @@ workflow RNASTRUCTUROME {
         )
         ch_rtstop_aligned_bam    = STAR_ALIGN_RTSTOP.out.bam
         ch_rtstop_transcript_bam = STAR_ALIGN_RTSTOP.out.bam_transcript
-        ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_RTSTOP.out.log_final.collect { it[1] })
+        ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_RTSTOP.out.log_final.collect { _meta, log -> log })
     } else {
         def ch_rtstop_bowtie_inputs = ch_rtstop_trimmed_for_align
             .combine(ch_bowtie_index_map)
@@ -582,7 +579,7 @@ workflow RNASTRUCTUROME {
         }
         BOWTIE_ALIGN(ch_rtstop_bowtie_split.reads, ch_rtstop_bowtie_split.index, false)
         ch_rtstop_aligned_bam = BOWTIE_ALIGN.out.bam
-        ch_multiqc_files = ch_multiqc_files.mix(BOWTIE_ALIGN.out.log.collect { it[1] })
+        ch_multiqc_files = ch_multiqc_files.mix(BOWTIE_ALIGN.out.log.collect { _meta, log -> log })
     }
 
     //
@@ -623,7 +620,7 @@ workflow RNASTRUCTUROME {
         )
         ch_map_aligned_bam    = STAR_ALIGN_MAP.out.bam
         ch_map_transcript_bam = STAR_ALIGN_MAP.out.bam_transcript
-        ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_MAP.out.log_final.collect { it[1] })
+        ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_MAP.out.log_final.collect { _meta, log -> log })
     } else {
         def ch_map_bowtie2_inputs = ch_map_trimmed_for_align
             .combine(ch_bowtie2_index_map)
@@ -647,7 +644,7 @@ workflow RNASTRUCTUROME {
         }
         BOWTIE2_ALIGN(ch_map_bowtie2_split.reads, ch_map_bowtie2_split.index, ch_map_bowtie2_split.fasta, false, false)
         ch_map_aligned_bam = BOWTIE2_ALIGN.out.bam
-        ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { it[1] })
+        ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { _meta, log -> log })
     }
 
     //
@@ -682,6 +679,11 @@ workflow RNASTRUCTUROME {
     )
 
     ch_sorted_bam_bai = SAMTOOLS_SORT.out.bam
+        .map { meta, bam -> [ meta.id.toString(), [meta, bam] ] }
+        .join(SAMTOOLS_INDEX_SORT.out.index.map { meta, bai -> [ meta.id.toString(), [meta, bai] ] })
+        .map { _sample_id, bam_tuple, bai_tuple ->
+            [ bam_tuple[0], bam_tuple[1], bai_tuple[1] ]
+        }
 
     //
     // Transcriptome BAMs (STAR --quantMode TranscriptomeSAM) — sort and index
@@ -704,11 +706,6 @@ workflow RNASTRUCTUROME {
         ch_transcript_bam_bai = SAMTOOLS_SORT_TRANSCRIPT.out.bam
             .join(SAMTOOLS_INDEX_TRANSCRIPT.out.bai)
     }
-        .map { meta, bam -> [ meta.id.toString(), [meta, bam] ] }
-        .join(SAMTOOLS_INDEX_SORT.out.index.map { meta, bai -> [ meta.id.toString(), [meta, bai] ] })
-        .map { _sample_id, bam_tuple, bai_tuple ->
-            [ bam_tuple[0], bam_tuple[1], bai_tuple[1] ]
-        }
 
     def dedup_branches = ch_sorted_bam_bai.branch { meta, _bam, _bai ->
         umi:     (meta.umi_pattern ?: '').toString().trim()
@@ -819,7 +816,7 @@ workflow RNASTRUCTUROME {
                 // Skip samples whose reference has no usable BED (e.g. viral synthetic GTFs)
                 bed_t ? [ [meta, bam, bai], bed_t[1] ] : null
             }
-            .filter { it != null }
+            .filter { entry -> entry != null }
 
         def ch_infer_split = ch_infer_inputs.multiMap { entry ->
             bam: entry[0]
@@ -828,7 +825,7 @@ workflow RNASTRUCTUROME {
 
         RSEQC_INFEREXPERIMENT(ch_infer_split.bam, ch_infer_split.bed)
         ch_multiqc_files = ch_multiqc_files.mix(
-            RSEQC_INFEREXPERIMENT.out.txt.collect { it[1] }
+            RSEQC_INFEREXPERIMENT.out.txt.collect { _meta, txt -> txt }
         )
 
         ch_strandedness_by_id = RSEQC_INFEREXPERIMENT.out.txt
@@ -856,31 +853,29 @@ workflow RNASTRUCTUROME {
     //
     def ch_bam_for_rfcount = !pipeline_config.transcriptome ? ch_transcript_bam_bai : ch_markdup_bam_bai
 
-    {
-        def ch_rfcount_with_fasta = ch_bam_for_rfcount
-            .combine(ch_reference_fasta_map)
-            .map { combined ->
-                def meta      = combined[0]
-                def bam       = combined[1]
-                def bai       = combined[2]
-                def ref_map   = combined[3]
-                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
-                def fasta_t   = ref_map[ref_key]
-                if (!fasta_t) error("No transcript FASTA resolved for reference '${ref_key}' for rf-count.")
-                [ [meta, bam, bai], fasta_t ]
-            }
-        def ch_split = ch_rfcount_with_fasta.multiMap { entry ->
-            bam:   entry[0]
-            fasta: entry[1]
+    def ch_rfcount_with_fasta = ch_bam_for_rfcount
+        .combine(ch_reference_fasta_map)
+        .map { combined ->
+            def meta      = combined[0]
+            def bam       = combined[1]
+            def bai       = combined[2]
+            def ref_map   = combined[3]
+            def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
+            def fasta_t   = ref_map[ref_key]
+            if (!fasta_t) error("No transcript FASTA resolved for reference '${ref_key}' for rf-count.")
+            [ [meta, bam, bai], fasta_t ]
         }
-        RNAFRAMEWORK_RFCOUNT(ch_split.bam, ch_split.fasta)
-        ch_rfcount_rc        = RNAFRAMEWORK_RFCOUNT.out.rc
-        ch_rfcount_rci       = RNAFRAMEWORK_RFCOUNT.out.rci
-        ch_rfcount_index_rci = RNAFRAMEWORK_RFCOUNT.out.index_rci
-        ch_rfcount_summary   = RNAFRAMEWORK_RFCOUNT.out.summary
-        ch_rfcount_plots     = RNAFRAMEWORK_RFCOUNT.out.plots
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT.out.versions)
+    def ch_rfcount_split = ch_rfcount_with_fasta.multiMap { entry ->
+        bam:   entry[0]
+        fasta: entry[1]
     }
+    RNAFRAMEWORK_RFCOUNT(ch_rfcount_split.bam, ch_rfcount_split.fasta)
+    ch_rfcount_rc        = RNAFRAMEWORK_RFCOUNT.out.rc
+    ch_rfcount_rci       = RNAFRAMEWORK_RFCOUNT.out.rci
+    ch_rfcount_index_rci = RNAFRAMEWORK_RFCOUNT.out.index_rci
+    ch_rfcount_summary   = RNAFRAMEWORK_RFCOUNT.out.summary
+    ch_rfcount_plots     = RNAFRAMEWORK_RFCOUNT.out.plots
+    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT.out.versions)
 
     def ch_pre_dedup_mapped_reads = SAMTOOLS_FLAGSTAT_PRE.out.flagstat
         .map { meta, flagstat -> [ meta.id.toString(), parseFlagstatMappedReads(flagstat) ] }
@@ -1047,8 +1042,30 @@ workflow RNASTRUCTUROME {
             [ foldMeta, xmls ]
         }
 
+    //
+    // MODULE: rf-jackknife — assess normalisation quality against a reference structure set
+    // Always runs between rf-norm and rf-fold; jackknife_reference is required.
+    //
+    if (!pipeline_config.jackknife_reference) {
+        error("--jackknife_reference is required. Provide a path to a reference .db file for rf-jackknife.")
+    }
+    def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
+
+    RNAFRAMEWORK_RFJACKKNIFE (
+        ch_fold_input,
+        ch_jackknife_reference
+    )
+    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFJACKKNIFE.out.versions.first())
+
+    // Gate rf-fold on rf-jackknife completion: rf-fold only starts for a group
+    // once jackknife has succeeded for that same fold group.
+    def ch_fold_gated = ch_fold_input
+        .map { meta, xmls -> [ meta.id.toString(), meta, xmls ] }
+        .join(RNAFRAMEWORK_RFJACKKNIFE.out.csv.map { meta, _csv -> [ meta.id.toString(), 'done' ] })
+        .map { _id, meta, xmls, _done -> [ meta, xmls ] }
+
     RNAFRAMEWORK_RFFOLD (
-        ch_fold_input
+        ch_fold_gated
     )
 
     def ch_dotplot_bp_input = RNAFRAMEWORK_RFFOLD.out.structures
@@ -1443,13 +1460,14 @@ workflow RNASTRUCTUROME {
 
 
     emit:
-    multiqc_report   = MULTIQC.out.report.toList()        // channel: /path/to/multiqc_report.html
-    mapped_bam       = ch_dedup_bam                       // channel: [ val(meta), path(bam) ]
-    normalized_xml   = RNAFRAMEWORK_RFNORM.out.xml        // channel: [ val(meta), path(xml) ]
-    fold_structures  = RNAFRAMEWORK_RFFOLD.out.structures // channel: [ val(meta), path(dir) ]
-    fold_bp          = RNAFRAMEWORK_DOTPLOT2BP.out.bp     // channel: [ val(meta), path(bp) ]
-    merged_bp        = MERGE_BP.out.bp                   // channel: [ val(meta), path(*_merged.bp) ]
-    versions         = ch_versions                        // channel: [ path(versions.yml) ]
+    multiqc_report   = MULTIQC.out.report.toList()             // channel: /path/to/multiqc_report.html
+    mapped_bam       = ch_dedup_bam                            // channel: [ val(meta), path(bam) ]
+    normalized_xml   = RNAFRAMEWORK_RFNORM.out.xml             // channel: [ val(meta), path(xml) ]
+    jackknife_csv    = RNAFRAMEWORK_RFJACKKNIFE.out.csv        // channel: [ val(meta), path(csv) ]
+    fold_structures  = RNAFRAMEWORK_RFFOLD.out.structures      // channel: [ val(meta), path(dir) ]
+    fold_bp          = RNAFRAMEWORK_DOTPLOT2BP.out.bp          // channel: [ val(meta), path(bp) ]
+    merged_bp        = MERGE_BP.out.bp                        // channel: [ val(meta), path(*_merged.bp) ]
+    versions         = ch_versions                             // channel: [ path(versions.yml) ]
 
 }
 
@@ -1508,6 +1526,7 @@ def defaultPipelineConfig() {
         bowtie2_softclip                  : false,
         bowtie2_ma                        : 2,
         bowtie2_dovetail                  : false,
+        jackknife_reference               : null,
         rfnorm_reactive_bases             : null,
         rfnorm_remap_reactivities         : false,
         rfnorm_norm_window                : null,

@@ -136,6 +136,7 @@ def buildPipelineConfig(all_params) {
         bowtie2_softclip                 : all_params.bowtie2_softclip,
         bowtie2_ma                       : all_params.bowtie2_ma,
         bowtie2_dovetail                 : all_params.bowtie2_dovetail,
+        jackknife_reference              : all_params.jackknife_reference,
         rfnorm_reactive_bases            : all_params.rfnorm_reactive_bases,
         rfnorm_remap_reactivities        : all_params.rfnorm_remap_reactivities,
         rfnorm_norm_window               : all_params.rfnorm_norm_window,

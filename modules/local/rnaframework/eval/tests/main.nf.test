@@ -1,0 +1,130 @@
+nextflow_process {
+
+    name "Test Process RNAFRAMEWORK_RFEVAL"
+    script "../main.nf"
+    process "RNAFRAMEWORK_RFEVAL"
+
+    tag "modules"
+    tag "modules_local"
+    tag "rnaframework"
+    tag "rnaframework/eval"
+    config "./nextflow.config"
+
+    test("rfeval - stub single xml") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_args = ''
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group1' ],
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/modules/local/rnaframework/eval/tests/fixtures/test_structures.db", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.csv.size() == 1 },
+                { assert path(process.out.csv[0][1]).text.contains('AUROC') },
+                { assert path(process.out.csv[0][1]).text.contains('DSCI') },
+                { assert process.out.log.size() == 1 },
+                { assert process.out.plots.size() == 0 }
+            )
+        }
+    }
+
+    test("rfeval - stub multiple xmls") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_args = ''
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group_multi' ],
+                    [
+                        file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true),
+                        file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta.fai', checkIfExists: true)
+                    ]
+                ])
+                input[1] = file("${projectDir}/modules/local/rnaframework/eval/tests/fixtures/test_structures.db", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.csv.size() == 1 },
+                { assert path(process.out.csv[0][1]).text.contains('unpaired_coeff') },
+                { assert process.out.log.size() == 1 }
+            )
+        }
+    }
+
+    test("rfeval - stub with plots") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_args = '-g'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group_plots' ],
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/modules/local/rnaframework/eval/tests/fixtures/test_structures.db", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.csv.size() == 1 },
+                { assert process.out.log.size() == 1 }
+            )
+        }
+    }
+
+    test("rfeval - stub with reactivity cutoff") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_args = '-c 0.5'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group_cutoff' ],
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/modules/local/rnaframework/eval/tests/fixtures/test_structures.db", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.csv.size() == 1 }
+            )
+        }
+    }
+}

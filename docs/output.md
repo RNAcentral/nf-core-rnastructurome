@@ -25,6 +25,10 @@ All paths below are relative to `--outdir`.
 │   │   ├── plots/
 │   │   └── wiggle/
 │   └── merged_bw/                     (per-cell_line genomic reactivity BigWigs)
+├── jackknife/
+│   └── <group>/                       (one per cell_line; always produced)
+│       ├── <group>_fmi.csv
+│       └── rfjackknife.log
 ├── fold/
 │   ├── <group>/                       (one per cell_line)
 │   │   ├── dotbracket/
@@ -47,7 +51,7 @@ Major stages:
 1. Read QC (`FastQC`)
 2. Read processing (`cutadapt`, optional `umi_tools`)
 3. Alignment (`bowtie`/`bowtie2`, `samtools`)
-4. RNAframework reactivity processing (`rf-count`, `rf-norm`, `rf-fold`)
+4. RNAframework reactivity processing (`rf-count`, `rf-norm`, `rf-jackknife`, `rf-fold`)
 5. Aggregated reporting (`MultiQC` + `pipeline_info`)
 
 ## FastQC
@@ -128,6 +132,16 @@ Per-group directories under `norm/<group>/`, where `<group>` is the `cell_line_r
 Merged and averaged BigWig under `norm/merged_bw/`:
 
 - `merged_bw/<cell_line>_reactivity.bw` — genomic-coordinate reactivity BigWig for a cell line; when multiple replicates are available the per-replicate transcript tracks are averaged position-by-position, remapped to genomic coordinates with the GTF, and converted to BigWig
+
+### `jackknife/` (`rf-jackknife`)
+
+Per-group directories under `jackknife/<group>/`, where `<group>` is the cell line name (e.g. `HEK293T`). Always produced — `rf-jackknife` runs for every fold group before `rf-fold` starts.
+
+- `<group>_fmi.csv` — FMI (Fowlkes–Mallows Index) scores for each slope/intercept combination tested
+- `rfjackknife.log` — raw `rf-jackknife` console output
+- `<group>_fmi.pdf` — heatmap of FMI scores (only when `-g` / `--rf_jackknife_img` is passed via `ext.args`)
+
+Use the optimal slope/intercept values from the CSV as `--rffold_slope` and `--rffold_intercept` for subsequent pipeline runs.
 
 ### `fold/` (`rf-fold`)
 

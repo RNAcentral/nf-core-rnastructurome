@@ -15,8 +15,9 @@ High-level workflow:
 3. Alignment (`STAR`) and BAM post-processing (`samtools`, optional `umi_tools dedup`)
 4. Reactivity counting (`rf-count`) for RT-stop and MaP
 5. Reactivity normalization (`rf-norm`) using available controls
-6. Structure inference (`rf-fold`) from normalized XMLs
-7. Aggregated reporting (`MultiQC`)
+6. Normalisation quality assessment (`rf-jackknife`) against a reference structure set
+7. Structure inference (`rf-fold`) from normalized XMLs
+8. Aggregated reporting (`MultiQC`)
 
 The probing principle (`RT-stop` or `MaP`) is read from the `principle` column in the samplesheet CSV and controls chemistry-specific trimming, alignment and normalization parameters automatically.
 
@@ -26,6 +27,7 @@ The probing principle (`RT-stop` or `MaP`) is read from the `principle` column i
 nextflow run main.nf \
   -profile docker \
   --input samplesheet.csv \
+  --jackknife_reference known_structures.db \
   --outdir results
 ```
 
@@ -36,6 +38,7 @@ Supply your own genome files to skip the download:
 ```bash
 nextflow run main.nf -profile docker \
   --input samplesheet.csv \
+  --jackknife_reference known_structures.db \
   --genome_fasta genome.fa.gz \
   --gtf annotation.gtf.gz \
   --outdir results
@@ -44,13 +47,18 @@ nextflow run main.nf -profile docker \
 Resume after an interruption:
 
 ```bash
-nextflow run main.nf -profile docker --input samplesheet.csv --outdir results -resume
+nextflow run main.nf -profile docker \
+  --input samplesheet.csv \
+  --jackknife_reference known_structures.db \
+  --outdir results \
+  -resume
 ```
 
 ## Required inputs
 
 1. A samplesheet (`--input`) — see [Samplesheet input](#samplesheet-input) below.
 2. Either an `organism` column in the samplesheet (triggers automatic Ensembl/NCBI download) or explicit `--genome_fasta` / `--gtf` flags.
+3. A reference structure file (`--jackknife_reference`) — path to a `.db` file of known structures used by `rf-jackknife`, which always runs between `rf-norm` and `rf-fold`.
 
 ## Alignment routes
 
@@ -258,6 +266,30 @@ Notes:
 - `R` must exist at `--rnaframework_r_path` in the active runtime environment. The default is `/usr/bin/R`.
 - After normalization, per-transcript WIG files are produced by `rf-wiggle` and merged across transcripts. If multiple replicates share the same cell line, their merged tracks are averaged position-by-position before BigWig conversion, producing a single `norm/merged_bw/<cell_line>_reactivity.bw`.
 
+### `rf-jackknife`
+
+[`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/) always runs between `rf-norm` and `rf-fold`. It iteratively folds a set of known reference structures across a grid of slope/intercept values and scores each combination with the FMI (Fowlkes–Mallows Index), allowing you to identify optimal normalization parameters.
+
+`rf-fold` only starts for a fold group after `rf-jackknife` has completed successfully for that group.
+
+Required parameter:
+
+| Flag | Description |
+|------|-------------|
+| `--jackknife_reference` | Path to a reference `.db` structure file — **required** |
+
+Optional tuning parameters (passed via `--rfjackknife_args` or process `ext.args`):
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--rf_jackknife_slope` | `0,5` | Slope range to test (`min,max`) |
+| `--rf_jackknife_intercept` | `-3,0` | Intercept range to test (`min,max`) |
+| `--rf_jackknife_slope_step` | `0.2` | Slope grid increment |
+| `--rf_jackknife_intercept_step` | `0.2` | Intercept grid increment |
+| `--rf_jackknife_img` | `false` | Generate FMI heatmap PDF (requires R) |
+
+Output: `jackknife/<group>/` — CSV of FMI scores per slope/intercept combination; optional heatmap PDF.
+
 ### `rf-fold`
 
 Default behavior:
@@ -317,6 +349,37 @@ For transcripts without an R2DT template, the pipeline uses [`ViennaRNA`](https:
 
 Both diagram types are published to `fold/<group>/2D-structures/`.
 
+## Optional analysis modules
+
+These modules are not run automatically. They are invoked by passing the appropriate flag and require user-supplied reference data.
+
+### rf-eval — benchmark reactivities against known structures
+
+[`rf-eval`](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/) evaluates how well the pipeline's normalised reactivity profiles agree with a set of experimentally validated or published secondary structures. It reports three metrics per transcript:
+
+- **Unpaired Coefficient** — fraction of highly reactive bases that are unpaired
+- **DSCI** — probability that a randomly selected unpaired base has higher reactivity than a paired base
+- **AUROC** — area under the ROC curve treating reactivity as a classifier of unpaired bases
+
+```bash
+nextflow run nf-core/rnastructurome \
+  --input samplesheet.csv \
+  --outdir results \
+  --rf_eval_structures ./reference_structures.db \
+  -profile docker
+```
+
+Key parameters:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--rf_eval_structures` | `null` | Path to reference structures in dotbracket format — **required to enable** |
+| `--rf_eval_reactivity_cutoff` | `0.7` | Reactivity threshold for unpaired classification |
+| `--rf_eval_img` | `false` | Generate metric plots — distributions, ROC curves, histograms (requires R) |
+| `--rf_eval_ignore_terminal` | `false` | Exclude terminal base pairs from calculations |
+
+Output: `eval/<group>/` — CSV with per-transcript Unpaired Coefficient, DSCI, and AUROC; optional PDF plots.
+
 ## RDAT export
 
 The pipeline produces [RDAT](https://rmdb.stanford.edu/tools/rdat_format/)-format files that bundle per-transcript reactivity profiles (from the normalised XML) with the predicted secondary structure (from `rf-fold` dot-bracket output). RDAT is a community standard for depositing structure probing data in the RNA Mapping Database (RMDB).
@@ -333,9 +396,11 @@ Main output areas under `--outdir`:
 - `count/` — count tables and always-on plots
 - `norm/<group>/` — normalized XML, normalization plots, and per-transcript wiggle tracks
 - `norm/merged_bw/` — per-cell-line genomic reactivity BigWigs (`<cell_line>_reactivity.bw`); reactivity values are averaged across replicates before genomic remapping and conversion when multiple replicates are available
+- `jackknife/<group>/` — FMI CSV and optional heatmap (always produced; `--jackknife_reference` is required)
 - `fold/<group>/` — inferred secondary structures (dot-bracket by default), fold reports, optional CT, optional dotplots
 - `fold/merged_bp/` — merged base-pair files per cell line (produced from dotplots when `--rffold_dotplot` is enabled)
 - `fold/shannon_bw/` — per-cell-line genomic Shannon entropy BigWigs (`<cell_line>_shannon.bw`; produced when `--rffold_shannon_entropy` is enabled, which is the default)
+- `eval/<group>/` — per-transcript evaluation metrics CSV and optional plots (when `--rf_eval_structures` is set)
 - `multiqc/` — final aggregated QC report
 
 For full output details, see [output documentation](output.md).
@@ -345,13 +410,15 @@ For full output details, see [output documentation](output.md).
 Typical usage (genome route, auto-downloads reference from Ensembl):
 
 ```bash
-nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results -profile docker
+nextflow run nf-core/rnastructurome --input ./samplesheet.csv \
+  --jackknife_reference ./known_structures.db --outdir ./results -profile docker
 ```
 
 With local genome files:
 
 ```bash
 nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results \
+  --jackknife_reference ./known_structures.db \
   --genome_fasta ./genome.fa.gz --gtf ./annotation.gtf.gz -profile docker
 ```
 
@@ -359,7 +426,7 @@ Transcriptome route (Bowtie/Bowtie2):
 
 ```bash
 nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results \
-  --transcriptome -profile docker
+  --jackknife_reference ./known_structures.db --transcriptome -profile docker
 ```
 
 The pipeline creates:

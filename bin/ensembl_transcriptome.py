@@ -229,10 +229,10 @@ def main() -> int:
 
     with gzip.open(args.output, "wb") as out_handle:
         with gzip.open(cdna_local, "rb") as in_handle:
-            shutil.copyfileobj(in_handle, out_handle)
+            shutil.copyfileobj(in_handle, out_handle)  # type: ignore[arg-type]
         if ncrna_url:
             with gzip.open(ncrna_local, "rb") as in_handle:
-                shutil.copyfileobj(in_handle, out_handle)
+                shutil.copyfileobj(in_handle, out_handle)  # type: ignore[arg-type]
 
     with open(args.source_urls, "w", encoding="utf-8") as handle:
         handle.write(f"{cdna_url}\n")

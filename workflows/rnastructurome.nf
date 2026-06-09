@@ -10,6 +10,9 @@ include { CUTADAPT as CUTADAPT_RTSTOP } from '../modules/nf-core/cutadapt/main'
 include { CUTADAPT as CUTADAPT_MAP    } from '../modules/nf-core/cutadapt/main'
 include { UMITOOLS_EXTRACT       } from '../modules/nf-core/umitools/extract/main'
 include { UMITOOLS_DEDUP         } from '../modules/nf-core/umitools/dedup/main'
+include { STAR_GENOMEGENERATE                     } from '../modules/nf-core/star/genomegenerate/main'
+include { STAR_ALIGN as STAR_ALIGN_RTSTOP         } from '../modules/nf-core/star/align/main'
+include { STAR_ALIGN as STAR_ALIGN_MAP            } from '../modules/nf-core/star/align/main'
 include { BOWTIE_BUILD          } from '../modules/nf-core/bowtie/build/main'
 include { BOWTIE_ALIGN          } from '../modules/nf-core/bowtie/align/main'
 include { BOWTIE2_BUILD         } from '../modules/nf-core/bowtie2/build/main'
@@ -433,114 +436,170 @@ workflow RNASTRUCTUROME {
         .map { _reference_key, entries -> entries[0] }
 
     //
-    // MODULE: bowtie-build — build Bowtie v1 indices for RT-stop alignment
+    // INDEX BUILDING — conditional on chosen aligner per principle
     //
-    BOWTIE_BUILD (
-        ch_rtstop_reference_fasta
-    )
+    def ch_star_index_map    = channel.value([:])
+    def ch_bowtie_index_map  = channel.value([:])
+    def ch_bowtie2_index_map = channel.value([:])
 
-    //
-    // MODULE: bowtie2-build — build Bowtie2 indices for MaP alignment
-    //
-    BOWTIE2_BUILD (
-        ch_map_reference_fasta
-    )
-
-    ch_bowtie_index_keyed = BOWTIE_BUILD.out.index.map { meta, index -> [ meta.id.toString(), [meta, index] ] }
-    ch_bowtie2_index_keyed = BOWTIE2_BUILD.out.index.map { meta, index -> [ meta.id.toString(), [meta, index] ] }
-    ch_bowtie_index_map = ch_bowtie_index_keyed
-        .map { key, value -> [ (key): value ] }
-        .collect()
-        .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
-    ch_bowtie2_index_map = ch_bowtie2_index_keyed
-        .map { key, value -> [ (key): value ] }
-        .collect()
-        .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
-
-    ch_rtstop_align_inputs = ch_rtstop_trimmed_for_align
-        .combine(ch_bowtie_index_map)
-        .map { combined ->
-            def meta = combined[0]
-            def reads = combined[1]
-            def index_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
-            def index_tuple = index_map[reference_key]
-            if (!index_tuple) {
-                error("No Bowtie index resolved for reference '${reference_key}'.")
+    if (params.rtstop_aligner == 'star' || params.map_aligner == 'star') {
+        // Build one STAR index per reference (shared across principles).
+        // Transcript FASTAs are already spliced so no GTF is needed for the index.
+        def ch_star_build = ch_reference_fasta_keyed
+            .join(ch_reference_gtf_keyed, remainder: true)
+            .map { key, fasta_tuple, gtf_tuple ->
+                def fasta_meta = fasta_tuple[0]
+                def fasta      = fasta_tuple[1]
+                def gtf_meta   = gtf_tuple ? gtf_tuple[0] : [id: "${key}_gtf"]
+                def gtf        = gtf_tuple ? gtf_tuple[1] : []
+                [ [fasta_meta, fasta], [gtf_meta, gtf] ]
             }
-            [ [meta, reads], index_tuple ]
-        }
 
-    ch_map_align_inputs = ch_map_trimmed_for_align
-        .combine(ch_bowtie2_index_map)
-        .combine(ch_reference_fasta_map)
-        .map { combined ->
-            def meta = combined[0]
-            def reads = combined[1]
-            def index_map = combined[2]
-            def ref_map = combined[3]
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
-            def index_tuple = index_map[reference_key]
-            def fasta_tuple = ref_map[reference_key]
-            if (!index_tuple) {
-                error("No Bowtie2 index resolved for reference '${reference_key}'.")
-            }
-            if (!fasta_tuple) {
-                error("No transcript FASTA resolved for reference '${reference_key}' in MaP alignment.")
-            }
-            [ [meta, reads], index_tuple, [ fasta_tuple[0], fasta_tuple[1] ] ]
-        }
+        STAR_GENOMEGENERATE(
+            ch_star_build.map { it[0] },
+            ch_star_build.map { it[1] }
+        )
 
-    //
-    // MODULE: bowtie align — align RT-stop reads with Bowtie v1
-    //
-    def ch_rtstop_align_split = ch_rtstop_align_inputs.multiMap { entry ->
-        reads: entry[0]
-        index: entry[1]
+        ch_star_index_map = STAR_GENOMEGENERATE.out.index
+            .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
+            .collect()
+            .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
     }
-    def ch_rtstop_align_reads = ch_rtstop_align_split.reads
-    def ch_rtstop_align_index = ch_rtstop_align_split.index
-    BOWTIE_ALIGN (
-        ch_rtstop_align_reads,
-        ch_rtstop_align_index,
-        false
-    )
 
-    //
-    // MODULE: bowtie2 align — align MaP reads with Bowtie2
-    //
-    def ch_map_align_split = ch_map_align_inputs.multiMap { entry ->
-        reads: entry[0]
-        index: entry[1]
-        fasta: entry[2]
+    if (params.rtstop_aligner == 'bowtie') {
+        BOWTIE_BUILD(ch_rtstop_reference_fasta)
+        ch_bowtie_index_map = BOWTIE_BUILD.out.index
+            .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
+            .collect()
+            .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
     }
-    def ch_map_align_reads = ch_map_align_split.reads
-    def ch_map_align_index = ch_map_align_split.index
-    def ch_map_align_fasta = ch_map_align_split.fasta
-    BOWTIE2_ALIGN (
-        ch_map_align_reads,
-        ch_map_align_index,
-        ch_map_align_fasta,
-        false,
-        false
-    )
 
-    ch_multiqc_files = ch_multiqc_files.mix(BOWTIE_ALIGN.out.log.collect { bowtie_log -> bowtie_log[1] })
-    ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { bowtie2_log -> bowtie2_log[1] })
+    if (params.map_aligner == 'bowtie2') {
+        BOWTIE2_BUILD(ch_map_reference_fasta)
+        ch_bowtie2_index_map = BOWTIE2_BUILD.out.index
+            .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
+            .collect()
+            .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
+    }
+
+    //
+    // RT-STOP ALIGNMENT
+    //
+    def ch_rtstop_aligned_bam = channel.empty()
+
+    if (params.rtstop_aligner == 'star') {
+        def ch_rtstop_star_inputs = ch_rtstop_trimmed_for_align
+            .combine(ch_star_index_map)
+            .map { combined ->
+                def meta      = combined[0]
+                def reads     = combined[1]
+                def index_map = combined[2]
+                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
+                def idx_tuple = index_map[ref_key]
+                if (!idx_tuple) error("No STAR index resolved for reference '${ref_key}' (RT-stop).")
+                [ [meta, reads], idx_tuple ]
+            }
+        def ch_rtstop_star_split = ch_rtstop_star_inputs.multiMap { entry ->
+            reads: entry[0]
+            index: entry[1]
+        }
+        STAR_ALIGN_RTSTOP(
+            ch_rtstop_star_split.reads,
+            ch_rtstop_star_split.index,
+            channel.value([[id: 'no_gtf'], []]),
+            true
+        )
+        ch_rtstop_aligned_bam = STAR_ALIGN_RTSTOP.out.bam
+        ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_RTSTOP.out.log_final.collect { it[1] })
+    } else {
+        def ch_rtstop_bowtie_inputs = ch_rtstop_trimmed_for_align
+            .combine(ch_bowtie_index_map)
+            .map { combined ->
+                def meta      = combined[0]
+                def reads     = combined[1]
+                def index_map = combined[2]
+                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
+                def idx_tuple = index_map[ref_key]
+                if (!idx_tuple) error("No Bowtie index resolved for reference '${ref_key}'.")
+                [ [meta, reads], idx_tuple ]
+            }
+        def ch_rtstop_bowtie_split = ch_rtstop_bowtie_inputs.multiMap { entry ->
+            reads: entry[0]
+            index: entry[1]
+        }
+        BOWTIE_ALIGN(ch_rtstop_bowtie_split.reads, ch_rtstop_bowtie_split.index, false)
+        ch_rtstop_aligned_bam = BOWTIE_ALIGN.out.bam
+        ch_multiqc_files = ch_multiqc_files.mix(BOWTIE_ALIGN.out.log.collect { it[1] })
+    }
+
+    //
+    // MAP ALIGNMENT
+    //
+    def ch_map_aligned_bam = channel.empty()
+
+    if (params.map_aligner == 'star') {
+        def ch_map_star_inputs = ch_map_trimmed_for_align
+            .combine(ch_star_index_map)
+            .map { combined ->
+                def meta      = combined[0]
+                def reads     = combined[1]
+                def index_map = combined[2]
+                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
+                def idx_tuple = index_map[ref_key]
+                if (!idx_tuple) error("No STAR index resolved for reference '${ref_key}' (MaP).")
+                [ [meta, reads], idx_tuple ]
+            }
+        def ch_map_star_split = ch_map_star_inputs.multiMap { entry ->
+            reads: entry[0]
+            index: entry[1]
+        }
+        STAR_ALIGN_MAP(
+            ch_map_star_split.reads,
+            ch_map_star_split.index,
+            channel.value([[id: 'no_gtf'], []]),
+            true
+        )
+        ch_map_aligned_bam = STAR_ALIGN_MAP.out.bam
+        ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_MAP.out.log_final.collect { it[1] })
+    } else {
+        def ch_map_bowtie2_inputs = ch_map_trimmed_for_align
+            .combine(ch_bowtie2_index_map)
+            .combine(ch_reference_fasta_map)
+            .map { combined ->
+                def meta      = combined[0]
+                def reads     = combined[1]
+                def index_map = combined[2]
+                def ref_map   = combined[3]
+                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
+                def idx_tuple = index_map[ref_key]
+                def fasta_t   = ref_map[ref_key]
+                if (!idx_tuple) error("No Bowtie2 index resolved for reference '${ref_key}'.")
+                if (!fasta_t)   error("No transcript FASTA resolved for reference '${ref_key}' in MaP alignment.")
+                [ [meta, reads], idx_tuple, [ fasta_t[0], fasta_t[1] ] ]
+            }
+        def ch_map_bowtie2_split = ch_map_bowtie2_inputs.multiMap { entry ->
+            reads: entry[0]
+            index: entry[1]
+            fasta: entry[2]
+        }
+        BOWTIE2_ALIGN(ch_map_bowtie2_split.reads, ch_map_bowtie2_split.index, ch_map_bowtie2_split.fasta, false, false)
+        ch_map_aligned_bam = BOWTIE2_ALIGN.out.bam
+        ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { it[1] })
+    }
 
     //
     // MaP (PE) BAMs need name-sort → fixmate → coordinate-sort to add the MC tag
     // required by samtools markdup. RT-stop (SE) BAMs skip this step.
     //
     SAMTOOLS_SORT_NAME (
-        BOWTIE2_ALIGN.out.bam,
+        ch_map_aligned_bam,
         channel.value([ [], [], [] ]),
         false
     )
     SAMTOOLS_FIXMATE (
         SAMTOOLS_SORT_NAME.out.bam
     )
-    ch_mapped_bam = BOWTIE_ALIGN.out.bam.mix(SAMTOOLS_FIXMATE.out.bam)
+    ch_mapped_bam = ch_rtstop_aligned_bam.mix(SAMTOOLS_FIXMATE.out.bam)
 
     //
     // MODULE: samtools sort — coordinate-sort mapped BAMs
@@ -1283,6 +1342,8 @@ def defaultPipelineConfig() {
         outdir                            : null,
         input                             : null,
         umi_pattern                       : null,
+        rtstop_aligner                    : 'star',
+        map_aligner                       : 'star',
         bowtie_manual_only                : false,
         bowtie_mapping_params             : null,
         bowtie_k                          : null,

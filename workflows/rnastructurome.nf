@@ -33,6 +33,7 @@ include { RNAFRAMEWORK_RFCOUNT  } from '../modules/local/rnaframework/count/main
 include { RNAFRAMEWORK_RFNORM   } from '../modules/local/rnaframework/norm/main'
 include { RNAFRAMEWORK_RFFOLD   } from '../modules/local/rnaframework/fold/main'
 include { ENSEMBL_TRANSCRIPTOME } from '../modules/local/ensembl/transcriptome/main'
+include { ENSEMBL_GENOME        } from '../modules/local/ensembl/genome/main'
 include { ENSEMBL_GTF          } from '../modules/local/ensembl/gtf/main'
 include { NCBI_FASTA           } from '../modules/local/ncbi/fasta/main'
 include { NCBI_GTF             } from '../modules/local/ncbi/gtf/main'
@@ -207,8 +208,13 @@ workflow RNASTRUCTUROME {
         .map { meta, _reads ->
             def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
             def original_organism = meta.organism?.toString() ?: reference_key
-            if (pipeline_config.fasta) {
-                return [ reference_key, "path::${pipeline_config.fasta.toString()}", original_organism ]
+            // User-supplied local FASTA: genome_fasta for STAR route, transcriptome_fasta for
+            // --transcriptome route.  The legacy --fasta flag maps to the appropriate route.
+            def local_fasta = pipeline_config.transcriptome
+                ? (pipeline_config.transcriptome_fasta ?: pipeline_config.fasta)
+                : (pipeline_config.genome_fasta        ?: pipeline_config.fasta)
+            if (local_fasta) {
+                return [ reference_key, "path::${local_fasta.toString()}", original_organism ]
             }
 
             def genome_entry = pipeline_config.genomes?.containsKey(reference_key) ? pipeline_config.genomes[reference_key] : null
@@ -270,6 +276,24 @@ workflow RNASTRUCTUROME {
         file("${projectDir}/bin/ensembl_transcriptome.py", checkIfExists: true)
     )
     ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
+
+    // MODULE: ENSEMBL_GENOME — download soft-masked genome FASTA for STAR alignment.
+    // Only runs when at least one aligner is set to 'star'.  Uses the same species
+    // input channel as ENSEMBL_TRANSCRIPTOME so no extra resolution logic is needed.
+    def ch_reference_genome_fasta_keyed = channel.empty()
+    if (!pipeline_config.transcriptome) {
+        ENSEMBL_GENOME(
+            ch_reference_ensembl_input,
+            [
+                ensembl_release : pipeline_config.ensembl_release,
+                ensembl_base_url: pipeline_config.ensembl_base_url
+            ],
+            file("${projectDir}/bin/ensembl_genome.py", checkIfExists: true)
+        )
+        ch_versions = ch_versions.mix(ENSEMBL_GENOME.out.versions)
+        ch_reference_genome_fasta_keyed = ENSEMBL_GENOME.out.fasta
+            .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+    }
 
     // Organisms not found on Ensembl FTP are routed to NCBI_FASTA for automatic accession
     // search.  meta.original_organism carries the raw samplesheet organism string used as
@@ -403,6 +427,19 @@ workflow RNASTRUCTUROME {
         .collect()
         .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
 
+    // Genome FASTA map for STAR index building.
+    // For Ensembl species: ENSEMBL_GENOME output (soft-masked genome).
+    // For NCBI species (bacteria, viruses): NCBI_FASTA output serves as the genome
+    // reference (no introns — genome and transcriptome are equivalent).
+    def ch_reference_genome_ncbi_keyed = NCBI_FASTA.out.fasta
+        .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+    ch_reference_genome_fasta_keyed = ch_reference_genome_fasta_keyed
+        .mix(ch_reference_genome_ncbi_keyed)
+    ch_reference_genome_fasta_map = ch_reference_genome_fasta_keyed
+        .map { key, value -> [ (key): value ] }
+        .collect()
+        .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
+
     ch_rtstop_reference_fasta = principle_branches.rtstop
         .combine(ch_reference_fasta_map)
         .map { combined ->
@@ -442,10 +479,11 @@ workflow RNASTRUCTUROME {
     def ch_bowtie_index_map  = channel.value([:])
     def ch_bowtie2_index_map = channel.value([:])
 
-    if (params.rtstop_aligner == 'star' || params.map_aligner == 'star') {
-        // Build one STAR index per reference (shared across principles).
-        // Transcript FASTAs are already spliced so no GTF is needed for the index.
-        def ch_star_build = ch_reference_fasta_keyed
+    if (!pipeline_config.transcriptome) {
+        // Build one STAR index per reference using the genome FASTA + GTF.
+        // For Ensembl species this is the soft-masked toplevel genome assembly.
+        // For NCBI species (bacteria, viruses) the NCBI FASTA is used as the genome.
+        def ch_star_build = ch_reference_genome_fasta_keyed
             .join(ch_reference_gtf_keyed, remainder: true)
             .map { key, fasta_tuple, gtf_tuple ->
                 def fasta_meta = fasta_tuple[0]
@@ -466,7 +504,7 @@ workflow RNASTRUCTUROME {
             .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
     }
 
-    if (params.rtstop_aligner == 'bowtie') {
+    if (pipeline_config.transcriptome) {
         BOWTIE_BUILD(ch_rtstop_reference_fasta)
         ch_bowtie_index_map = BOWTIE_BUILD.out.index
             .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
@@ -474,7 +512,7 @@ workflow RNASTRUCTUROME {
             .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
     }
 
-    if (params.map_aligner == 'bowtie2') {
+    if (pipeline_config.transcriptome) {
         BOWTIE2_BUILD(ch_map_reference_fasta)
         ch_bowtie2_index_map = BOWTIE2_BUILD.out.index
             .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
@@ -487,27 +525,35 @@ workflow RNASTRUCTUROME {
     //
     def ch_rtstop_aligned_bam = channel.empty()
 
-    if (params.rtstop_aligner == 'star') {
+    if (!pipeline_config.transcriptome) {
         def ch_rtstop_star_inputs = ch_rtstop_trimmed_for_align
             .combine(ch_star_index_map)
+            .combine(ch_reference_gtf_map)
             .map { combined ->
                 def meta      = combined[0]
                 def reads     = combined[1]
                 def index_map = combined[2]
+                def gtf_map   = combined[3]
                 def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
                 def idx_tuple = index_map[ref_key]
+                def gtf_tuple = gtf_map[ref_key]
                 if (!idx_tuple) error("No STAR index resolved for reference '${ref_key}' (RT-stop).")
-                [ [meta, reads], idx_tuple ]
+                def gtf_meta  = gtf_tuple ? gtf_tuple[0] : [id: 'no_gtf']
+                def gtf       = gtf_tuple ? gtf_tuple[1] : []
+                def ignore    = !gtf_tuple
+                [ [meta, reads], idx_tuple, [gtf_meta, gtf], ignore ]
             }
         def ch_rtstop_star_split = ch_rtstop_star_inputs.multiMap { entry ->
-            reads: entry[0]
-            index: entry[1]
+            reads:      entry[0]
+            index:      entry[1]
+            gtf:        entry[2]
+            ignore_gtf: entry[3]
         }
         STAR_ALIGN_RTSTOP(
             ch_rtstop_star_split.reads,
             ch_rtstop_star_split.index,
-            channel.value([[id: 'no_gtf'], []]),
-            true
+            ch_rtstop_star_split.gtf,
+            ch_rtstop_star_split.ignore_gtf
         )
         ch_rtstop_aligned_bam = STAR_ALIGN_RTSTOP.out.bam
         ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_RTSTOP.out.log_final.collect { it[1] })
@@ -537,27 +583,35 @@ workflow RNASTRUCTUROME {
     //
     def ch_map_aligned_bam = channel.empty()
 
-    if (params.map_aligner == 'star') {
+    if (!pipeline_config.transcriptome) {
         def ch_map_star_inputs = ch_map_trimmed_for_align
             .combine(ch_star_index_map)
+            .combine(ch_reference_gtf_map)
             .map { combined ->
                 def meta      = combined[0]
                 def reads     = combined[1]
                 def index_map = combined[2]
+                def gtf_map   = combined[3]
                 def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
                 def idx_tuple = index_map[ref_key]
+                def gtf_tuple = gtf_map[ref_key]
                 if (!idx_tuple) error("No STAR index resolved for reference '${ref_key}' (MaP).")
-                [ [meta, reads], idx_tuple ]
+                def gtf_meta  = gtf_tuple ? gtf_tuple[0] : [id: 'no_gtf']
+                def gtf       = gtf_tuple ? gtf_tuple[1] : []
+                def ignore    = !gtf_tuple
+                [ [meta, reads], idx_tuple, [gtf_meta, gtf], ignore ]
             }
         def ch_map_star_split = ch_map_star_inputs.multiMap { entry ->
-            reads: entry[0]
-            index: entry[1]
+            reads:      entry[0]
+            index:      entry[1]
+            gtf:        entry[2]
+            ignore_gtf: entry[3]
         }
         STAR_ALIGN_MAP(
             ch_map_star_split.reads,
             ch_map_star_split.index,
-            channel.value([[id: 'no_gtf'], []]),
-            true
+            ch_map_star_split.gtf,
+            ch_map_star_split.ignore_gtf
         )
         ch_map_aligned_bam = STAR_ALIGN_MAP.out.bam
         ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_MAP.out.log_final.collect { it[1] })
@@ -1325,7 +1379,10 @@ def defaultPipelineConfig() {
     [
         organism                          : null,
         fasta                             : null,
+        genome_fasta                      : null,
+        transcriptome_fasta               : null,
         gtf                               : null,
+        transcriptome                     : false,
         genomes                           : null,
         ensembl_species_map               : [
             'human': 'homo_sapiens',
@@ -1342,8 +1399,6 @@ def defaultPipelineConfig() {
         outdir                            : null,
         input                             : null,
         umi_pattern                       : null,
-        rtstop_aligner                    : 'star',
-        map_aligner                       : 'star',
         bowtie_manual_only                : false,
         bowtie_mapping_params             : null,
         bowtie_k                          : null,
@@ -1538,13 +1593,18 @@ def buildModuleOptionsSummary(pipeline_config, sampleMetadata) {
         moduleOptions['cutadapt_adapter_3p'] = adapter3p.join(', ')
     }
 
-    if (!principles || principles.contains('rt-stop')) {
-        moduleOptions['bowtie_rtstop_aligner'] = 'bowtie'
-        moduleOptions['bowtie_rtstop_args'] = renderBowtie1Args(pipeline_config)
-    }
-    if (principles.contains('map')) {
-        moduleOptions['bowtie_map_aligner'] = 'bowtie2'
-        moduleOptions['bowtie_map_args'] = renderBowtie2Args(pipeline_config)
+    if (pipeline_config.transcriptome) {
+        moduleOptions['aligner'] = 'transcriptome'
+        if (!principles || principles.contains('rt-stop')) {
+            moduleOptions['rtstop_aligner'] = 'bowtie'
+            moduleOptions['rtstop_aligner_args'] = renderBowtie1Args(pipeline_config)
+        }
+        if (principles.contains('map')) {
+            moduleOptions['map_aligner'] = 'bowtie2'
+            moduleOptions['map_aligner_args'] = renderBowtie2Args(pipeline_config)
+        }
+    } else {
+        moduleOptions['aligner'] = 'star'
     }
 
     def rfnormSummary = renderRfNormSummary(pipeline_config, sampleMetadata)

@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""Download soft-masked genome FASTA from Ensembl FTP for one species."""
+from __future__ import annotations
+
+import argparse
+import sys
+import urllib.error
+import urllib.request
+import re
+
+
+class EnsemblSpeciesNotFound(Exception):
+    pass
+
+
+_EG_FLAT_DIVISIONS = [
+    ("metazoa",  "https://ftp.ensemblgenomes.ebi.ac.uk/pub/metazoa"),
+    ("fungi",    "https://ftp.ensemblgenomes.ebi.ac.uk/pub/fungi"),
+    ("plants",   "https://ftp.ensemblgenomes.ebi.ac.uk/pub/plants"),
+    ("protists", "https://ftp.ensemblgenomes.ebi.ac.uk/pub/protists"),
+]
+
+# Preference order: soft-masked (best for alignment), then unmasked
+_GENOME_PATTERNS = [
+    r"\.dna_sm\.toplevel\.fa\.gz$",
+    r"\.dna\.toplevel\.fa\.gz$",
+]
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Download genome FASTA from Ensembl for one species."
+    )
+    parser.add_argument("--species",        required=True)
+    parser.add_argument("--release",        required=True)
+    parser.add_argument("--base-url",       required=True)
+    parser.add_argument("--output",         required=True, help="Output path for gzipped genome FASTA")
+    parser.add_argument("--source-url",     required=True, help="Output file recording the download URL")
+    parser.add_argument("--not-found-file", required=True,
+                        help="Touched (empty) when the species is absent from all Ensembl FTPs; "
+                             "process exits 0 and a fallback is triggered by the pipeline.")
+    parser.add_argument("--base-url-override", default=None, help=argparse.SUPPRESS)
+    return parser.parse_args()
+
+
+def fetch_text(url: str, timeout: int = 60) -> str:
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            return response.read().decode("utf-8", errors="ignore")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            raise EnsemblSpeciesNotFound(f"HTTP 404 at {url}") from exc
+        raise
+
+
+def release_path_for_value(release: str) -> str:
+    if release in ("current", "latest"):
+        return "current_fasta"
+    if release.startswith("release-"):
+        return f"{release}/fasta"
+    return f"release-{release}/fasta"
+
+
+def _find_genome_in_dna_dir(dna_dir: str) -> str | None:
+    """Return the genome FASTA URL inside a species dna/ directory, or None."""
+    try:
+        listing = fetch_text(dna_dir, timeout=30)
+    except (EnsemblSpeciesNotFound, urllib.error.URLError, urllib.error.HTTPError):
+        return None
+    hrefs = re.findall(r'href="([^"]+)"', listing)
+    for pattern in _GENOME_PATTERNS:
+        for href in hrefs:
+            filename = href.split("/")[-1].strip()
+            if re.search(pattern, filename):
+                return f"{dna_dir}{filename}"
+    return None
+
+
+def _find_species_genome(base_url: str, release: str, species: str) -> tuple[str, str]:
+    """Return (genome_fasta_url, division_label). Raises EnsemblSpeciesNotFound if absent."""
+    release_path = release_path_for_value(release)
+
+    # 1. Primary Ensembl (vertebrates + some others)
+    url = _find_genome_in_dna_dir(f"{base_url}/{release_path}/{species}/dna/")
+    if url:
+        return url, "Ensembl"
+
+    # 2. EnsemblGenomes flat divisions (metazoa, fungi, plants, protists)
+    for division_name, division_base in _EG_FLAT_DIVISIONS:
+        url = _find_genome_in_dna_dir(f"{division_base}/{release_path}/{species}/dna/")
+        if url:
+            return url, f"EnsemblGenomes/{division_name}"
+
+    # 3. Prefix fallback — handles strain/subspecies suffixes (e.g. 'mus_musculus_c57bl6j')
+    prefix = f"{species}_"
+    all_sources = [("Ensembl", base_url)] + [
+        (f"EnsemblGenomes/{n}", b) for n, b in _EG_FLAT_DIVISIONS
+    ]
+    for label, src_url in all_sources:
+        root = f"{src_url}/{release_path}/"
+        try:
+            listing = fetch_text(root, timeout=30)
+        except Exception:
+            continue
+        all_dirs = re.findall(r'href="([a-z][a-z0-9_]+)/"', listing)
+        for d in sorted(d for d in all_dirs if d == species or d.startswith(prefix)):
+            url = _find_genome_in_dna_dir(f"{src_url}/{release_path}/{d}/dna/")
+            if url:
+                print(
+                    f"[ENSEMBL_GENOME] '{species}' matched '{d}' on {label}.",
+                    file=sys.stderr,
+                )
+                return url, label
+
+    raise EnsemblSpeciesNotFound(
+        f"Species '{species}' genome not found on Ensembl or EnsemblGenomes"
+    )
+
+
+def main() -> int:
+    args = parse_args()
+    species  = args.species.strip().lower().replace(" ", "_")
+    release  = args.release.strip()
+    base_url = (args.base_url_override or args.base_url).rstrip("/")
+
+    try:
+        genome_url, division = _find_species_genome(base_url, release, species)
+    except EnsemblSpeciesNotFound as exc:
+        print(
+            f"[ENSEMBL_GENOME] Species '{species}' not found on any Ensembl FTP "
+            f"— will fall back: {exc}",
+            file=sys.stderr,
+        )
+        with open(args.not_found_file, "w", encoding="utf-8"):
+            pass
+        return 0
+
+    print(
+        f"[ENSEMBL_GENOME] Resolved '{species}' via {division}: {genome_url}",
+        file=sys.stderr,
+    )
+
+    urllib.request.urlretrieve(genome_url, args.output)
+
+    with open(args.source_url, "w", encoding="utf-8") as fh:
+        fh.write(f"{genome_url}\n")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

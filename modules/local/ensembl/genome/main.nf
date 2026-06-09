@@ -1,0 +1,58 @@
+process ENSEMBL_GENOME {
+    tag "${meta.id}:${ensembl_species}"
+    label 'process_single'
+
+    conda "${moduleDir}/environment.yml"
+    container 'docker.io/library/python:3.12.11'
+
+    input:
+    tuple val(meta), val(ensembl_species)
+    val  ensembl_config_input
+    path ensembl_genome_script
+
+    output:
+    tuple val(meta), path("${meta.id}.genome.fa.gz"), optional: true, emit: fasta
+    tuple val(meta), path("ensembl_source_url.txt"),  optional: true, emit: source_url
+    tuple val(meta), path("${meta.id}.not_found"),    optional: true, emit: not_found
+    path "versions.yml",                                               emit: versions
+
+    when:
+    task.ext.when == null || task.ext.when
+
+    script:
+    def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
+    """
+    python "${ensembl_genome_script}" \
+        --species   "${ensembl_species}" \
+        --release   "${ensembl_config.ensembl_release}" \
+        --base-url  "${ensembl_config.ensembl_base_url}" \
+        --output    "${meta.id}.genome.fa.gz" \
+        --source-url    "ensembl_source_url.txt" \
+        --not-found-file "${meta.id}.not_found"
+
+    printf '%s\\n' \\
+        '"${task.process}":' \\
+        '    ensembl_release: "${ensembl_config.ensembl_release}"' \\
+        > versions.yml
+    """
+
+    stub:
+    def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
+    """
+    touch ${meta.id}.genome.fa.gz
+    printf '%s\\n' \
+        "stub://${meta.id}.genome.fa.gz" \
+        > ensembl_source_url.txt
+    printf '%s\\n' \\
+        '"${task.process}":' \\
+        '    ensembl_release: "${ensembl_config.ensembl_release}"' \\
+        > versions.yml
+    """
+}
+
+def defaultEnsemblConfig() {
+    [
+        ensembl_release : 'current',
+        ensembl_base_url: 'https://ftp.ensembl.org/pub'
+    ]
+}

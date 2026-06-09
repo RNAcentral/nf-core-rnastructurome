@@ -11,11 +11,14 @@
 High-level workflow:
 
 1. Input QC and trimming (`FastQC`, `cutadapt`, optional `umi_tools extract`)
-2. Alignment (`bowtie` / `bowtie2`) and BAM post-processing (`samtools`, optional `umi_tools dedup`)
-3. Reactivity counting (`rf-count`) for RT-stop and MaP
-4. Reactivity normalization (`rf-norm`) using available controls
-5. Structure inference (`rf-fold`) from normalized XMLs
-6. Aggregated reporting (`MultiQC`)
+2. Reference download — genome FASTA + GTF from Ensembl (NCBI fallback for bacteria/viruses)
+3. Alignment (`STAR`) and BAM post-processing (`samtools`, optional `umi_tools dedup`)
+4. Reactivity counting (`rf-count`) for RT-stop and MaP
+5. Reactivity normalization (`rf-norm`) using available controls
+6. Structure inference (`rf-fold`) from normalized XMLs
+7. Aggregated reporting (`MultiQC`)
+
+The probing principle (`RT-stop` or `MaP`) is read from the `principle` column in the samplesheet CSV and controls chemistry-specific trimming, alignment and normalization parameters automatically.
 
 ## Quick start
 
@@ -23,59 +26,92 @@ High-level workflow:
 nextflow run main.nf \
   -profile docker \
   --input samplesheet.csv \
-  --fasta transcripts.fa \
+  --outdir results
+```
+
+The pipeline downloads the genome FASTA and GTF automatically from Ensembl for each organism in the samplesheet.
+
+Supply your own genome files to skip the download:
+
+```bash
+nextflow run main.nf -profile docker \
+  --input samplesheet.csv \
+  --genome_fasta genome.fa.gz \
   --gtf annotation.gtf.gz \
   --outdir results
 ```
 
-If resuming after an interruption or fix:
+Resume after an interruption:
 
 ```bash
-nextflow run main.nf -profile docker --input samplesheet.csv --fasta transcripts.fa --gtf annotation.gtf.gz --outdir results -resume
+nextflow run main.nf -profile docker --input samplesheet.csv --outdir results -resume
 ```
 
 ## Required inputs
 
-1. A samplesheet (`--input`)
-2. An organism/reference key that can resolve to a transcript FASTA and GTF annotation via explicit inputs, `params.genomes`, or Ensembl
+1. A samplesheet (`--input`) — see [Samplesheet input](#samplesheet-input) below.
+2. Either an `organism` column in the samplesheet (triggers automatic Ensembl/NCBI download) or explicit `--genome_fasta` / `--gtf` flags.
 
-Reference resolution behavior:
+## Alignment routes
 
-- The pipeline resolves a `reference_key` from per-sample `organism` or global `--organism`.
-- Latin binomials such as `Homo sapiens` are normalized automatically to Ensembl species format (`homo_sapiens`).
+### Default: genome alignment with STAR
+
+The pipeline downloads a soft-masked genome assembly (`dna_sm.toplevel.fa.gz`) from Ensembl and the corresponding GTF, then builds a STAR index and aligns with splice-junction awareness. This always fetches the current Ensembl release (e.g. GRCh38 for human, not the older GRCh37/hg19).
+
+For organisms not present in Ensembl (bacteria, viruses) the pipeline falls back to NCBI automatically using pre-configured accessions (see `conf/viral_genomes.config`, `conf/bacterial_genomes.config`) or an auto-search.
+
+### Optional: transcriptome alignment with Bowtie
+
+Add `--transcriptome` to use the older route: Ensembl cDNA + ncRNA FASTA → sorted transcript FASTA → Bowtie (RT-stop) / Bowtie2 (MaP).
+
+```bash
+nextflow run main.nf -profile docker \
+  --input samplesheet.csv \
+  --transcriptome \
+  --outdir results
+```
+
+## Reference input flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--genome_fasta` | *(auto)* | Path to a local genome FASTA (skips Ensembl/NCBI download in STAR route). `--fasta` is accepted as a legacy alias. |
+| `--transcriptome_fasta` | *(auto)* | Path to a local transcript FASTA (skips download in `--transcriptome` route). `--fasta` is also accepted here. |
+| `--gtf` | *(auto)* | Path to a local GTF (skips Ensembl GTF download). |
+| `--transcriptome` | `false` | Use transcriptome alignment route (Bowtie/Bowtie2) instead of genome (STAR). |
+
+## Reference resolution
+
+The pipeline resolves a `reference_key` from the per-sample `organism` column or the global `--organism` flag.
+
+- Latin binomials (`Homo sapiens`) are normalised to Ensembl format (`homo_sapiens`) automatically.
 - Values already in `genus_species` format are lower-cased and used as-is.
-- Other values such as `human` are left unchanged and must be resolved through `params.genomes` or `--ensembl_species_map`.
+- Shorthand values (`human`) must be resolved via `params.genomes` or `--ensembl_species_map`.
 
-Transcript FASTA resolution:
+### Genome FASTA (STAR route, default)
 
-- If `--fasta` is set, that file is used directly and should be a transcript FASTA.
-- Otherwise the pipeline checks `params.genomes[reference_key]` in this order:
-  - `transcript_fasta`
-  - `transcriptome`
-  - `cdna`
-- If no transcript FASTA path is configured, it falls back to Ensembl species resolution in this order:
-  - `params.genomes[reference_key].ensembl_species`
-  - `--ensembl_species_map[reference_key]`
-  - `reference_key` itself, but only if it already matches `genus_species`
-- The Ensembl transcript download fetches `cdna.all.fa.gz` and, when present, `ncrna.fa.gz`, then merges them into one transcript FASTA used for mapping and RNAframework.
-- If `ncrna.fa.gz` is unavailable, the pipeline continues with `cdna` only.
-- If none of the transcript FASTA or Ensembl species routes resolve, the pipeline errors.
+1. `--genome_fasta` / `--fasta` if provided — used directly.
+2. `params.genomes[reference_key].genome_fasta` if configured.
+3. Ensembl — downloads `*.dna_sm.toplevel.fa.gz` for the species (tries main Ensembl, then EnsemblGenomes metazoa/fungi/plants/protists divisions).
+4. NCBI fallback — for bacteria and viruses not present in Ensembl, using accessions from `conf/bacterial_genomes.config` or `conf/viral_genomes.config`, or via auto-search.
 
-GTF annotation resolution:
+### Transcript FASTA (`--transcriptome` route)
 
-- GTF is resolved separately from the transcript FASTA.
-- If `--gtf` is set, that file is used directly.
-- Otherwise the pipeline first checks `params.genomes[reference_key].gtf`.
-- If no local GTF is configured, it uses the same Ensembl species resolution order:
-  - `params.genomes[reference_key].ensembl_species`
-  - `--ensembl_species_map[reference_key]`
-  - `reference_key` itself, but only if it already matches `genus_species`
-- Ensembl GTF download prefers non-`abinitio` `.gtf.gz` files when multiple candidates exist.
-- If neither `gtf` nor an Ensembl species can be resolved, the pipeline errors.
+1. `--transcriptome_fasta` / `--fasta` if provided — used directly.
+2. `params.genomes[reference_key].transcript_fasta` (also `transcriptome` or `cdna`) if configured.
+3. Ensembl — downloads `cdna.all.fa.gz` and, when present, `ncrna.fa.gz`, then merges them.  If `ncrna.fa.gz` is absent the pipeline continues with cDNA only.
+4. NCBI fallback — as above.
+
+### GTF annotation (both routes)
+
+1. `--gtf` if provided — used directly.
+2. `params.genomes[reference_key].gtf` if configured.
+3. Ensembl — downloads the species GTF (prefers non-`abinitio` `.gtf.gz`).
+4. For NCBI references — a synthetic single-exon GTF is generated automatically from the NCBI FASTA by `ncbi_gtf.py`.
 
 Ensembl source can be tuned with:
 
-- `--ensembl_release` (`current` by default; `latest` is treated the same as `current`, and values such as `114` or `release-114` are also accepted)
+- `--ensembl_release` (`current` by default; `latest` is treated the same, and values such as `114` or `release-114` are also accepted)
 - `--ensembl_base_url` (default `https://ftp.ensembl.org/pub`)
 
 ## Samplesheet input
@@ -111,7 +147,8 @@ HEK293T_untreated_r1,/data/untreated_r1.fastq.gz,,HEK293T,untreated,1
 
 Optional per-sample columns supported by the pipeline include:
 
-- `organism` (preferred for transcriptome auto-resolution; e.g. `Homo sapiens`)
+- `organism` (used for automatic genome/transcriptome download from Ensembl/NCBI; e.g. `Homo sapiens`)
+- `principle` (`RT-stop` or `MaP`) — **required**; controls chemistry-specific alignment parameters, rf-count mutation counting, and rf-norm scoring/normalisation defaults
 - `adapter_5p`
 - `adapter_3p`
 - `umi_pattern`
@@ -292,7 +329,7 @@ The pipeline produces [RDAT](https://rmdb.stanford.edu/tools/rdat_format/)-forma
 
 Main output areas under `--outdir`:
 
-- `fastqc/`, `cutadapt/`, `bowtie*/`, `samtools*/` — preprocessing and alignment
+- `fastqc/`, `cutadapt/`, `star/` (or `bowtie*/` with `--transcriptome`), `samtools*/` — preprocessing and alignment
 - `count/` — count tables and always-on plots
 - `norm/<group>/` — normalized XML, normalization plots, and per-transcript wiggle tracks
 - `norm/merged_bw/` — per-cell-line genomic reactivity BigWigs (`<cell_line>_reactivity.bw`); reactivity values are averaged across replicates before genomic remapping and conversion when multiple replicates are available
@@ -305,10 +342,24 @@ For full output details, see [output documentation](output.md).
 
 ## Running the pipeline
 
-Typical usage:
+Typical usage (genome route, auto-downloads reference from Ensembl):
 
 ```bash
-nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results --fasta ./transcripts.fa --gtf ./annotation.gtf.gz -profile docker
+nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results -profile docker
+```
+
+With local genome files:
+
+```bash
+nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results \
+  --genome_fasta ./genome.fa.gz --gtf ./annotation.gtf.gz -profile docker
+```
+
+Transcriptome route (Bowtie/Bowtie2):
+
+```bash
+nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results \
+  --transcriptome -profile docker
 ```
 
 The pipeline creates:

@@ -856,8 +856,8 @@ workflow RNASTRUCTUROME {
     //
     def ch_bam_for_rfcount = !pipeline_config.transcriptome ? ch_transcript_bam_bai : ch_markdup_bam_bai
 
-    if (true) {
-        def ch_rfcount_with_fasta = ch_markdup_bam_bai
+    {
+        def ch_rfcount_with_fasta = ch_bam_for_rfcount
             .combine(ch_reference_fasta_map)
             .map { combined ->
                 def meta      = combined[0]
@@ -1508,7 +1508,6 @@ def defaultPipelineConfig() {
         bowtie2_softclip                  : false,
         bowtie2_ma                        : 2,
         bowtie2_dovetail                  : false,
-        rfcount_strandedness              : 'unstranded',
         rfnorm_reactive_bases             : null,
         rfnorm_remap_reactivities         : false,
         rfnorm_norm_window                : null,
@@ -1525,7 +1524,7 @@ def defaultPipelineConfig() {
         rfnorm_max_mutation_rate          : null,
         rfnorm_mean_coverage              : 0,
         rfnorm_median_coverage            : 0,
-        rfnorm_nan                        : 10,
+        rfnorm_nan                        : 1000,
         rnaframework_r_path               : '/usr/bin/R'
     ]
 }

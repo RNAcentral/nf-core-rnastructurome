@@ -185,7 +185,7 @@
             "title": "Alignment options",
             "type": "object",
             "fa_icon": "fas fa-map",
-            "description": "Bowtie/Bowtie2 mapping options.",
+            "description": "STAR/Bowtie/Bowtie2 mapping options.",
             "properties": {
                 "bowtie_mapping_params": {
                     "type": "string",
@@ -314,6 +314,12 @@
                     "type": "boolean",
                     "description": "Allow dovetailing mates (`--dovetail`).",
                     "default": false
+                },
+                "star_map_sjdb_overhang": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "STAR `--sjdbOverhang` for MaP alignment. Ideally `readLength - 1`; default 200 suits 201 bp reads.",
+                    "default": 200
                 }
             }
         },

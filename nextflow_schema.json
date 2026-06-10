@@ -504,9 +504,9 @@
                 },
                 "rfnorm_nan": {
                     "type": "integer",
-                    "minimum": 1,
-                    "description": "Positions with read coverage below this threshold are reported as NaN (`--nan`).",
-                    "default": 10
+                    "minimum": 0,
+                    "description": "Positions with read coverage below this threshold are reported as NaN (`--nan`). Set to 0 to disable NaN masking.",
+                    "default": 1000
                 },
                 "rfnorm_img": {
                     "type": "boolean",

@@ -1,4 +1,4 @@
-name: rnaframework_rctools_extract
+name: rnaframework_count
 channels:
   - conda-forge
   - bioconda

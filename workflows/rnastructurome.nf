@@ -436,10 +436,16 @@ workflow RNASTRUCTUROME {
     // For Ensembl species: ENSEMBL_GENOME output (soft-masked genome).
     // For NCBI species (bacteria, viruses): NCBI_FASTA output serves as the genome
     // reference (no introns — genome and transcriptome are equivalent).
+    // For local FASTA references on the STAR route: the user-supplied FASTA is
+    // the genome (e.g. a viral/mitochondrial genome or a custom assembly).
     def ch_reference_genome_ncbi_keyed = NCBI_FASTA.out.fasta
         .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
     ch_reference_genome_fasta_keyed = ch_reference_genome_fasta_keyed
         .mix(ch_reference_genome_ncbi_keyed)
+    if (!pipeline_config.transcriptome) {
+        ch_reference_genome_fasta_keyed = ch_reference_genome_fasta_keyed
+            .mix(FASTA_SORT_LOCAL.out.fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] })
+    }
 
     ch_rtstop_reference_fasta = principle_branches.rtstop
         .combine(ch_reference_fasta_map)

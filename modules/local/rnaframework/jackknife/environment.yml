@@ -1,4 +1,4 @@
-name: rnaframework_jackknife
+name: rnaframework_count
 channels:
   - conda-forge
   - bioconda

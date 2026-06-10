@@ -1,4 +1,4 @@
-name: rnaframework_count_genome
+name: rnaframework_count
 channels:
   - conda-forge
   - bioconda

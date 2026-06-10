@@ -38,7 +38,7 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
         -o ${outdir} \\
         -ow \\
         ${args} \\
-        "${prefix}:${bam}" 2>&1 | tee "\${rfcount_log_tmp}"
+        "${bam}" 2>&1 | tee "\${rfcount_log_tmp}"
 
     cleaned_log="${prefix}.rfcount_genome.clean.log"
     sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' "\${rfcount_log_tmp}" | tr '\\r' '\\n' > "\${cleaned_log}"
@@ -46,7 +46,7 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     summary_tsv="${outdir}/${prefix}.rfcount_genome_summary.tsv"
     {
         printf 'sample\\tcovered\\tpct_a_stops\\tpct_c_stops\\tpct_g_stops\\tpct_u_stops\\n'
-        awk -v sample="${prefix}" '\$1 == sample {print \$1 "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6}' "\${cleaned_log}" | tail -n 1
+        awk -v sample="${prefix}" '\$1 == sample {print \$1 "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6}' \${cleaned_log} | tail -n 1
     } > "\${summary_tsv}"
 
     covered=\$(awk -F'\\t' 'NR == 2 {print \$2}' "\${summary_tsv}")

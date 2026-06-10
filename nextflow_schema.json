@@ -187,6 +187,12 @@
             "fa_icon": "fas fa-map",
             "description": "STAR/Bowtie/Bowtie2 mapping options.",
             "properties": {
+                "transcriptome": {
+                    "type": "boolean",
+                    "description": "Align against a transcript-level FASTA using Bowtie (RT-stop) / Bowtie2 (MaP). Default (false) downloads a genome FASTA and aligns with STAR.",
+                    "default": false,
+                    "fa_icon": "fas fa-sitemap"
+                },
                 "bowtie_mapping_params": {
                     "type": "string",
                     "description": "Additional aligner options appended to Bowtie/Bowtie2 commands."
@@ -349,6 +355,17 @@
                     "description": "Deprecated: rf-count plot generation (`-g`) is always enabled.",
                     "default": true
                 },
+                "rfcount_strandedness": {
+                    "type": "string",
+                    "enum": ["unstranded", "first", "second"],
+                    "description": "Library strandedness fallback for rf-count-genome when RSeQC inference is unavailable (e.g. viral/bacterial references without a usable BED annotation).",
+                    "default": "unstranded"
+                },
+                "rfcount_genome_map_quality": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Minimum MAPQ score for rf-count-genome (`--map-quality`). Useful for filtering multi-mappers; 0 keeps all alignments."
+                },
                 "rfcount_trim_5prime": {
                     "type": "integer",
                     "minimum": 0,
@@ -505,7 +522,7 @@
                     "type": "string",
                     "format": "file-path",
                     "exists": true,
-                    "description": "Path to a reference `.db` structure file for rf-jackknife normalisation assessment. Required — rf-jackknife always runs between rf-norm and rf-fold."
+                    "description": "Path to a reference `.db` structure file for rf-jackknife normalisation assessment. When provided, rf-jackknife runs between rf-norm and rf-fold and the output CSV reports optimal slope/intercept values. When omitted, rf-fold runs directly using whatever slope/intercept params are set."
                 },
                 "rffold_ct": {
                     "type": "boolean",

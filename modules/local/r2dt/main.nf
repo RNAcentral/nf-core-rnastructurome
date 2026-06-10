@@ -34,7 +34,7 @@ process R2DT {
         touch r2dt_drawn_ids.txt
         cat <<END_VERSIONS > versions.yml
 "${task.process}":
-    r2dt: \$(r2dt.py version 2>&1 | grep -oP '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1 || echo "unknown")
+    r2dt: \$(r2dt.py version 2>&1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1 || echo "unknown")
 END_VERSIONS
         exit 0
     fi
@@ -74,7 +74,7 @@ END_VERSIONS
 
     cat <<END_VERSIONS > versions.yml
 "${task.process}":
-    r2dt: \$(r2dt.py version 2>&1 | grep -oP '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1 || echo "unknown")
+    r2dt: \$(r2dt.py version 2>&1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1 || echo "unknown")
     python: \$(python3 --version | cut -d' ' -f2)
 END_VERSIONS
     """

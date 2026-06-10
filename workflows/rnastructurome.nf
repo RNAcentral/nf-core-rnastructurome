@@ -984,7 +984,7 @@ workflow RNASTRUCTUROME {
     ch_untreated_fallback = ch_rc_by_group
         .filter  { _group, condition, _meta, _rc, _rci -> condition == 'untreated' }
         .map     { _group, _condition, meta, rc, _rci -> [ meta, rc ] }
-        .collect()
+        .collect(flat: false)
         .ifEmpty( [] )
         .map { entries ->
             entries.collect { entry ->
@@ -1104,29 +1104,29 @@ workflow RNASTRUCTUROME {
         }
 
     //
-    // MODULE: rf-jackknife — assess normalisation quality against a reference structure set
-    // Always runs between rf-norm and rf-fold; jackknife_reference is required.
+    // MODULE: rf-jackknife — optional normalisation quality assessment against a reference structure set.
+    // When --jackknife_reference is provided, rf-jackknife runs and rf-fold is gated on its completion.
+    // When omitted, rf-fold runs directly (use calibrated slope/intercept via rf-fold params instead).
     //
-    if (!pipeline_config.jackknife_reference) {
-        error("--jackknife_reference is required. Provide a path to a reference .db file for rf-jackknife.")
+    def ch_fold_for_rffold = ch_fold_input
+
+    if (pipeline_config.jackknife_reference) {
+        def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
+
+        RNAFRAMEWORK_RFJACKKNIFE (
+            ch_fold_input,
+            ch_jackknife_reference
+        )
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFJACKKNIFE.out.versions.first())
+
+        ch_fold_for_rffold = ch_fold_input
+            .map { meta, xmls -> [ meta.id.toString(), meta, xmls ] }
+            .join(RNAFRAMEWORK_RFJACKKNIFE.out.csv.map { meta, _csv -> [ meta.id.toString(), 'done' ] })
+            .map { _id, meta, xmls, _done -> [ meta, xmls ] }
     }
-    def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
-
-    RNAFRAMEWORK_RFJACKKNIFE (
-        ch_fold_input,
-        ch_jackknife_reference
-    )
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFJACKKNIFE.out.versions.first())
-
-    // Gate rf-fold on rf-jackknife completion: rf-fold only starts for a group
-    // once jackknife has succeeded for that same fold group.
-    def ch_fold_gated = ch_fold_input
-        .map { meta, xmls -> [ meta.id.toString(), meta, xmls ] }
-        .join(RNAFRAMEWORK_RFJACKKNIFE.out.csv.map { meta, _csv -> [ meta.id.toString(), 'done' ] })
-        .map { _id, meta, xmls, _done -> [ meta, xmls ] }
 
     RNAFRAMEWORK_RFFOLD (
-        ch_fold_gated
+        ch_fold_for_rffold
     )
 
     def ch_dotplot_bp_input = RNAFRAMEWORK_RFFOLD.out.structures
@@ -1524,7 +1524,7 @@ workflow RNASTRUCTUROME {
     multiqc_report   = MULTIQC.out.report.toList()             // channel: /path/to/multiqc_report.html
     mapped_bam       = ch_dedup_bam                            // channel: [ val(meta), path(bam) ]
     normalized_xml   = RNAFRAMEWORK_RFNORM.out.xml             // channel: [ val(meta), path(xml) ]
-    jackknife_csv    = RNAFRAMEWORK_RFJACKKNIFE.out.csv        // channel: [ val(meta), path(csv) ]
+    jackknife_csv    = pipeline_config.jackknife_reference ? RNAFRAMEWORK_RFJACKKNIFE.out.csv : channel.empty()  // channel: [ val(meta), path(csv) ]
     fold_structures  = RNAFRAMEWORK_RFFOLD.out.structures      // channel: [ val(meta), path(dir) ]
     fold_bp          = RNAFRAMEWORK_DOTPLOT2BP.out.bp          // channel: [ val(meta), path(bp) ]
     merged_bp        = MERGE_BP.out.bp                        // channel: [ val(meta), path(*_merged.bp) ]

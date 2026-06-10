@@ -27,7 +27,6 @@ The probing principle (`RT-stop` or `MaP`) is read from the `principle` column i
 nextflow run main.nf \
   -profile docker \
   --input samplesheet.csv \
-  --jackknife_reference known_structures.db \
   --outdir results
 ```
 
@@ -58,7 +57,7 @@ nextflow run main.nf -profile docker \
 
 1. A samplesheet (`--input`) — see [Samplesheet input](#samplesheet-input) below.
 2. Either an `organism` column in the samplesheet (triggers automatic Ensembl/NCBI download) or explicit `--genome_fasta` / `--gtf` flags.
-3. A reference structure file (`--jackknife_reference`) — path to a `.db` file of known structures used by `rf-jackknife`, which always runs between `rf-norm` and `rf-fold`.
+3. A reference structure file (`--jackknife_reference`) — optional path to a `.db` file of known structures. When provided, `rf-jackknife` runs between `rf-norm` and `rf-fold` to calibrate slope/intercept parameters. When omitted, `rf-fold` runs directly using whatever slope/intercept params are configured.
 
 ## Alignment routes
 

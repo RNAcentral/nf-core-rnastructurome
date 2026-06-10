@@ -39,7 +39,7 @@ process RNAFRAMEWORK_RFNORM {
 
     printf '"%s":\n    rnaframework: %s\n' \\
         "${task.process}" \\
-        "\$(rf-norm 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")" \\
+        "\$(rf-norm 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 || echo "unknown")" \\
         > versions.yml
     """
 
@@ -52,7 +52,7 @@ process RNAFRAMEWORK_RFNORM {
 
     printf '"%s":\n    rnaframework: %s\n' \\
         "${task.process}" \\
-        "\$(rf-norm 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")" \\
+        "\$(rf-norm 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 || echo "unknown")" \\
         > versions.yml
     """
 }

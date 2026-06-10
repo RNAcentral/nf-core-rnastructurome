@@ -64,7 +64,7 @@ process RNAFRAMEWORK_RFCOUNT {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        rnaframework: \$(rf-count 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")
+        rnaframework: \$(rf-count 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 || echo "unknown")
     END_VERSIONS
     """
 
@@ -85,7 +85,7 @@ process RNAFRAMEWORK_RFCOUNT {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        rnaframework: \$(rf-count 2>&1 | grep -oP '(?<=v)\\d+\\.\\d+\\.\\d+' | head -1 || echo "unknown")
+        rnaframework: \$(rf-count 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 || echo "unknown")
     END_VERSIONS
     """
 }

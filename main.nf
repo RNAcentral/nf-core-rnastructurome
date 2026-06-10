@@ -103,6 +103,7 @@ def buildPipelineConfig(all_params) {
         principle                        : all_params.principle,
         organism                         : all_params.organism,
         fasta                            : all_params.fasta,
+        transcriptome                    : all_params.transcriptome,
         gtf                              : all_params.gtf,
         genomes                          : all_params.genomes,
         umi_pattern                      : all_params.umi_pattern,

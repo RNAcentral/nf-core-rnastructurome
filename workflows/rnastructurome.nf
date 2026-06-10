@@ -19,11 +19,9 @@ include { BOWTIE2_BUILD         } from '../modules/nf-core/bowtie2/build/main'
 include { BOWTIE2_ALIGN         } from '../modules/nf-core/bowtie2/align/main'
 include { SAMTOOLS_SORT                              } from '../modules/nf-core/samtools/sort/main'
 include { SAMTOOLS_SORT as SAMTOOLS_SORT_NAME        } from '../modules/nf-core/samtools/sort/main'
-include { SAMTOOLS_SORT as SAMTOOLS_SORT_TRANSCRIPT  } from '../modules/nf-core/samtools/sort/main'
 include { SAMTOOLS_FIXMATE      } from '../modules/nf-core/samtools/fixmate/main'
-include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_SORT       } from '../modules/nf-core/samtools/index/main'
-include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_FINAL      } from '../modules/nf-core/samtools/index/main'
-include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_TRANSCRIPT } from '../modules/nf-core/samtools/index/main'
+include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_SORT  } from '../modules/nf-core/samtools/index/main'
+include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_FINAL } from '../modules/nf-core/samtools/index/main'
 include { SAMTOOLS_MARKDUP      } from '../modules/nf-core/samtools/markdup/main'
 include { SAMTOOLS_STATS        } from '../modules/nf-core/samtools/stats/main'
 include { SAMTOOLS_FLAGSTAT     } from '../modules/nf-core/samtools/flagstat/main'
@@ -32,7 +30,8 @@ include { SAMTOOLS_IDXSTATS     } from '../modules/nf-core/samtools/idxstats/mai
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { SAMTOOLS_FAIDX        } from '../modules/nf-core/samtools/faidx/main'
 include { RNAFRAMEWORK_RFCOUNT         } from '../modules/local/rnaframework/count/main'
-include { RNAFRAMEWORK_RFCOUNT_GENOME  } from '../modules/local/rnaframework/count_genome/main'
+include { RNAFRAMEWORK_RFCOUNT_GENOME      } from '../modules/local/rnaframework/count_genome/main'
+include { RNAFRAMEWORK_RFRCTOOLS_EXTRACT   } from '../modules/local/rnaframework/rctools/extract/main'
 include { BEDOPS_GTF2BED               } from '../modules/nf-core/bedops/gtf2bed/main'
 include { RSEQC_INFEREXPERIMENT        } from '../modules/nf-core/rseqc/inferexperiment/main'
 include { RNAFRAMEWORK_RFNORM      } from '../modules/local/rnaframework/norm/main'
@@ -526,7 +525,6 @@ workflow RNASTRUCTUROME {
     // RT-STOP ALIGNMENT
     //
     def ch_rtstop_aligned_bam      = channel.empty()
-    def ch_rtstop_transcript_bam   = channel.empty()
 
     if (!pipeline_config.transcriptome) {
         def ch_rtstop_star_inputs = ch_rtstop_trimmed_for_align
@@ -559,7 +557,6 @@ workflow RNASTRUCTUROME {
             ch_rtstop_star_split.ignore_gtf
         )
         ch_rtstop_aligned_bam    = STAR_ALIGN_RTSTOP.out.bam
-        ch_rtstop_transcript_bam = STAR_ALIGN_RTSTOP.out.bam_transcript
         ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_RTSTOP.out.log_final.collect { _meta, log -> log })
     } else {
         def ch_rtstop_bowtie_inputs = ch_rtstop_trimmed_for_align
@@ -586,7 +583,6 @@ workflow RNASTRUCTUROME {
     // MAP ALIGNMENT
     //
     def ch_map_aligned_bam    = channel.empty()
-    def ch_map_transcript_bam = channel.empty()
 
     if (!pipeline_config.transcriptome) {
         def ch_map_star_inputs = ch_map_trimmed_for_align
@@ -619,7 +615,6 @@ workflow RNASTRUCTUROME {
             ch_map_star_split.ignore_gtf
         )
         ch_map_aligned_bam    = STAR_ALIGN_MAP.out.bam
-        ch_map_transcript_bam = STAR_ALIGN_MAP.out.bam_transcript
         ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_MAP.out.log_final.collect { _meta, log -> log })
     } else {
         def ch_map_bowtie2_inputs = ch_map_trimmed_for_align
@@ -684,28 +679,6 @@ workflow RNASTRUCTUROME {
         .map { _sample_id, bam_tuple, bai_tuple ->
             [ bam_tuple[0], bam_tuple[1], bai_tuple[1] ]
         }
-
-    //
-    // Transcriptome BAMs (STAR --quantMode TranscriptomeSAM) — sort and index
-    // for rf-count. Markdup is skipped here; duplicate filtering is applied on
-    // the genome BAM pipeline and the same read population is used for counting.
-    //
-    // TODO: when rf-count-genome + rf-norm-genome are available, route the
-    // genome BAM (ch_markdup_bam_bai) through RNAFRAMEWORK_RFCOUNT_GENOME
-    // instead, removing the need for this separate transcript BAM processing.
-    //
-    def ch_transcript_bam_bai = channel.empty()
-    if (!pipeline_config.transcriptome) {
-        def ch_all_transcript_bam = ch_rtstop_transcript_bam.mix(ch_map_transcript_bam)
-        SAMTOOLS_SORT_TRANSCRIPT(
-            ch_all_transcript_bam,
-            channel.value([ [], [], [] ]),
-            false
-        )
-        SAMTOOLS_INDEX_TRANSCRIPT(SAMTOOLS_SORT_TRANSCRIPT.out.bam)
-        ch_transcript_bam_bai = SAMTOOLS_SORT_TRANSCRIPT.out.bam
-            .join(SAMTOOLS_INDEX_TRANSCRIPT.out.bai)
-    }
 
     def dedup_branches = ch_sorted_bam_bai.branch { meta, _bam, _bai ->
         umi:     (meta.umi_pattern ?: '').toString().trim()
@@ -839,43 +812,91 @@ workflow RNASTRUCTUROME {
     //
     def ch_rfcount_rc        = channel.empty()
     def ch_rfcount_rci       = channel.empty()
-    def ch_rfcount_index_rci = channel.empty()
     def ch_rfcount_summary   = channel.empty()
     def ch_rfcount_plots     = channel.empty()
 
-    // Both STAR (transcriptome BAM) and Bowtie (transcript-aligned BAM) use rf-count.
-    // The BAM source differs by route: transcript BAM from STAR, or genome-free Bowtie BAM.
     //
-    // TODO: when rf-norm-genome is available, add an additional route here:
-    //   STAR genome BAM (ch_markdup_bam_bai) → RNAFRAMEWORK_RFCOUNT_GENOME
-    //   → rf-norm-genome → genome-level reactivities.
-    //   The module is already implemented at modules/local/rnaframework/count_genome/main.nf.
+    // MODULES: rf-count — per-base RT-stop or mutation counts
     //
-    def ch_bam_for_rfcount = !pipeline_config.transcriptome ? ch_transcript_bam_bai : ch_markdup_bam_bai
+    // STAR route (genome alignment): genome BAM → rf-count-genome → rf-rctools extract → transcript RC files
+    //   Multi-mappers are counted at all genome positions then redistributed to transcripts via GTF,
+    //   which is more accurate than STAR's internal TranscriptomeSAM quantification.
+    //
+    // Bowtie route (--transcriptome): transcript-coordinate BAM → rf-count → transcript RC files
+    //
+    if (!pipeline_config.transcriptome) {
+        def ch_genome_fasta_map = ch_reference_genome_fasta_keyed
+            .map { key, value -> [ (key): value ] }
+            .collect()
+            .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
 
-    def ch_rfcount_with_fasta = ch_bam_for_rfcount
-        .combine(ch_reference_fasta_map)
-        .map { combined ->
-            def meta      = combined[0]
-            def bam       = combined[1]
-            def bai       = combined[2]
-            def ref_map   = combined[3]
-            def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
-            def fasta_t   = ref_map[ref_key]
-            if (!fasta_t) error("No transcript FASTA resolved for reference '${ref_key}' for rf-count.")
-            [ [meta, bam, bai], fasta_t ]
+        def ch_rfcount_genome_inputs = ch_markdup_bam_bai
+            .combine(ch_genome_fasta_map)
+            .map { combined ->
+                def meta    = combined[0]
+                def bam     = combined[1]
+                def bai     = combined[2]
+                def ref_map = combined[3]
+                def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def fasta_t = ref_map[ref_key]
+                if (!fasta_t) error("No genome FASTA resolved for reference '${ref_key}' for rf-count-genome.")
+                [ [meta, bam, bai], fasta_t ]
+            }
+        def ch_rg_split = ch_rfcount_genome_inputs.multiMap { entry ->
+            bam:   entry[0]
+            fasta: entry[1]
         }
-    def ch_rfcount_split = ch_rfcount_with_fasta.multiMap { entry ->
-        bam:   entry[0]
-        fasta: entry[1]
+        RNAFRAMEWORK_RFCOUNT_GENOME(ch_rg_split.bam, ch_rg_split.fasta)
+        ch_rfcount_summary = RNAFRAMEWORK_RFCOUNT_GENOME.out.summary
+        ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT_GENOME.out.plots
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT_GENOME.out.versions)
+
+        // rf-rctools extract: genome RC + RCI → transcript-level RC using reference GTF
+        def ch_rctools_inputs = RNAFRAMEWORK_RFCOUNT_GENOME.out.rc
+            .join(RNAFRAMEWORK_RFCOUNT_GENOME.out.rci, remainder: true)
+            .combine(ch_reference_gtf_map)
+            .map { combined ->
+                def meta    = combined[0]
+                def rc      = combined[1]
+                def rci     = combined[2] ?: []
+                def gtf_map = combined[3]
+                def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def gtf_t   = gtf_map[ref_key]
+                if (!gtf_t) error("No GTF resolved for reference '${ref_key}' for rf-rctools extract.")
+                [ [meta, rc, rci], gtf_t ]
+            }
+        def ch_rct_split = ch_rctools_inputs.multiMap { entry ->
+            rc:  entry[0]
+            gtf: entry[1]
+        }
+        RNAFRAMEWORK_RFRCTOOLS_EXTRACT(ch_rct_split.rc, ch_rct_split.gtf)
+        ch_rfcount_rc  = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rc
+        ch_rfcount_rci = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rci
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.versions)
+    } else {
+        def ch_rfcount_inputs = ch_markdup_bam_bai
+            .combine(ch_reference_fasta_map)
+            .map { combined ->
+                def meta    = combined[0]
+                def bam     = combined[1]
+                def bai     = combined[2]
+                def ref_map = combined[3]
+                def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def fasta_t = ref_map[ref_key]
+                if (!fasta_t) error("No transcript FASTA resolved for reference '${ref_key}' for rf-count.")
+                [ [meta, bam, bai], fasta_t ]
+            }
+        def ch_rc_split = ch_rfcount_inputs.multiMap { entry ->
+            bam:   entry[0]
+            fasta: entry[1]
+        }
+        RNAFRAMEWORK_RFCOUNT(ch_rc_split.bam, ch_rc_split.fasta)
+        ch_rfcount_rc      = RNAFRAMEWORK_RFCOUNT.out.rc
+        ch_rfcount_rci     = RNAFRAMEWORK_RFCOUNT.out.rci
+        ch_rfcount_summary = RNAFRAMEWORK_RFCOUNT.out.summary
+        ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT.out.plots
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT.out.versions)
     }
-    RNAFRAMEWORK_RFCOUNT(ch_rfcount_split.bam, ch_rfcount_split.fasta)
-    ch_rfcount_rc        = RNAFRAMEWORK_RFCOUNT.out.rc
-    ch_rfcount_rci       = RNAFRAMEWORK_RFCOUNT.out.rci
-    ch_rfcount_index_rci = RNAFRAMEWORK_RFCOUNT.out.index_rci
-    ch_rfcount_summary   = RNAFRAMEWORK_RFCOUNT.out.summary
-    ch_rfcount_plots     = RNAFRAMEWORK_RFCOUNT.out.plots
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT.out.versions)
 
     def ch_pre_dedup_mapped_reads = SAMTOOLS_FLAGSTAT_PRE.out.flagstat
         .map { meta, flagstat -> [ meta.id.toString(), parseFlagstatMappedReads(flagstat) ] }

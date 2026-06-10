@@ -956,6 +956,26 @@ workflow RNASTRUCTUROME {
         .map     { group, _condition, _meta, _rc, rci -> [ group, rci ] }
         .groupTuple()
 
+    // Collect untreated samples into a broadcast lookup for fallback pairing.
+    // When a treated group has no exact cell_line+replicate untreated match, the pipeline
+    // falls back to an untreated sample that shares the same first cell_line token
+    // (e.g. MDA-MB-231_DMSO untreated covers MDA-MB-231_MTX treated) at the same replicate.
+    ch_untreated_fallback = ch_rc_by_group
+        .filter  { _group, condition, _meta, _rc, _rci -> condition == 'untreated' }
+        .map     { _group, _condition, meta, rc, _rci -> [ meta, rc ] }
+        .collect()
+        .ifEmpty( [] )
+        .map { entries ->
+            entries.collect { entry ->
+                [
+                    cellLineBase: entry[0].cell_line.toString().tokenize('_')[0],
+                    replicate   : entry[0].replicate.toString(),
+                    group       : "${entry[0].cell_line}_${entry[0].replicate}".toString(),
+                    rc          : entry[1]
+                ]
+            }
+        }
+
     // Enforce rf-norm pairing rules explicitly:
     // - treated may run on its own
     // - untreated requires a matching treated sample
@@ -989,10 +1009,30 @@ workflow RNASTRUCTUROME {
         .join(ch_untreated, remainder: true)
         .join(ch_denatured, remainder: true)
         .join(ch_group_rci, remainder: true)
-        .map { group, treated_rcs, base_meta, untreated_rc, denatured_rc, rci_files ->
-            def hasUntreated = untreated_rc ? true : false
+        .combine(ch_untreated_fallback)
+        .map { group, treated_rcs, base_meta, untreated_rc, denatured_rc, rci_files, untreated_entries ->
+            def resolvedUntreated = untreated_rc
+
+            if (!resolvedUntreated) {
+                def treatedBase = base_meta.cell_line.toString().tokenize('_')[0]
+                def treatedRep  = base_meta.replicate.toString()
+
+                def candidates = untreated_entries.findAll { entry ->
+                    entry.cellLineBase == treatedBase && entry.replicate == treatedRep
+                }
+
+                if (candidates.size() == 1) {
+                    log.warn "No exact untreated match for '${group}' — falling back to '${candidates[0].group}' (shared base '${treatedBase}' at replicate ${treatedRep})."
+                    resolvedUntreated = candidates[0].rc
+                } else if (candidates.size() > 1) {
+                    def candidateGroups = candidates.collect { it.group }.sort().join(', ')
+                    error("Ambiguous untreated fallback for '${group}': multiple untreated groups share base '${treatedBase}' at replicate ${treatedRep}: ${candidateGroups}.")
+                }
+            }
+
+            def hasUntreated = resolvedUntreated ? true : false
             def hasDenatured = denatured_rc ? true : false
-            def principle = (base_meta.principle ?: '').toLowerCase()
+            def principle    = (base_meta.principle ?: '').toLowerCase()
             def scoringMethod = principle == 'map'
                 ? (hasUntreated ? 3 : 4)
                 : (hasUntreated ? 1 : 2)
@@ -1004,7 +1044,7 @@ workflow RNASTRUCTUROME {
                 rfnorm_scoring_method : scoringMethod,
                 rfnorm_norm_method    : normMethod
             ]
-            [ gmeta, treated_rcs, untreated_rc ?: [], denatured_rc ?: [], rci_files ?: [] ]
+            [ gmeta, treated_rcs, resolvedUntreated ?: [], denatured_rc ?: [], rci_files ?: [] ]
         }
 
     RNAFRAMEWORK_RFNORM (

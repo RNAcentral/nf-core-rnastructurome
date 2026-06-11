@@ -291,7 +291,16 @@ def remap_wig(
             file=sys.stderr,
         )
     if not genomic_values:
-        raise ValueError("No genomic WIG records were generated.")
+        print(
+            "WARNING: No genomic WIG records were generated "
+            "(all reactivity values are NaN or zero). "
+            "Writing empty output files.",
+            file=sys.stderr,
+        )
+        chrom_sizes_path.open("wt", encoding="utf-8").close()
+        with output_wig_path.open("wt", encoding="utf-8") as handle:
+            handle.write("track type=wiggle_0\n")
+        return 0
 
     with chrom_sizes_path.open("wt", encoding="utf-8") as handle:
         for seqname in sorted(chrom_sizes, key=chrom_sort_key):

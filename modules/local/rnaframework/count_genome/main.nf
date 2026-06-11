@@ -49,16 +49,14 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
         awk -v sample="${prefix}" '\$1 == sample {print \$1 "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6}' \${cleaned_log} | tail -n 1
     } > "\${summary_tsv}"
 
-    covered=\$(awk -F'\\t' 'NR == 2 {print \$2}' "\${summary_tsv}")
-    case "\${covered}" in
-        ''|*[!0-9]*)
-            ;;
-        0)
-            echo "[RNAFRAMEWORK_RFCOUNT_GENOME] rf-count-genome reported zero covered regions for sample '${prefix}'." >&2
-            echo "[RNAFRAMEWORK_RFCOUNT_GENOME] No usable signal was available for rf-norm/rf-fold." >&2
-            exit 1
-            ;;
-    esac
+    # rf-count-genome reports "Covered: 0" when run without a -a annotation file
+    # (genome-wide mode); that is expected here — rf-rctools extract handles transcript
+    # extraction using the GTF in the next step.  Fail only if no RC files were produced.
+    rc_count=\$(find "${outdir}" -name '*.rc' | wc -l)
+    if [[ "\${rc_count}" -eq 0 ]]; then
+        echo "[RNAFRAMEWORK_RFCOUNT_GENOME] rf-count-genome produced no RC files for sample '${prefix}'." >&2
+        exit 1
+    fi
 
     rm -f "\${rfcount_log_tmp}" "\${cleaned_log}"
 

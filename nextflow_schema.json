@@ -366,6 +366,46 @@
                     "minimum": 0,
                     "description": "Minimum MAPQ score for rf-count-genome (`--map-quality`). Useful for filtering multi-mappers; 0 keeps all alignments."
                 },
+                "rfcount_genome_block_size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Block size for per-chromosome memory allocation in rf-count-genome (`-bs`); increase for large genomes.",
+                    "default": 100000
+                },
+                "rfcount_genome_samtools_threads": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "SAMtools working threads per processor instance in rf-count-genome (`-wt`); total threads = `-p` × `-wt`.",
+                    "default": 1
+                },
+                "rfcount_map_max_edit_distance": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1,
+                    "description": "MaP only: discard reads whose edit-distance frequency exceeds this threshold (`-me`), value in range (0, 1].",
+                    "default": 0.15
+                },
+                "rfcount_map_median_quality": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "MaP only: discard reads with median Phred+33 base quality below this value (`-eq`).",
+                    "default": 20
+                },
+                "rfcount_map_no_deletions": {
+                    "type": "boolean",
+                    "description": "MaP only: ignore deletion events during mutation counting (`-nd`).",
+                    "default": false
+                },
+                "rfcount_map_no_insertions": {
+                    "type": "boolean",
+                    "description": "MaP only: ignore insertion events during mutation counting (`-ni`).",
+                    "default": false
+                },
+                "rfcount_map_eval_surrounding": {
+                    "type": "boolean",
+                    "description": "MaP only: also evaluate quality of ±1 nt surrounding each mutation (`-es`).",
+                    "default": false
+                },
                 "rfcount_trim_5prime": {
                     "type": "integer",
                     "minimum": 0,
@@ -523,6 +563,86 @@
                     "format": "file-path",
                     "exists": true,
                     "description": "Path to a reference `.db` structure file for rf-jackknife normalisation assessment. When provided, rf-jackknife runs between rf-norm and rf-fold and the output CSV reports optimal slope/intercept values. When omitted, rf-fold runs directly using whatever slope/intercept params are set."
+                },
+                "rfjackknife_slope": {
+                    "type": "string",
+                    "pattern": "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$",
+                    "description": "Comma-separated slope range to search in rf-jackknife (`-sl`), e.g. `0,5`.",
+                    "default": "0,5"
+                },
+                "rfjackknife_intercept": {
+                    "type": "string",
+                    "pattern": "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$",
+                    "description": "Comma-separated intercept range to search in rf-jackknife (`-in`), e.g. `-3,0`.",
+                    "default": "-3,0"
+                },
+                "rfjackknife_slope_step": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Step size for slope grid search in rf-jackknife (`-ss`).",
+                    "default": 0.2
+                },
+                "rfjackknife_intercept_step": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Step size for intercept grid search in rf-jackknife (`-is`).",
+                    "default": 0.2
+                },
+                "rfjackknife_mfmi": {
+                    "type": "boolean",
+                    "description": "Use modified FMI (Lan et al. 2022) instead of standard FMI in rf-jackknife (`-m`).",
+                    "default": false
+                },
+                "rfjackknife_only_common": {
+                    "type": "boolean",
+                    "description": "Only use transcripts present across all replicates in rf-jackknife (`-oc`).",
+                    "default": false
+                },
+                "rfjackknife_img": {
+                    "type": "boolean",
+                    "description": "Generate R heatmap of grid-search results in rf-jackknife (`-g`).",
+                    "default": false
+                },
+                "rfjackknife_rf_fold_params": {
+                    "type": "string",
+                    "description": "Additional rf-fold parameters passed inside rf-jackknife (`-rp`), e.g. `-md 500`."
+                },
+                "rfrctools_gtf_feature": {
+                    "type": "string",
+                    "description": "GTF feature type to extract with rf-rctools (`-f`); override for non-standard annotations.",
+                    "default": "exon"
+                },
+                "rfrctools_gtf_attribute": {
+                    "type": "string",
+                    "description": "GTF attribute used as the output RC entry ID by rf-rctools (`-b`).",
+                    "default": "transcript_id"
+                },
+                "rfeval_reactivity_cutoff": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Cutoff for classifying a base as highly-reactive in rf-eval unpaired-coefficient calculation (`-c`).",
+                    "default": 0.7
+                },
+                "rfeval_ignore_terminal": {
+                    "type": "boolean",
+                    "description": "Exclude terminal base-pairs from rf-eval calculations (`-it`).",
+                    "default": false
+                },
+                "rfeval_keep_pseudoknots": {
+                    "type": "boolean",
+                    "description": "Retain pseudoknotted base-pairs in rf-eval (`-kp`).",
+                    "default": false
+                },
+                "rfeval_keep_lonelypairs": {
+                    "type": "boolean",
+                    "description": "Retain lonely/isolated base-pairs in rf-eval (`-kl`).",
+                    "default": false
+                },
+                "rfeval_img": {
+                    "type": "boolean",
+                    "description": "Generate R metric plots in rf-eval (`-g`).",
+                    "default": false
                 },
                 "rffold_ct": {
                     "type": "boolean",

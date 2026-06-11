@@ -857,19 +857,19 @@ workflow RNASTRUCTUROME {
         ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT_GENOME.out.plots
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT_GENOME.out.versions)
 
-        // rf-rctools extract: genome RC + RCI → transcript-level RC using reference GTF
+        // rf-rctools extract: genome RC → transcript-level RC using reference GTF.
+        // The module generates per-file .rci indexes itself (rf-rctools index) and calls
+        // rf-rctools extract with the BASENAME so strand-aware extraction is activated.
         def ch_rctools_inputs = RNAFRAMEWORK_RFCOUNT_GENOME.out.rc
-            .join(RNAFRAMEWORK_RFCOUNT_GENOME.out.rci, remainder: true)
             .combine(ch_reference_gtf_map)
             .map { combined ->
                 def meta    = combined[0]
                 def rc      = combined[1]
-                def rci     = combined[2] ?: []
-                def gtf_map = combined[3]
+                def gtf_map = combined[2]
                 def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
                 def gtf_t   = gtf_map[ref_key]
                 if (!gtf_t) error("No GTF resolved for reference '${ref_key}' for rf-rctools extract.")
-                [ [meta, rc, rci], gtf_t ]
+                [ [meta, rc, []], gtf_t ]
             }
         def ch_rct_split = ch_rctools_inputs.multiMap { entry ->
             rc:  entry[0]

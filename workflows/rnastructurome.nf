@@ -1941,8 +1941,8 @@ def resolveRfNormNormMethod(pipeline_config, scoringMethod) {
     }
 
     def requestedMethod = pipeline_config.rfnorm_norm_method as Integer
-    if (!(requestedMethod in [2, 3])) {
-        error("Unsupported rf-norm normalization method '${pipeline_config.rfnorm_norm_method}'. Expected one of: 2, 3.")
+    if (!(requestedMethod in [2, 3, 4])) {
+        error("Unsupported rf-norm normalization method '${pipeline_config.rfnorm_norm_method}'. Expected one of: 2, 3, 4.")
     }
 
     requestedMethod
@@ -1961,7 +1961,8 @@ def rfNormScoringLabel(code) {
 def rfNormNormLabel(code) {
     def labels = [
         2: '90% Winsorizing',
-        3: 'Box-plot normalisation'
+        3: 'Box-plot normalisation',
+        4: 'Mitchell normalisation'
     ]
     labels[code as Integer] ?: 'unknown'
 }

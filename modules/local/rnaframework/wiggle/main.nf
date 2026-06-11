@@ -3,7 +3,7 @@ process RNAFRAMEWORK_RFWIGGLE {
     label 'process_medium'
 
     conda "${moduleDir}/../fold/environment.yml"
-    container 'ghcr.io/vicbeg/rnaframework:2.9.6-r5-runtime'
+    container params.rnaframework_container
 
     input:
     tuple val(meta), path(xml, stageAs: "xml/*")

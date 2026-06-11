@@ -3,7 +3,7 @@ process RNAFRAMEWORK_RFCOUNT {
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
-    container 'ghcr.io/vicbeg/rnaframework:2.9.6-r2-runtime'
+    container params.rnaframework_container
 
     input:
     tuple val(meta), path(bam), path(bai)

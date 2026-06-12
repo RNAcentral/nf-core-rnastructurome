@@ -40,7 +40,7 @@ nextflow_process {
         }
     }
 
-    test("rfjackknife - stub multiple xmls (two replicates, list-of-lists)") {
+    test("rfjackknife - stub multiple xmls") {
 
         options "-stub"
 
@@ -53,14 +53,8 @@ nextflow_process {
                 input[0] = Channel.of([
                     [ id:'group_multi' ],
                     [
-                        [
-                            file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true),
-                            file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta.fai', checkIfExists: true)
-                        ],
-                        [
-                            file(params.modules_testdata_base_path + 'genomics/sarscov2/illumina/bam/test.paired_end.sorted.bam', checkIfExists: true),
-                            file(params.modules_testdata_base_path + 'genomics/sarscov2/illumina/bam/test.paired_end.sorted.bam.bai', checkIfExists: true)
-                        ]
+                        file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true),
+                        file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta.fai', checkIfExists: true)
                     ]
                 ])
                 input[1] = file("${projectDir}/modules/local/rnaframework/jackknife/tests/fixtures/test_reference.db", checkIfExists: true)

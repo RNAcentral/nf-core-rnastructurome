@@ -6,7 +6,7 @@ process RNAFRAMEWORK_RFJACKKNIFE {
     container params.rnaframework_container
 
     input:
-    tuple val(meta), path(xml, stageAs: "input*/*")
+    tuple val(meta), path(xml, stageAs: "input0/*")
     path reference
 
     output:
@@ -31,7 +31,7 @@ process RNAFRAMEWORK_RFJACKKNIFE {
         -ow \\
         -r ${reference} \\
         ${args} \\
-        input*/ 2>&1 | tee "\${log_tmp}"
+        input0/ 2>&1 | tee "\${log_tmp}"
 
     mkdir -p ${prefix}_jackknife
     mv "\${log_tmp}" ${prefix}_jackknife/rfjackknife.log

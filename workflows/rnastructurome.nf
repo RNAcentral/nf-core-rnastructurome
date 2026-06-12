@@ -1088,7 +1088,7 @@ workflow RNASTRUCTUROME {
     // Fold across all available replicate XMLs per experimental group.
     // Group key intentionally excludes replicate so biological replicates can
     // be folded together when present.
-    def ch_fold_channels = RNAFRAMEWORK_RFNORM.out.xml
+    ch_fold_input = RNAFRAMEWORK_RFNORM.out.xml
         .map { meta, xml ->
             if (!meta.cell_line) {
                 error("Missing cell_line for sample '${meta.id}'. rf-fold replicate grouping requires cell_line.")
@@ -1098,30 +1098,20 @@ workflow RNASTRUCTUROME {
         }
         .groupTuple()
         .map { fold_group, entries ->
-            def metas            = entries.collect { entry -> entry[0] }
-            def xmls             = entries.collect { entry -> entry[1] }.flatten()
-            // Keep per-replicate grouping (list-of-lists) for rf-jackknife staging:
-            // stageAs "input*/*" stages each outer element into its own input*/ dir, so all
-            // transcripts from one replicate must be in the same inner list.
-            def xmlsPerReplicate = entries.collect { entry -> entry[1] }
-            def base             = metas[0]
-            def replicates       = metas.collect { meta -> (meta.replicate ?: 'na').toString() }.unique().sort()
-            def sampleIds        = metas.collect { meta -> (meta.id ?: 'na').toString() }.unique().sort()
+            def metas = entries.collect { entry -> entry[0] }
+            def xmls = entries.collect { entry -> entry[1] }.flatten()
+            def base = metas[0]
+            def replicates = metas.collect { meta -> (meta.replicate ?: 'na').toString() }.unique().sort()
+            def sampleIds = metas.collect { meta -> (meta.id ?: 'na').toString() }.unique().sort()
             def foldMeta = base + [
-                id               : fold_group,
-                fold_group       : fold_group,
-                fold_replicates  : replicates.join(','),
-                fold_source_ids  : sampleIds.join(','),
-                fold_xml_count   : xmls.size()
+                id                 : fold_group,
+                fold_group         : fold_group,
+                fold_replicates    : replicates.join(','),
+                fold_source_ids    : sampleIds.join(','),
+                fold_xml_count     : xmls.size()
             ]
-            [ foldMeta, xmls, xmlsPerReplicate ]
+            [ foldMeta, xmls ]
         }
-        .multiMap { meta, xmls, xmlsPerReplicate ->
-            fold:      [ meta, xmls ]
-            jackknife: [ meta, xmlsPerReplicate ]
-        }
-
-    ch_fold_input = ch_fold_channels.fold
 
     //
     // MODULE: rf-jackknife — optional normalisation quality assessment against a reference structure set.
@@ -1134,7 +1124,7 @@ workflow RNASTRUCTUROME {
         def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
 
         RNAFRAMEWORK_RFJACKKNIFE (
-            ch_fold_channels.jackknife,
+            ch_fold_input,
             ch_jackknife_reference
         )
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFJACKKNIFE.out.versions.first())

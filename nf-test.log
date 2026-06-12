@@ -1,0 +1,613 @@
+
+🚀[1m nf-test 0.9.4[0m
+https://www.nf-test.com
+(c) 2021 - 2024 Lukas Forer and Sebastian Schoenherr
+
+Load .nf-test/plugins/nft-utils/0.0.3/nft-utils-0.0.3.jar
+
+[1mTest Process AVERAGE_WIG[0m
+
+  [1mTest[0m [77fbbef7] 'passes through a single wiggle file unchanged' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-77fbbef7d667d9da35c0b5dd757b0cfd.nf` [small_lavoisier] - revision: fa57b86058
+    > [13/d8099c] Submitted process > AVERAGE_WIG (group1)
+    [32mPASSED[0m (3.688s)
+  [1mTest[0m [8ef7843d] 'averages multiple wiggle files across shared and non-shared positions' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-8ef7843dbc83bc7e64ab4353dd530a28.nf` [suspicious_heyrovsky] - revision: c5b6dd3da1
+    > [dd/eac286] Submitted process > AVERAGE_WIG (group1)
+    [32mPASSED[0m (3.616s)
+  [1mTest[0m [8c79a56b] 'average_wig - stub' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-8c79a56b54d118a0c88da2cecb37fb9d.nf` [sharp_ampere] - revision: fa57b86058
+    > [05/2a4036] Submitted process > AVERAGE_WIG (group1)
+    [32mPASSED[0m (3.522s)
+
+[1mTest Process RNAFRAMEWORK_DOTPLOT2BP[0m
+
+  [1mTest[0m [9d97c581] 'converts plus and minus strand dotplots into genomic bp arcs' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-9d97c5817b3ddf09c89a69d037928261.nf` [jovial_agnesi] - revision: b51810d5bb
+    > [f4/634991] Submitted process > RNAFRAMEWORK_DOTPLOT2BP (fold_group)
+    > WARN: Process `RNAFRAMEWORK_DOTPLOT2BP` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.749s)
+
+[1mTest Process ENSEMBL_GTF[0m
+
+  [1mTest[0m [cce8b45a] 'normalizes Latin binomial and downloads GTF from local Ensembl fixture' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-cce8b45a43399eaa86a499f306d86176.nf` [fabulous_koch] - revision: 1b26b5d6e8
+    > [42/48433f] Submitted process > ENSEMBL_GTF (human_fixture:Homo sapiens)
+    [32mPASSED[0m (3.623s)
+
+[1mTest Process ENSEMBL_TRANSCRIPTOME[0m
+
+  [1mTest[0m [780d77d8] 'normalizes Latin binomial and downloads transcript FASTA from local Ensembl fixture' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-780d77d8feb5e3dbf1dc170191e31d4.nf` [cranky_lamarr] - revision: b0f0ff9230
+    > WARN: Task runtime metrics are not reported when using macOS without a container engine
+    > [eb/7e46bc] Submitted process > ENSEMBL_TRANSCRIPTOME (human_fixture:Homo sapiens)
+    > WARN: Process `ENSEMBL_TRANSCRIPTOME` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.137s)
+  [1mTest[0m [4af2991a] 'continues with cdna only and warns when ncrna is absent' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-4af2991a3c06687f0c9cbe6dded084ee.nf` [distracted_leakey] - revision: 5ee9022d05
+    > WARN: Task runtime metrics are not reported when using macOS without a container engine
+    > [83/ff953d] Submitted process > ENSEMBL_TRANSCRIPTOME (worm_fixture:Caenorhabditis elegans)
+    > WARN: Process `ENSEMBL_TRANSCRIPTOME` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.105s)
+
+[1mTest Process FASTA_SORT[0m
+
+  [1mTest[0m [c6c8724f] 'sorts FASTA records lexicographically by sequence identifier' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-c6c8724ffc5525f88fc87817a0f2241b.nf` [condescending_brahmagupta] - revision: 114ac8a3ae
+    > WARN: Task runtime metrics are not reported when using macOS without a container engine
+    > [80/6b852c] Submitted process > FASTA_SORT (yeast_ref)
+    > WARN: Process `FASTA_SORT` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.146s)
+  [1mTest[0m [47925f41] 'normalizes yeast isoform transcript ids from hyphen to underscore before sorting' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-47925f41818b41787f7c77b186dc2ecc.nf` [amazing_ride] - revision: 9660a440e4
+    > WARN: Task runtime metrics are not reported when using macOS without a container engine
+    > [e0/d237be] Submitted process > FASTA_SORT (yeast_ref)
+    > WARN: Process `FASTA_SORT` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.212s)
+
+[1mTest Process MERGE_BP[0m
+
+  [1mTest[0m [34a76aea] 'merges multiple bp files into one file with color headers written exactly once' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-34a76aeaf2fbcb58cbd6c775699caa93.nf` [loquacious_fermi] - revision: 0306d55722
+    > [2d/5d8c58] Submitted process > MERGE_BP (test_group)
+    > WARN: Process `MERGE_BP` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.627s)
+  [1mTest[0m [18fc015a] 'single bp file passes through with color headers and data lines intact' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-18fc015a8212049592d47989632374ba.nf` [boring_carson] - revision: 3cdc7f023a
+    > [97/2332c9] Submitted process > MERGE_BP (single_group)
+    > WARN: Process `MERGE_BP` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.573s)
+  [1mTest[0m [9581423a] 'drops lines with empty or null fields and retains valid data lines' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-9581423a1496541d36ce18996d8a60c6.nf` [disturbed_ptolemy] - revision: 62b6a01f86
+    > [ca/7fc448] Submitted process > MERGE_BP (malformed_group)
+    > WARN: Process `MERGE_BP` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.642s)
+  [1mTest[0m [b810a8c6] 'merge_bp - stub' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-b810a8c6708ed366041e8c83acb33d0a.nf` [stoic_stone] - revision: 8840ff213c
+    > [5d/1e89d1] Submitted process > MERGE_BP (stub_group)
+    > WARN: Process `MERGE_BP` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.54s)
+
+[1mTest Process MERGE_SHANNON_WIG[0m
+
+  [1mTest[0m [335022a0] 'merge Shannon entropy wiggle files' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-335022a009700c77f490e2e659374d44.nf` [loving_brahmagupta] - revision: 32efa58e8f
+    > [16/731070] Submitted process > MERGE_SHANNON_WIG (group1)
+    [32mPASSED[0m (3.659s)
+  [1mTest[0m [340b28e7] 'merge Shannon entropy wiggle files - stub' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-340b28e7e8741f9e68b8ad207f604510.nf` [maniac_stonebraker] - revision: 4b4a4c125e
+    > [2a/58abb0] Submitted process > MERGE_SHANNON_WIG (group1)
+    [32mPASSED[0m (3.494s)
+
+[1mTest Process MERGE_WIG[0m
+
+  [1mTest[0m [e4e0a0dd] 'merge wiggle files' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-e4e0a0ddb002d2f034546146cf3b37f6.nf` [condescending_wright] - revision: aa598b48f6
+    > [e2/ebc566] Submitted process > MERGE_WIG (group1)
+    [32mPASSED[0m (3.549s)
+  [1mTest[0m [36894e93] 'merge wiggle files - stub' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-36894e93c5c6acba38dc29d52c1cd286.nf` [thirsty_kare] - revision: 60661f3b7a
+    > [2d/f5cbde] Submitted process > MERGE_WIG (group1)
+    [32mPASSED[0m (3.537s)
+
+[1mTest Process NCBI_FASTA[0m
+
+  [1mTest[0m [ce04ece3] 'downloads and gzip-compresses FASTA for pre-configured accessions using local fixture' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-ce04ece3a5092694d4c6afbfa743936e.nf` [reverent_nobel] - revision: 0fb05a9fbc
+    > WARN: Task runtime metrics are not reported when using macOS without a container engine
+    > [da/9d5b73] Submitted process > NCBI_FASTA (test_virus)
+    > WARN: Process `NCBI_FASTA` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.179s)
+
+[1mTest Process NCBI_GTF[0m
+
+  [1mTest[0m [776bcea8] 'generates synthetic single-exon GTF from gzipped FASTA fixture' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-776bcea82a6e2cb4c150bb6386b074fd.nf` [soggy_cray] - revision: eb635537ee
+    > WARN: Task runtime metrics are not reported when using macOS without a container engine
+    > [c8/cbed3a] Submitted process > NCBI_GTF (test_virus)
+    [32mPASSED[0m (3.177s)
+
+[1mTest Process R2DT[0m
+
+  [1mTest[0m [8b41b668] 'r2dt - stub produces output directory and versions' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-8b41b66862474e368b0f8d54629ba5e4.nf` [boring_marconi] - revision: 4a3946b964
+    > [64/b09351] Submitted process > R2DT (group1)
+    > WARN: Process `R2DT` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.372s)
+  [1mTest[0m [5c314552] 'r2dt - stub multiple xml inputs (replicates)' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-5c314552a097f5b0848646e1debd5cb7.nf` [extravagant_sinoussi] - revision: fd7aaab070
+    > [68/ea03ad] Submitted process > R2DT (group_multi)
+    > WARN: Process `R2DT` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.452s)
+  [1mTest[0m [a1a3120f] 'r2dt - stub publishDir strips prefix correctly' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-a1a3120f80df9978a955635db24516fd.nf` [nauseous_euclid] - revision: e1c13afc43
+    > [57/15f9a6] Submitted process > R2DT (group_publish)
+    [32mPASSED[0m (4.49s)
+
+[1mTest Process RNAFRAMEWORK_RFCOUNT[0m
+
+  [1mTest[0m [9b5f75f1] 'rfcount - stub' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-9b5f75f1eeb77ca61ad4699fb96ccc30.nf` [mad_einstein] - revision: 3602269174
+    > [08/8a896d] Submitted process > RNAFRAMEWORK_RFCOUNT (test)
+    > WARN: Process `RNAFRAMEWORK_RFCOUNT` publishDir path contains a variable with a null value
+    [32mPASSED[0m (5.448s)
+
+[1mTest Process RNAFRAMEWORK_RFCOUNT_GENOME[0m
+
+  [1mTest[0m [2eaeff5d] 'rfcount_genome - stub RT-stop' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-2eaeff5d05bea0bc8bb9203142da6f5a.nf` [goofy_heyrovsky] - revision: d92878688d
+    > [e0/2bf3fc] Submitted process > RNAFRAMEWORK_RFCOUNT_GENOME (test_rtstop)
+    > WARN: Process `RNAFRAMEWORK_RFCOUNT_GENOME` publishDir path contains a variable with a null value
+    [32mPASSED[0m (5.037s)
+  [1mTest[0m [ceafef6b] 'rfcount_genome - stub MaP' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-ceafef6b9763f4650dab6b0960bf9eca.nf` [sad_dijkstra] - revision: e9044997c4
+    > [7c/993a2f] Submitted process > RNAFRAMEWORK_RFCOUNT_GENOME (test_map)
+    > WARN: Process `RNAFRAMEWORK_RFCOUNT_GENOME` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.965s)
+  [1mTest[0m [2eb4c2f2] 'rfcount_genome - stub stranded' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-2eb4c2f2dff9a29bb088d9a6d1d4d0fe.nf` [desperate_ramanujan] - revision: d99a7b30ca
+    > [f2/6d4df6] Submitted process > RNAFRAMEWORK_RFCOUNT_GENOME (test_stranded)
+    > WARN: Process `RNAFRAMEWORK_RFCOUNT_GENOME` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.887s)
+
+[1mTest Process RNAFRAMEWORK_RFEVAL[0m
+
+  [1mTest[0m [7f1985cd] 'rfeval - stub single xml' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-7f1985cd702c71caa99cadc6fbe924f1.nf` [sad_mclean] - revision: d6b9fd86dd
+    > [7c/5d668c] Submitted process > RNAFRAMEWORK_RFEVAL (group1)
+    > WARN: Process `RNAFRAMEWORK_RFEVAL` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.842s)
+  [1mTest[0m [4d7610a5] 'rfeval - stub multiple xmls' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-4d7610a546b52377e2616ddf0502a068.nf` [astonishing_yonath] - revision: ce7fd5622b
+    > [61/c5416b] Submitted process > RNAFRAMEWORK_RFEVAL (group_multi)
+    > WARN: Process `RNAFRAMEWORK_RFEVAL` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.897s)
+  [1mTest[0m [8f64c413] 'rfeval - stub with plots' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-8f64c413e96de00d9256ba4f207440db.nf` [deadly_edison] - revision: bd15c9a86b
+    > [da/49ba81] Submitted process > RNAFRAMEWORK_RFEVAL (group_plots)
+    > WARN: Process `RNAFRAMEWORK_RFEVAL` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.853s)
+  [1mTest[0m [336fd47f] 'rfeval - stub with reactivity cutoff' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-336fd47fc0b1cfecec431f242ec61b36.nf` [big_leibniz] - revision: c911d90c6c
+    > [75/1f8673] Submitted process > RNAFRAMEWORK_RFEVAL (group_cutoff)
+    > WARN: Process `RNAFRAMEWORK_RFEVAL` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.594s)
+
+[1mTest Process RNAFRAMEWORK_RFFOLD[0m
+
+  [1mTest[0m [e56c65fc] 'rffold - stub single input' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-e56c65fca5f4191230011168a80dbe84.nf` [infallible_poisson] - revision: 6f5a9edc16
+    > [f3/7fe878] Submitted process > RNAFRAMEWORK_RFFOLD (group1)
+    > WARN: Process `RNAFRAMEWORK_RFFOLD` publishDir path contains a variable with a null value
+    [32mPASSED[0m (5.029s)
+  [1mTest[0m [bc54c1eb] 'rffold - stub multiple inputs' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-bc54c1ebad34c44fc54b4dd05e2422e1.nf` [distracted_dalembert] - revision: f11821ebb3
+    > [fa/b2ada9] Submitted process > RNAFRAMEWORK_RFFOLD (group_multi)
+    > WARN: Process `RNAFRAMEWORK_RFFOLD` publishDir path contains a variable with a null value
+    [32mPASSED[0m (5.322s)
+  [1mTest[0m [685789c7] 'rffold - stub publishes leaf outputs without copying the whole fold directory' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-685789c7f8288accef409828b492654.nf` [nauseous_pare] - revision: f4b165a0cc
+    > [19/4f111b] Submitted process > RNAFRAMEWORK_RFFOLD (group_publish)
+    [32mPASSED[0m (5.284s)
+
+[1mTest Process RNAFRAMEWORK_RFJACKKNIFE[0m
+
+  [1mTest[0m [d36a768f] 'rfjackknife - stub single xml' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-d36a768f912c805dbf295ac724ce8223.nf` [elated_fermat] - revision: bf356b4501
+    > [d1/1dce6b] Submitted process > RNAFRAMEWORK_RFJACKKNIFE (group1)
+    > WARN: Process `RNAFRAMEWORK_RFJACKKNIFE` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.969s)
+  [1mTest[0m [17813e4d] 'rfjackknife - stub multiple xmls' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-17813e4dfdd7e9df85936fb8c302e842.nf` [festering_dalembert] - revision: e8af48c2f5
+    > [04/bcb9ca] Submitted process > RNAFRAMEWORK_RFJACKKNIFE (group_multi)
+    > WARN: Process `RNAFRAMEWORK_RFJACKKNIFE` publishDir path contains a variable with a null value
+    [32mPASSED[0m (5.531s)
+  [1mTest[0m [7976bedf] 'rfjackknife - stub with img flag' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-7976bedf703e9c439e7542143bfe42e.nf` [cheesy_mayer] - revision: 0d7e01ac05
+    > [11/a0a4f0] Submitted process > RNAFRAMEWORK_RFJACKKNIFE (group_img)
+    > WARN: Process `RNAFRAMEWORK_RFJACKKNIFE` publishDir path contains a variable with a null value
+    [32mPASSED[0m (5.21s)
+
+[1mTest Process RNAFRAMEWORK_RFNORM[0m
+
+  [1mTest[0m [6185c37b] 'rfnorm - stub' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-6185c37bc382699058dba2b33e59145b.nf` [jolly_colden] - revision: 3ac23a259c
+    > [e5/c7c3ec] Submitted process > RNAFRAMEWORK_RFNORM (group1)
+    > WARN: Process `RNAFRAMEWORK_RFNORM` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.917s)
+
+[1mTest Process RNAFRAMEWORK_RFRCTOOLS_EXTRACT[0m
+
+  [1mTest[0m [d79eec91] 'rfrctools_extract - stub single rc file' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-d79eec915ea60304c347bfc4daa38a78.nf` [zen_gates] - revision: dd78de9c79
+    > [f9/1c473a] Submitted process > RNAFRAMEWORK_RFRCTOOLS_EXTRACT (test_sample)
+    > WARN: Process `RNAFRAMEWORK_RFRCTOOLS_EXTRACT` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.961s)
+  [1mTest[0m [2169d82d] 'rfrctools_extract - stub multiple rc files (stranded)' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-2169d82dd9ece2d69247934a446ee13.nf` [crazy_liskov] - revision: 865b5e1a54
+    > ERROR ~ Error executing process > 'RNAFRAMEWORK_RFRCTOOLS_EXTRACT (1)'
+    > 
+    > Caused by:
+    >   Process `RNAFRAMEWORK_RFRCTOOLS_EXTRACT` input file name collision -- There are multiple input files for each of the following file names: input/genome.fasta.fai
+    > 
+    > 
+    > 
+    > Container:
+    >   ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    > 
+    > Tip: you can replicate the issue by changing to the process work dir and entering the command `bash .command.run`
+    > 
+    >  -- Check '/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test/tests/2169d82dd9ece2d69247934a446ee13/meta/nextflow.log' file for details
+    > Execution cancelled -- Finishing pending tasks before exit
+    Assertion failed: 
+
+assert process.success
+       |       |
+       |       false
+       RNAFRAMEWORK_RFRCTOOLS_EXTRACT
+
+Assertion failed: 
+
+assert process.out.rc.size() == 1
+       |       |   |  |      |
+       |       |   [] 0      false
+       |       ['0':[], '1':[], '2':[], 'rc':[], 'rci':[], 'versions':[]]
+       RNAFRAMEWORK_RFRCTOOLS_EXTRACT
+
+Assertion failed: 
+
+assert process.out.rci.size() == 1
+       |       |   |   |      |
+       |       |   []  0      false
+       |       ['0':[], '1':[], '2':[], 'rc':[], 'rci':[], 'versions':[]]
+       RNAFRAMEWORK_RFRCTOOLS_EXTRACT
+
+[31mFAILED[0m (3.197s)
+
+  [31mAssertion failed: 
+  
+  3 of 3 assertions failed
+  [0m
+  [31mNextflow stdout:
+  
+  N E X T F L O W  ~  version 26.04.3
+  Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-2169d82dd9ece2d69247934a446ee13.nf` [crazy_liskov] - revision: 865b5e1a54
+  ERROR ~ Error executing process > 'RNAFRAMEWORK_RFRCTOOLS_EXTRACT (1)'
+  
+  Caused by:
+    Process `RNAFRAMEWORK_RFRCTOOLS_EXTRACT` input file name collision -- There are multiple input files for each of the following file names: input/genome.fasta.fai
+  
+  
+  
+  Container:
+    ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+  
+  Tip: you can replicate the issue by changing to the process work dir and entering the command `bash .command.run`
+  
+   -- Check '/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test/tests/2169d82dd9ece2d69247934a446ee13/meta/nextflow.log' file for details
+  Execution cancelled -- Finishing pending tasks before exit
+  Nextflow stderr:
+  
+  [0m
+
+  [1mTest[0m [3f28dbc4] 'rfrctools_extract - stub with gene_id attribute' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-3f28dbc48069550ec0919ad0502c211c.nf` [festering_curie] - revision: 8b5d2b18c8
+    > [8d/f89c98] Submitted process > RNAFRAMEWORK_RFRCTOOLS_EXTRACT (test_gene_id)
+    > WARN: Process `RNAFRAMEWORK_RFRCTOOLS_EXTRACT` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.72s)
+
+[1mTest Process RNAFRAMEWORK_RFWIGGLE[0m
+
+  [1mTest[0m [7b7b1b1a] 'rfwiggle - stub single xml' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-7b7b1b1a3f563464d790c02398644332.nf` [shrivelled_carson] - revision: a511a481d9
+    > [c7/3ad574] Submitted process > RNAFRAMEWORK_RFWIGGLE (group1)
+    > WARN: Process `RNAFRAMEWORK_RFWIGGLE` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.559s)
+  [1mTest[0m [d2636c2b] 'rfwiggle - stub multiple xmls' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-d2636c2bd4c9d747d330b5a883857b.nf` [stoic_curie] - revision: 81c8cfdcba
+    > [59/3eb956] Submitted process > RNAFRAMEWORK_RFWIGGLE (group_multi)
+    > WARN: Process `RNAFRAMEWORK_RFWIGGLE` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.613s)
+
+[1mTest Process RNAFRAMEWORK_TORDAT[0m
+
+  [1mTest[0m [f25767fd] 'tordat - produces rdat from xml and dotbracket' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-f25767fd707472ead95f23e819399a48.nf` [backstabbing_kilby] - revision: 5df984d90b
+    > [b7/1c3778] Submitted process > RNAFRAMEWORK_TORDAT (group1)
+    > WARN: Process `RNAFRAMEWORK_TORDAT` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.051s)
+  [1mTest[0m [444d72dd] 'tordat - aggregates replicate xml reactivities and writes standard error' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-444d72dd7d3c052c09c12bfcc20cf97.nf` [friendly_varahamihira] - revision: ec16a54578
+    > [a1/cd1318] Submitted process > RNAFRAMEWORK_TORDAT (group1)
+    > WARN: Process `RNAFRAMEWORK_TORDAT` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.778s)
+  [1mTest[0m [9c907af3] 'tordat - stub' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-9c907af3f1b8f12058c7c9441556dff1.nf` [pensive_shaw] - revision: 9138dc5221
+    > [3d/eb99eb] Submitted process > RNAFRAMEWORK_TORDAT (group1)
+    > WARN: Process `RNAFRAMEWORK_TORDAT` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.76s)
+
+[1mTest Process VIENNARNA[0m
+
+  [1mTest[0m [d05a00a8] 'viennarna - stub produces SVG output and versions' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-d05a00a8716cf77263ad1fced8632dd1.nf` [gloomy_hypatia] - revision: 531b7b43f7
+    > [fa/892b19] Submitted process > VIENNARNA (group1)
+    > WARN: Process `VIENNARNA` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.515s)
+  [1mTest[0m [67ca4061] 'viennarna - stub multiple xml inputs (replicates)' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-67ca40617f73e231b24cb00e8a3d67b0.nf` [admiring_stone] - revision: 5fc0180ea4
+    > [a2/7ea9b7] Submitted process > VIENNARNA (group_multi)
+    > WARN: Process `VIENNARNA` publishDir path contains a variable with a null value
+    [32mPASSED[0m (4.341s)
+  [1mTest[0m [10e2d092] 'viennarna - stub publishDir routes to 2D-structures/viennarna' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-10e2d09202d4ef5d401c51765e4417c0.nf` [zen_mandelbrot] - revision: 8f20236b76
+    > [7b/0a751a] Submitted process > VIENNARNA (group_publish)
+    [32mPASSED[0m (3.806s)
+
+[1mTest Process WIG_TO_GENOME[0m
+
+  [1mTest[0m [62216ae0] 'remaps transcript wiggle values into genomic coordinates' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-62216ae0d8eb325b095dbd0f5cfe54b6.nf` [tiny_lamarck] - revision: 770cc30fb3
+    > [15/1790f7] Submitted process > WIG_TO_GENOME (group1)
+    > WARN: Process `WIG_TO_GENOME` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.671s)
+  [1mTest[0m [a692441c] 'wig_to_genome - stub' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-a692441c061beca5c053b93050a7b643.nf` [fabulous_hamilton] - revision: 770cc30fb3
+    > [c8/da349c] Submitted process > WIG_TO_GENOME (group1)
+    > WARN: Process `WIG_TO_GENOME` publishDir path contains a variable with a null value
+    [32mPASSED[0m (3.637s)
+
+[1mTest Workflow PIPELINE_COMPLETION[0m
+
+  [1mTest[0m [d71b388b] 'Completes without notifications when optional hooks are unset' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-d71b388bff2e43132c3ad1093ac79986.nf` [ecstatic_kalam] - revision: 05f5637f33
+    > -[nf-core/rnastructurome] Pipeline completed successfully-
+    [32mPASSED[0m (3.119s)
+
+[1mTest Workflow PIPELINE_INITIALISATION[0m
+
+  [1mTest[0m [bb97bb88] 'Parses the samplesheet into the pipeline channel shape' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-bb97bb88fff0680502f39c24f7e9de5.nf` [sleepy_moriondo] - revision: 97f5a33679
+    > 
+    > -[2m----------------------------------------------------[0m-
+    >                                         [0;32m,--.[0;30m/[0;32m,-.[0m
+    > [0;34m        ___     __   __   __   ___     [0;32m/,-._.--~'[0m
+    > [0;34m  |\ | |__  __ /  ` /  \ |__) |__         [0;33m}  {[0m
+    > [0;34m  | \| |       \__, \__/ |  \ |___     [0;32m\`-._,-`-,[0m
+    >                                         [0;32m`._,._,'[0m
+    > [0;35m  nf-core/rnastructurome 1.0.0dev[0m
+    > -[2m----------------------------------------------------[0m-
+    > 
+    > Input/output options
+    >   input                                   : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/tests/data/rnastruct00001_samplesheet.star_test.csv
+    > 
+    > Reference genome options
+    >   fasta                                   : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/testdata/Homo_sapiens.GRCh38.MT.fa
+    >   gtf                                     : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/testdata/Homo_sapiens.GRCh38.MT.gtf
+    >   ensembl_species_map                     : [human:homo_sapiens, mouse:mus_musculus, yeast:saccharomyces_cerevisiae, rat:rattus_norvegicus]
+    >   ncbi_accessions_map                     : [influenza_a_virus_a_puerto_rico_8_1934_h1n1:[NC_002023.1, NC_002021.1, NC_002022.1, NC_002017.1, NC_002019.1, NC_002018.1, NC_002016.1, NC_002020.1], influenza_a_virus_a_wsn_1933_h1n1:[CY034139.1, CY034138.1, CY034137.1, CY034132.1, CY034135.1, CY034134.1, CY034133.1, CY034136.1], influenza_a_virus_a_udorn_307_1972_h3n2:[CY009643.1, CY009642.1, CY009641.1, CY009636.1, CY009639.1, CY009638.1, CY009637.1, CY009640.1], severe_acute_respiratory_syndrome_coronavirus_2_isolate_wuhan_hu_1:[NC_045512.2], severe_acute_respiratory_syndrome_coronavirus_2_isolate_usa_wa1_2020:[MT576563.1], severe_acute_respiratory_syndrome_coronavirus_2_isolate_leiden_0002:[MT510999.1], severe_acute_respiratory_syndrome_coronavirus_2_delta382_mutant:[NC_045512.2], dengue_virus_1_strain_eden2402:[EU081230.1], dengue_virus_2_strain_eden3295:[EU081177.1], dengue_virus_3_strain_eden863:[EU081190.1], dengue_virus_4_strain_eden2270:[GQ398256.1], dengue_virus_2_strain_s16803:[GU289914.1], zika_virus_french_polynesia_strain:[KJ776791.2], zika_virus_strain_hpf2013:[KJ776791.2], zika_virus_mr766:[NC_012532.1], zika_virus_strain_mr766:[AY632535.2], zika_virus_strain_beh815744:[KU365780.1], human_immunodeficiency_virus_1_nl4_3:[AF324493.2], rotavirus_a_strain_rf:[KF729687.1, KF729688.1, KF729689.1, KF729690.1, KF729691.1, KF729692.1, KF729693.1, KF729694.1, KF729695.1, KF729696.1, KF729697.1], escherichia_coli:[NC_000913.3]]
+    > 
+    > Sample metadata options
+    >   principle                               : RT-stop
+    > 
+    > Read trimming options
+    >   cutadapt_adapter_5p                     : AGATCGGAAGAGC
+    >   cutadapt_adapter_3p                     : AGATCGGAAGAGC
+    > 
+    > Alignment options
+    >   bowtie_k                                : 1
+    > 
+    > RNAframework options
+    >   rfcount_genome_map_quality              : 0
+    >   rfnorm_raw                              : true
+    >   rfnorm_nan                              : 0
+    >   rfjackknife_rf_fold_params              : -md 600 -x
+    >   rffold_vienna_rnaplot                   : $(command -v RNAplot)
+    >   rnaframework_r_path                     : $(command -v R)
+    > 
+    > Institutional config options
+    >   custom_config_base                      : null
+    >   config_profile_name                     : Test profile
+    >   config_profile_description              : Human mitochondrial chromosome test dataset to check pipeline function (STAR route)
+    > 
+    > Generic options
+    >   pipelines_testdata_base_path            : https://raw.githubusercontent.com/nf-core/test-datasets/refs/heads/rnastructurome
+    >   trace_report_suffix                     : 2026-06-12_14-36-15
+    > 
+    > Core Nextflow options
+    >   runName                                 : sleepy_moriondo
+    >   containerEngine                         : docker
+    >   container.RNAFRAMEWORK_RFCOUNT_GENOME   : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFRCTOOLS_EXTRACT: ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFJACKKNIFE      : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFEVAL           : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFCOUNT          : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFNORM           : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFFOLD           : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFWIGGLE         : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.VIENNARNA                     : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   launchDir                               : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test/tests/bb97bb88fff0680502f39c24f7e9de5
+    >   workDir                                 : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test/tests/bb97bb88fff0680502f39c24f7e9de5/work
+    >   projectDir                              : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome
+    >   userName                                : begley
+    >   profile                                 : test,docker
+    >   configFiles                             : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/nextflow.config, /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/nextflow.config, /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/tests/nextflow.config, /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/subworkflows/local/utils_nfcore_rnastructurome_pipeline/tests/./nextflow.config
+    > 
+    > !! Only displaying parameters that differ from the pipeline defaults !!
+    > ------------------------------------------------------
+    > 
+    > * The nf-core framework
+    >     https://doi.org/10.1038/s41587-020-0439-x
+    > 
+    > * Software dependencies
+    >     https://github.com/nf-core/rnastructurome/blob/master/CITATIONS.md
+    > 
+    [32mPASSED[0m (3.244s)
+  [1mTest[0m [3d035a61] 'Fails early when outdir is the literal null string' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test-3d035a611a9da5da0864182c9ffa167d.nf` [cranky_wegener] - revision: 69d23e0bb8
+    > Missing required parameter: --outdir. Provide an output directory path.
+    [32mPASSED[0m (3.111s)
+
+[1mTest pipeline[0m
+
+  [1mTest[0m [aad25941] '-profile test' 
+    > N E X T F L O W  ~  version 26.04.3
+    > Launching `/Users/begley/Documents/RNAcentral/nf-core-rnastructurome/tests/../main.nf` [compassionate_brenner] - revision: f5e4748662
+    > 
+    > -[2m----------------------------------------------------[0m-
+    >                                         [0;32m,--.[0;30m/[0;32m,-.[0m
+    > [0;34m        ___     __   __   __   ___     [0;32m/,-._.--~'[0m
+    > [0;34m  |\ | |__  __ /  ` /  \ |__) |__         [0;33m}  {[0m
+    > [0;34m  | \| |       \__, \__/ |  \ |___     [0;32m\`-._,-`-,[0m
+    >                                         [0;32m`._,._,'[0m
+    > [0;35m  nf-core/rnastructurome 1.0.0dev[0m
+    > -[2m----------------------------------------------------[0m-
+    > 
+    > Input/output options
+    >   input                                   : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test/tests/aad2594179009e936085d08df60199a8/output/rnastruct00001_samplesheet.first2.trim_subset_top3.csv
+    >   outdir                                  : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test/tests/aad2594179009e936085d08df60199a8/output
+    > 
+    > Reference genome options
+    >   fasta                                   : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/testdata/Homo_sapiens.GRCh38.MT.fa
+    >   gtf                                     : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/testdata/Homo_sapiens.GRCh38.MT.gtf
+    >   ensembl_species_map                     : [human:homo_sapiens, mouse:mus_musculus, yeast:saccharomyces_cerevisiae, rat:rattus_norvegicus]
+    >   ncbi_accessions_map                     : [influenza_a_virus_a_puerto_rico_8_1934_h1n1:[NC_002023.1, NC_002021.1, NC_002022.1, NC_002017.1, NC_002019.1, NC_002018.1, NC_002016.1, NC_002020.1], influenza_a_virus_a_wsn_1933_h1n1:[CY034139.1, CY034138.1, CY034137.1, CY034132.1, CY034135.1, CY034134.1, CY034133.1, CY034136.1], influenza_a_virus_a_udorn_307_1972_h3n2:[CY009643.1, CY009642.1, CY009641.1, CY009636.1, CY009639.1, CY009638.1, CY009637.1, CY009640.1], severe_acute_respiratory_syndrome_coronavirus_2_isolate_wuhan_hu_1:[NC_045512.2], severe_acute_respiratory_syndrome_coronavirus_2_isolate_usa_wa1_2020:[MT576563.1], severe_acute_respiratory_syndrome_coronavirus_2_isolate_leiden_0002:[MT510999.1], severe_acute_respiratory_syndrome_coronavirus_2_delta382_mutant:[NC_045512.2], dengue_virus_1_strain_eden2402:[EU081230.1], dengue_virus_2_strain_eden3295:[EU081177.1], dengue_virus_3_strain_eden863:[EU081190.1], dengue_virus_4_strain_eden2270:[GQ398256.1], dengue_virus_2_strain_s16803:[GU289914.1], zika_virus_french_polynesia_strain:[KJ776791.2], zika_virus_strain_hpf2013:[KJ776791.2], zika_virus_mr766:[NC_012532.1], zika_virus_strain_mr766:[AY632535.2], zika_virus_strain_beh815744:[KU365780.1], human_immunodeficiency_virus_1_nl4_3:[AF324493.2], rotavirus_a_strain_rf:[KF729687.1, KF729688.1, KF729689.1, KF729690.1, KF729691.1, KF729692.1, KF729693.1, KF729694.1, KF729695.1, KF729696.1, KF729697.1], escherichia_coli:[NC_000913.3]]
+    > 
+    > Sample metadata options
+    >   principle                               : RT-stop
+    > 
+    > Read trimming options
+    >   cutadapt_adapter_5p                     : AGATCGGAAGAGC
+    >   cutadapt_adapter_3p                     : AGATCGGAAGAGC
+    > 
+    > Alignment options
+    >   bowtie_k                                : 1
+    > 
+    > RNAframework options
+    >   rfcount_genome_map_quality              : 0
+    >   rfnorm_raw                              : true
+    >   rfnorm_nan                              : 0
+    >   rfjackknife_rf_fold_params              : -md 600 -x
+    >   rffold_vienna_rnaplot                   : $(command -v RNAplot)
+    >   rnaframework_r_path                     : $(command -v R)
+    > 
+    > Institutional config options
+    >   custom_config_base                      : null
+    >   config_profile_name                     : Test profile
+    >   config_profile_description              : Human mitochondrial chromosome test dataset to check pipeline function (STAR route)
+    > 
+    > Generic options
+    >   pipelines_testdata_base_path            : https://raw.githubusercontent.com/nf-core/test-datasets/refs/heads/rnastructurome
+    >   trace_report_suffix                     : 2026-06-12_14-36-22
+    > 
+    > Core Nextflow options
+    >   runName                                 : compassionate_brenner
+    >   containerEngine                         : docker
+    >   container.RNAFRAMEWORK_RFCOUNT_GENOME   : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFRCTOOLS_EXTRACT: ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFJACKKNIFE      : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFEVAL           : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFCOUNT          : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFNORM           : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFFOLD           : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.RNAFRAMEWORK_RFWIGGLE         : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   container.VIENNARNA                     : ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35
+    >   launchDir                               : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test/tests/aad2594179009e936085d08df60199a8
+    >   workDir                                 : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/.nf-test/tests/aad2594179009e936085d08df60199a8/work
+    >   projectDir                              : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome
+    >   userName                                : begley
+    >   profile                                 : test,docker
+    >   configFiles                             : /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/nextflow.config, /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/nextflow.config, /Users/begley/Documents/RNAcentral/nf-core-rnastructurome/tests/nextflow.config
+    > 
+    > !! Only displaying parameters that differ from the pipeline defaults !!
+    > ------------------------------------------------------
+    > 
+    > * The nf-core framework
+    >     https://doi.org/10.1038/s41587-020-0439-x
+    > 
+    > * Software dependencies
+    >     https://github.com/nf-core/rnastructurome/blob/master/CITATIONS.md
+    > 
+    > WARN: The following invalid input values have been detected:
+    > 
+    > * --modules_testdata_base_path: https://raw.githubusercontent.com/nf-core/test-datasets/modules/data/
+    > 
+    > 
+    > [06/0f4f67] Submitted process > NFCORE_RNASTRUCTUROME:RNASTRUCTUROME:CAT_FASTQ (HEK293T_untreated_r1)
+    > [11/0fdad4] Submitted process > NFCORE_RNASTRUCTUROME:RNASTRUCTUROME:CAT_FASTQ (HEK293T_treated_r1)
+    > [04/929c68] Submitted process > NFCORE_RNASTRUCTUROME:RNASTRUCTUROME:FASTQC_PRE (HEK293T_treated_r1)
+    > [4a/3a073c] Submitted process > NFCORE_RNASTRUCTUROME:RNASTRUCTUROME:FASTA_SORT_LOCAL (homo_sapiens)
+    > [9a/2b443d] Submitted process > NFCORE_RNASTRUCTUROME:RNASTRUCTUROME:SAMTOOLS_FAIDX (homo_sapiens.sorted.fa)

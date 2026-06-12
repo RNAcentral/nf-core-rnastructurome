@@ -785,6 +785,33 @@
                 }
             }
         },
+        "executor_options": {
+            "title": "Executor options",
+            "type": "object",
+            "fa_icon": "fas fa-server",
+            "description": "Cluster/executor parameters consumed by the `slurm` profile.",
+            "help_text": "These parameters are read by the generic `slurm` profile to set the SLURM partition, account, and any additional sbatch flags. They have no effect when the `slurm` profile is not active. Use the EBI-specific `codon` profile if you want the EBI Codon defaults without supplying these.",
+            "properties": {
+                "slurm_queue": {
+                    "type": "string",
+                    "description": "SLURM partition / queue name passed via `--partition`.",
+                    "help_text": "Translates to `process.queue` inside the `slurm` profile. Leave unset to omit `--partition` and use the cluster default.",
+                    "fa_icon": "fas fa-stream"
+                },
+                "slurm_account": {
+                    "type": "string",
+                    "description": "SLURM account / allocation passed via `--account`.",
+                    "help_text": "Appended to `process.clusterOptions` inside the `slurm` profile.",
+                    "fa_icon": "fas fa-id-card"
+                },
+                "slurm_clusterOptions": {
+                    "type": "string",
+                    "description": "Extra sbatch flags appended verbatim to `process.clusterOptions`.",
+                    "help_text": "Use for site-specific sbatch arguments (e.g. `--qos=highmem --constraint=avx2`). Combined with `--slurm_account` when both are provided.",
+                    "fa_icon": "fas fa-sliders-h"
+                }
+            }
+        },
         "generic_options": {
             "title": "Generic options",
             "type": "object",
@@ -916,6 +943,9 @@
         },
         {
             "$ref": "#/$defs/institutional_config_options"
+        },
+        {
+            "$ref": "#/$defs/executor_options"
         },
         {
             "$ref": "#/$defs/generic_options"

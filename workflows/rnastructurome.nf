@@ -441,10 +441,12 @@ workflow RNASTRUCTUROME {
         .map { key, value -> [ (key): value ] }
         .collect()
         .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
+        .first()
     ch_reference_gtf_map     = ch_reference_gtf_keyed
         .map { key, value -> [ (key): value ] }
         .collect()
         .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
+        .first()
 
     // Genome FASTA map for STAR index building.
     // For Ensembl species: ENSEMBL_GENOME output (soft-masked genome).
@@ -523,6 +525,7 @@ workflow RNASTRUCTUROME {
             .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
             .collect()
             .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
+            .first()
     }
 
     if (pipeline_config.transcriptome) {
@@ -531,6 +534,7 @@ workflow RNASTRUCTUROME {
             .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
             .collect()
             .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
+            .first()
     }
 
     if (pipeline_config.transcriptome) {
@@ -539,6 +543,7 @@ workflow RNASTRUCTUROME {
             .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
             .collect()
             .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
+            .first()
     }
 
     //

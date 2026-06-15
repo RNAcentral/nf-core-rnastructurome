@@ -1123,15 +1123,21 @@ workflow RNASTRUCTUROME {
     if (pipeline_config.jackknife_reference) {
         def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
 
-        // Optionally pool XMLs from all cell-line groups into one jackknife run
+        // Jackknife runs per rfnorm group (cell_line + replicate), not per fold group.
+        // Fold groups flatten XMLs from multiple replicates which produce identically-named
+        // files (e.g. 16S_rRNA.xml), causing Nextflow staging collisions in input0/.
         def ch_jackknife_input
         if (pipeline_config.rfjackknife_pool_all as Boolean) {
-            ch_jackknife_input = ch_fold_input
-                .flatMap { _meta, xmls -> xmls }
+            // Deduplicate by transcript filename so each transcript appears only once.
+            ch_jackknife_input = RNAFRAMEWORK_RFNORM.out.xml
+                .flatMap { _meta, xmls -> xmls instanceof List ? xmls : [xmls] }
+                .map { xml -> [ xml.name, xml ] }
+                .groupTuple()
+                .map { _name, xmls -> xmls[0] }
                 .collect()
-                .map { all_xmls -> [ [ id: 'all_groups', fold_group: 'all_groups' ], all_xmls ] }
+                .map { deduped_xmls -> [ [ id: 'all_groups', fold_group: 'all_groups' ], deduped_xmls ] }
         } else {
-            ch_jackknife_input = ch_fold_input
+            ch_jackknife_input = RNAFRAMEWORK_RFNORM.out.xml
         }
 
         RNAFRAMEWORK_RFJACKKNIFE (
@@ -1147,9 +1153,15 @@ workflow RNASTRUCTUROME {
                 .combine(ch_jackknife_done)
                 .map { meta, xmls, _done -> [ meta, xmls ] }
         } else {
+            // Gate each fold group on all jackknife jobs for that cell_line completing.
             ch_fold_for_rffold = ch_fold_input
                 .map { meta, xmls -> [ meta.id.toString(), meta, xmls ] }
-                .join(RNAFRAMEWORK_RFJACKKNIFE.out.csv.map { meta, _csv -> [ meta.id.toString(), 'done' ] })
+                .join(
+                    RNAFRAMEWORK_RFJACKKNIFE.out.csv
+                        .map { meta, _csv -> [ meta.cell_line.toString(), 'done' ] }
+                        .groupTuple()
+                        .map { cell_line, _dones -> [ cell_line, 'done' ] }
+                )
                 .map { _id, meta, xmls, _done -> [ meta, xmls ] }
         }
     }

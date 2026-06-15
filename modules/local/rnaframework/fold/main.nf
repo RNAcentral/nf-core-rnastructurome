@@ -28,6 +28,10 @@ process RNAFRAMEWORK_RFFOLD {
     // point to the conda-installed ViennaRNA Perl bindings (RNA.pm) and must be preserved.
     def inContainer = workflow.containerEngine && workflow.containerEngine != 'none'
     def perlEnvCleanup = (isArm64 && inContainer) ? 'unset PERL5LIB PERL_LOCAL_LIB_ROOT PERL_MB_OPT PERL_MM_OPT' : ''
+    def sl_m          = (args =~ /-sl\s+(\S+)/)
+    def in_m          = (args =~ /-in\s+(\S+)/)
+    def slope_log     = sl_m ? sl_m[0][1] : 'not set'
+    def intercept_log = in_m ? in_m[0][1] : 'not set'
     """
     export TERM="\${TERM:-xterm}"
     ${perlEnvCleanup}
@@ -35,13 +39,14 @@ process RNAFRAMEWORK_RFFOLD {
     rffold_dedup_xml.sh
 
     log_tmp=\$(mktemp "${prefix}_fold.XXXXXX.log")
+    printf 'slope=%s intercept=%s\n' "${slope_log}" "${intercept_log}" > "\${log_tmp}"
 
     rf-fold \\
         -p ${task.cpus} \\
         -o ${prefix}_fold \\
         -ow \\
         ${args} \\
-        unique_xml/ 2>&1 | tee "\${log_tmp}"
+        unique_xml/ 2>&1 | tee -a "\${log_tmp}"
 
     mkdir -p ${prefix}_fold
     mv "\${log_tmp}" ${prefix}_fold/rffold.log

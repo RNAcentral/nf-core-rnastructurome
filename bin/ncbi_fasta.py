@@ -65,8 +65,33 @@ def parse_args() -> argparse.Namespace:
 
 
 def _get(url: str) -> bytes:
-    with urllib.request.urlopen(url, timeout=120) as response:
-        return response.read()
+    for attempt in range(MAX_RETRIES):
+        try:
+            with urllib.request.urlopen(url, timeout=120) as response:
+                return response.read()
+        except urllib.error.HTTPError as exc:
+            if exc.code in (429, 500, 502, 503, 504) and attempt < MAX_RETRIES - 1:
+                delay = RETRY_BASE_DELAY * (2 ** attempt)
+                print(
+                    f"[NCBI_FASTA] HTTP {exc.code} on attempt {attempt + 1}/{MAX_RETRIES}. "
+                    f"Retrying in {delay}s ...",
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+            else:
+                raise
+        except urllib.error.URLError as exc:
+            if attempt < MAX_RETRIES - 1:
+                delay = RETRY_BASE_DELAY * (2 ** attempt)
+                print(
+                    f"[NCBI_FASTA] URL error on attempt {attempt + 1}/{MAX_RETRIES}: {exc}. "
+                    f"Retrying in {delay}s ...",
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+            else:
+                raise
+    raise RuntimeError("unreachable")  # pragma: no cover
 
 
 def search_ncbi_accessions(

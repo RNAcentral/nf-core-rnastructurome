@@ -28,7 +28,6 @@ include { SAMTOOLS_FLAGSTAT     } from '../modules/nf-core/samtools/flagstat/mai
 include { SAMTOOLS_FLAGSTAT as SAMTOOLS_FLAGSTAT_PRE } from '../modules/nf-core/samtools/flagstat/main'
 include { SAMTOOLS_IDXSTATS     } from '../modules/nf-core/samtools/idxstats/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
-include { SAMTOOLS_FAIDX        } from '../modules/nf-core/samtools/faidx/main'
 include { RNAFRAMEWORK_RFCOUNT         } from '../modules/local/rnaframework/count/main'
 include { RNAFRAMEWORK_RFCOUNT_GENOME      } from '../modules/local/rnaframework/count_genome/main'
 include { RNAFRAMEWORK_RFRCTOOLS_EXTRACT   } from '../modules/local/rnaframework/rctools/extract/main'
@@ -272,20 +271,29 @@ workflow RNASTRUCTUROME {
                 original_organism: original_organism ], ensembl_species ]
         }
 
-    ENSEMBL_TRANSCRIPTOME (
-        ch_reference_ensembl_input,
-        [
-            ensembl_release : pipeline_config.ensembl_release,
-            ensembl_base_url: pipeline_config.ensembl_base_url
-        ],
-        file("${projectDir}/bin/ensembl_transcriptome.py", checkIfExists: true)
-    )
-    ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
+    // Ensembl downloads are mutually exclusive: genome mode downloads the soft-masked
+    // genome FASTA (for STAR); transcriptome mode downloads the cDNA FASTA (for Bowtie).
+    // ch_ensembl_not_found triggers NCBI fallback for species absent from Ensembl in both modes.
+    // ch_ensembl_fasta_source_url carries the download URL(s) for provenance reporting.
+    def ch_ensembl_not_found        = channel.empty()
+    def ch_ensembl_fasta_source_url = channel.empty()
+    def ch_reference_genome_fasta_keyed = channel.empty()
+
+    if (pipeline_config.transcriptome) {
+        ENSEMBL_TRANSCRIPTOME (
+            ch_reference_ensembl_input,
+            [
+                ensembl_release : pipeline_config.ensembl_release,
+                ensembl_base_url: pipeline_config.ensembl_base_url
+            ],
+            file("${projectDir}/bin/ensembl_transcriptome.py", checkIfExists: true)
+        )
+        ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
+        ch_ensembl_not_found        = ENSEMBL_TRANSCRIPTOME.out.not_found
+        ch_ensembl_fasta_source_url = ENSEMBL_TRANSCRIPTOME.out.source_urls
+    }
 
     // MODULE: ENSEMBL_GENOME — download soft-masked genome FASTA for STAR alignment.
-    // Only runs when at least one aligner is set to 'star'.  Uses the same species
-    // input channel as ENSEMBL_TRANSCRIPTOME so no extra resolution logic is needed.
-    def ch_reference_genome_fasta_keyed = channel.empty()
     if (!pipeline_config.transcriptome) {
         ENSEMBL_GENOME(
             ch_reference_ensembl_input,
@@ -298,12 +306,14 @@ workflow RNASTRUCTUROME {
         ch_versions = ch_versions.mix(ENSEMBL_GENOME.out.versions)
         ch_reference_genome_fasta_keyed = ENSEMBL_GENOME.out.fasta
             .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+        ch_ensembl_not_found        = ENSEMBL_GENOME.out.not_found
+        ch_ensembl_fasta_source_url = ENSEMBL_GENOME.out.source_url
     }
 
     // Organisms not found on Ensembl FTP are routed to NCBI_FASTA for automatic accession
     // search.  meta.original_organism carries the raw samplesheet organism string used as
     // the esearch query when no accessions are pre-configured.
-    ch_reference_ncbi_from_ensembl = ENSEMBL_TRANSCRIPTOME.out.not_found
+    ch_reference_ncbi_from_ensembl = ch_ensembl_not_found
         .map { meta, _not_found_file -> [ meta, "" ] }
 
     ch_reference_ncbi_explicit = ch_reference_requests
@@ -406,11 +416,15 @@ workflow RNASTRUCTUROME {
     )
     ch_versions = ch_versions.mix(FASTA_SORT_LOCAL.out.versions)
 
-    FASTA_SORT_ENSEMBL (
-        ENSEMBL_TRANSCRIPTOME.out.fasta,
-        ch_fasta_sort_script
-    )
-    ch_versions = ch_versions.mix(FASTA_SORT_ENSEMBL.out.versions)
+    def ch_fasta_sort_ensembl_out = channel.empty()
+    if (pipeline_config.transcriptome) {
+        FASTA_SORT_ENSEMBL (
+            ENSEMBL_TRANSCRIPTOME.out.fasta,
+            ch_fasta_sort_script
+        )
+        ch_versions = ch_versions.mix(FASTA_SORT_ENSEMBL.out.versions)
+        ch_fasta_sort_ensembl_out = FASTA_SORT_ENSEMBL.out.fasta
+    }
 
     FASTA_SORT_NCBI (
         NCBI_FASTA.out.fasta,
@@ -419,7 +433,7 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(FASTA_SORT_NCBI.out.versions)
 
     ch_reference_fasta_keyed = FASTA_SORT_LOCAL.out.fasta
-        .mix(FASTA_SORT_ENSEMBL.out.fasta)
+        .mix(ch_fasta_sort_ensembl_out)
         .mix(FASTA_SORT_NCBI.out.fasta)
         .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
     ch_reference_gtf_keyed   = ch_all_reference_gtf.map { meta, gtf -> [ meta.id.toString(), [meta, gtf] ] }
@@ -703,14 +717,6 @@ workflow RNASTRUCTUROME {
     //
     UMITOOLS_DEDUP (
         dedup_branches.umi,
-        false
-    )
-
-    //
-    // MODULE: samtools faidx — index reference FASTA for markdup
-    //
-    SAMTOOLS_FAIDX (
-        FASTA_SORT_LOCAL.out.fasta.mix(FASTA_SORT_ENSEMBL.out.fasta).map { meta, fasta -> [meta, fasta, []] },
         false
     )
 
@@ -1405,7 +1411,7 @@ workflow RNASTRUCTUROME {
         ch_ref_gtf_names = FASTA_SORT_LOCAL.out.fasta
             .map { meta, _fasta -> [ meta.id.toString(), local_gtf_name ] }
     } else {
-        ch_ref_fasta_names = ENSEMBL_TRANSCRIPTOME.out.source_urls
+        ch_ref_fasta_names = ch_ensembl_fasta_source_url
             .map { meta, urls_file ->
                 def names = urls_file.readLines().findAll { line -> line.trim() }
                     .collect { line -> line.tokenize('/').last() }.join(' + ')

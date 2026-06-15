@@ -1617,6 +1617,7 @@ def defaultPipelineConfig() {
         bowtie2_ma                        : 2,
         bowtie2_dovetail                  : false,
         jackknife_reference               : null,
+        rfjackknife_pool_all              : false,
         rfnorm_reactive_bases             : null,
         rfnorm_remap_reactivities         : false,
         rfnorm_norm_window                : null,

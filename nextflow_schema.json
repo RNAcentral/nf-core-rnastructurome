@@ -603,7 +603,7 @@
                 "rfjackknife_mfmi": {
                     "type": "boolean",
                     "description": "Use modified FMI (Lan et al. 2022) instead of standard FMI in rf-jackknife (`-m`).",
-                    "default": true
+                    "default": false
                 },
                 "rfjackknife_only_common": {
                     "type": "boolean",
@@ -618,6 +618,11 @@
                 "rfjackknife_rf_fold_params": {
                     "type": "string",
                     "description": "Additional rf-fold parameters passed inside rf-jackknife (`-rp`), e.g. `-md 500`."
+                },
+                "rfjackknife_pool_all": {
+                    "type": "boolean",
+                    "description": "Pool XMLs from all cell-line groups into a single rf-jackknife run (output: `jackknife/all_groups/`) instead of running one jackknife per group.",
+                    "default": false
                 },
                 "rfrctools_gtf_feature": {
                     "type": "string",

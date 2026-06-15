@@ -1123,16 +1123,35 @@ workflow RNASTRUCTUROME {
     if (pipeline_config.jackknife_reference) {
         def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
 
+        // Optionally pool XMLs from all cell-line groups into one jackknife run
+        def ch_jackknife_input
+        if (pipeline_config.rfjackknife_pool_all as Boolean) {
+            ch_jackknife_input = ch_fold_input
+                .flatMap { _meta, xmls -> xmls }
+                .collect()
+                .map { all_xmls -> [ [ id: 'all_groups', fold_group: 'all_groups' ], all_xmls ] }
+        } else {
+            ch_jackknife_input = ch_fold_input
+        }
+
         RNAFRAMEWORK_RFJACKKNIFE (
-            ch_fold_input,
+            ch_jackknife_input,
             ch_jackknife_reference
         )
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFJACKKNIFE.out.versions.first())
 
-        ch_fold_for_rffold = ch_fold_input
-            .map { meta, xmls -> [ meta.id.toString(), meta, xmls ] }
-            .join(RNAFRAMEWORK_RFJACKKNIFE.out.csv.map { meta, _csv -> [ meta.id.toString(), 'done' ] })
-            .map { _id, meta, xmls, _done -> [ meta, xmls ] }
+        if (pipeline_config.rfjackknife_pool_all as Boolean) {
+            // Broadcast the single pooled-jackknife completion to all fold groups
+            def ch_jackknife_done = RNAFRAMEWORK_RFJACKKNIFE.out.csv.map { _meta, _csv -> 'done' }
+            ch_fold_for_rffold = ch_fold_input
+                .combine(ch_jackknife_done)
+                .map { meta, xmls, _done -> [ meta, xmls ] }
+        } else {
+            ch_fold_for_rffold = ch_fold_input
+                .map { meta, xmls -> [ meta.id.toString(), meta, xmls ] }
+                .join(RNAFRAMEWORK_RFJACKKNIFE.out.csv.map { meta, _csv -> [ meta.id.toString(), 'done' ] })
+                .map { _id, meta, xmls, _done -> [ meta, xmls ] }
+        }
     }
 
     RNAFRAMEWORK_RFFOLD (

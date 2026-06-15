@@ -605,6 +605,21 @@
                     "description": "Use modified FMI (Lan et al. 2022) instead of standard FMI in rf-jackknife (`-m`).",
                     "default": false
                 },
+                "rfjackknife_relaxed": {
+                    "type": "boolean",
+                    "description": "Use relaxed FMI criteria (Deigan et al. 2009) in rf-jackknife (`-x`).",
+                    "default": false
+                },
+                "rfjackknife_keep_lonelypairs": {
+                    "type": "boolean",
+                    "description": "Retain lonely base-pairs (1 bp helices) in the reference structure before comparison (`-kl`).",
+                    "default": true
+                },
+                "rfjackknife_keep_pseudoknots": {
+                    "type": "boolean",
+                    "description": "Retain pseudoknotted base-pairs (`[]` notation) in the reference structure before comparison (`-kp`). Required when using reference files that mark pseudoknots explicitly.",
+                    "default": true
+                },
                 "rfjackknife_only_common": {
                     "type": "boolean",
                     "description": "Only use transcripts present across all replicates in rf-jackknife (`-oc`).",

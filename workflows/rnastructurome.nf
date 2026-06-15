@@ -1130,7 +1130,7 @@ workflow RNASTRUCTUROME {
         if (pipeline_config.rfjackknife_pool_all as Boolean) {
             // Deduplicate by transcript filename so each transcript appears only once.
             ch_jackknife_input = RNAFRAMEWORK_RFNORM.out.xml
-                .flatMap { _meta, xmls -> xmls instanceof List ? xmls : [xmls] }
+                .flatMap { _meta, xmls -> [xmls].flatten() }
                 .map { xml -> [ xml.name, xml ] }
                 .groupTuple()
                 .map { _name, xmls -> xmls[0] }

@@ -39,7 +39,7 @@ process RNAFRAMEWORK_RFFOLD {
     rffold_dedup_xml.sh
 
     log_tmp=\$(mktemp "${prefix}_fold.XXXXXX.log")
-    printf 'slope=%s intercept=%s\n' "${slope_log}" "${intercept_log}" > "\${log_tmp}"
+    printf 'slope=%s intercept=%s\n' "${slope_log}" "${intercept_log}" >> "\${log_tmp}"
 
     rf-fold \\
         -p ${task.cpus} \\

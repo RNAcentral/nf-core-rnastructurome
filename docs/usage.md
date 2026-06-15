@@ -6,16 +6,16 @@
 
 ## Introduction
 
-`nf-core/rnastructurome` processes structure-probing RNA-seq data from FASTQ to normalized reactivities and secondary structure outputs.
+`nf-core/rnastructurome` processes structure-probing data from FASTQ to normalized reactivities and secondary structure outputs.
 
 High-level workflow:
 
 1. Input QC and trimming (`FastQC`, `cutadapt`, optional `umi_tools extract`)
 2. Reference download — genome FASTA + GTF from Ensembl (NCBI fallback for bacteria/viruses)
 3. Alignment (`STAR`) and BAM post-processing (`samtools`, optional `umi_tools dedup`)
-4. Reactivity counting (`rf-count`) for RT-stop and MaP
-5. Reactivity normalization (`rf-norm`) using available controls
-6. Normalisation quality assessment (`rf-jackknife`) against a reference structure set
+4. Reactivity counting (`rf-count`) for RT-stop and MaP; genome route additionally runs `rf-rctools extract` to convert genome-level counts to transcript-level
+5. Reactivity normalization (`rf-norm`) using available controls; per-transcript WIG tracks produced by `rf-wiggle`
+6. Normalisation quality assessment (`rf-jackknife`) against a reference structure set — optional, runs only when `--jackknife_reference` is provided
 7. Structure inference (`rf-fold`) from normalized XMLs
 8. Aggregated reporting (`MultiQC`)
 
@@ -53,6 +53,26 @@ nextflow run main.nf -profile docker \
   -resume
 ```
 
+## Passing parameters
+
+You can pass parameters via a YAML params file rather than on the command line:
+
+```bash
+nextflow run nf-core/rnastructurome -profile docker -params-file params.yaml
+```
+
+```yaml title="params.yaml"
+input: "./samplesheet.csv"
+outdir: "./results/"
+genome_fasta: "./genome.fa.gz"
+gtf: "./annotation.gtf.gz"
+jackknife_reference: "./known_structures.db"
+rfnorm_nan: 100
+```
+
+> [!WARNING]
+> Use `-params-file` for pipeline parameters. Do not use `-c` for ordinary pipeline params — `-c` is for Nextflow config overrides (resources, execution behaviour) only.
+
 ## Required inputs
 
 1. A samplesheet (`--input`) — see [Samplesheet input](#samplesheet-input) below.
@@ -66,6 +86,8 @@ nextflow run main.nf -profile docker \
 The pipeline downloads a soft-masked genome assembly (`dna_sm.toplevel.fa.gz`) from Ensembl and the corresponding GTF, then builds a STAR index and aligns with splice-junction awareness. This always fetches the current Ensembl release (e.g. GRCh38 for human, not the older GRCh37/hg19).
 
 For organisms not present in Ensembl (bacteria, viruses) the pipeline falls back to NCBI automatically using pre-configured accessions (see `conf/viral_genomes.config`, `conf/bacterial_genomes.config`) or an auto-search.
+
+After alignment, genome-level counts from `rf-count-genome` are converted to transcript-level RC files by `rf-rctools extract` using the GTF before passing to `rf-norm`.
 
 ### Optional: transcriptome alignment with Bowtie
 
@@ -159,7 +181,6 @@ Optional per-sample columns supported by the pipeline include:
 - `adapter_5p`
 - `adapter_3p`
 - `umi_pattern`
-- `principle` (`RT-stop` or `MaP`, if not already set upstream)
 
 An [example samplesheet](../assets/samplesheet.csv) is provided.
 
@@ -235,6 +256,10 @@ Paired-end default:
 
 - If neither paired filter is set, pipeline defaults to `--properly-paired`.
 
+#### Genome route: `rf-rctools extract`
+
+In the default STAR/genome route, `rf-count-genome` produces genome-coordinate `.rc` files. Before `rf-norm`, `rf-rctools extract` converts these to transcript-level RC files using the GTF. This step runs automatically and requires no user input.
+
 ### `rf-norm`
 
 - Plot generation is always enabled (`--img -R`).
@@ -262,30 +287,47 @@ Key parameters:
 Notes:
 
 - For `method=DMS`, pipeline defaults `--rfnorm_reactive_bases` to `AC`, or `ACGU` when `pH >= 8`. It defaults `--dynamic-window` to `50` only when `pH < 8`.
+- `--rfnorm_nan` defaults to `100` for DMS and `1000` for all other methods. Override with an explicit value to apply the same threshold regardless of method.
 - `R` must exist at `--rnaframework_r_path` in the active runtime environment. The default is `/usr/bin/R`.
-- After normalization, per-transcript WIG files are produced by `rf-wiggle` and merged across transcripts. If multiple replicates share the same cell line, their merged tracks are averaged position-by-position before BigWig conversion, producing a single `norm/merged_bw/<cell_line>_reactivity.bw`.
+
+### `rf-wiggle`
+
+After normalization, `rf-wiggle` converts each normalized XML to per-transcript WIG tracks. These are merged across transcripts and, when multiple replicates share the same cell line, averaged position-by-position before genomic remapping and BigWig conversion via the GTF, producing a single `norm/merged_bw/<cell_line>_reactivity.bw`.
 
 ### `rf-jackknife`
 
-[`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/) always runs between `rf-norm` and `rf-fold`. It iteratively folds a set of known reference structures across a grid of slope/intercept values and scores each combination with the FMI (Fowlkes–Mallows Index), allowing you to identify optimal normalization parameters.
+[`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/) runs between `rf-norm` and `rf-fold` **only when `--jackknife_reference` is provided**. It iteratively folds a set of known reference structures across a grid of slope/intercept values and scores each combination with the FMI (Fowlkes–Mallows Index), allowing you to identify optimal normalization parameters.
 
-`rf-fold` only starts for a fold group after `rf-jackknife` has completed successfully for that group.
+`rf-fold` only starts for a fold group after `rf-jackknife` has completed successfully for that group (when it is enabled).
 
 Required parameter:
 
 | Flag | Description |
 |------|-------------|
-| `--jackknife_reference` | Path to a reference `.db` structure file — **required** |
+| `--jackknife_reference` | Path to a reference `.db` structure file — **required to enable rf-jackknife** |
 
-Optional tuning parameters (passed via `--rfjackknife_args` or process `ext.args`):
+Optional tuning parameters:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--rf_jackknife_slope` | `0,5` | Slope range to test (`min,max`) |
-| `--rf_jackknife_intercept` | `-3,0` | Intercept range to test (`min,max`) |
-| `--rf_jackknife_slope_step` | `0.2` | Slope grid increment |
-| `--rf_jackknife_intercept_step` | `0.2` | Intercept grid increment |
-| `--rf_jackknife_img` | `false` | Generate FMI heatmap PDF (requires R) |
+| `--rfjackknife_slope` | `0,5` | Slope range to test (`min,max`) |
+| `--rfjackknife_intercept` | `-3,0` | Intercept range to test (`min,max`) |
+| `--rfjackknife_slope_step` | `0.2` | Slope grid increment |
+| `--rfjackknife_intercept_step` | `0.2` | Intercept grid increment |
+| `--rfjackknife_keep_pseudoknots` | `true` | Retain pseudoknotted base-pairs (`[]` notation) in the reference structure before comparison (`-kp`). Enable when the reference `.db` file marks pseudoknots explicitly. Has no effect on references that use only `()` notation (e.g. CRW). |
+| `--rfjackknife_keep_lonelypairs` | `true` | Retain lonely base-pairs (1 bp helices) in the reference structure (`-kl`) |
+| `--rfjackknife_mfmi` | `false` | Use modified FMI instead of standard FMI (`-m`) |
+| `--rfjackknife_relaxed` | `false` | Use relaxed FMI criteria (Deigan et al. 2009) (`-x`) |
+| `--rfjackknife_img` | `false` | Generate FMI heatmap PDF (requires R) |
+| `--rfjackknife_rf_fold_params` | `'-md 600'` | Additional parameters passed to rf-fold inside jackknife (`-rp`) |
+| `--rfjackknife_pool_all` | `true` | Pool XMLs from all cell-line groups into a single jackknife run (output: `jackknife/all_groups/`). The optimal slope/intercept is automatically passed to `rf-fold` in the same run. Set to `false` to run one jackknife per group instead (slope/intercept must then be supplied manually via `--rffold_slope`/`--rffold_intercept`). |
+
+Two E. coli rRNA calibration references are bundled under `assets/ecoli_rrna_calibration/`:
+
+- `ecoli_k12_rrna_reference_collab.db` — structures from the RNA Framework author's current reference set; pseudoknots marked with `[]`, use with default `--rfjackknife_keep_pseudoknots true`
+- `ecoli_k12_rrna_reference_crw.db` — structures from the Comparative RNA Website (CRW); all pairs in `()` notation, no pseudoknot distinction; `--rfjackknife_keep_pseudoknots` has no effect
+
+Both use sequences extracted from `ecoli_k12_rrna.fa` (the same FASTA the calibration samples are mapped to) so no sequence mismatch errors occur.
 
 Output: `jackknife/<group>/` — CSV of FMI scores per slope/intercept combination; optional heatmap PDF.
 
@@ -312,6 +354,8 @@ Supported pipeline options and mapped flags:
 - `--rffold_dotplot` -> `-dp`
 - `--rffold_shannon_entropy` -> `-sh`
 - `--rffold_vienna_rnaplot` -> `-vrp`
+- `--rffold_slope` -> `-sl` (slope for reactivity-to-constraint conversion; default `4.6`; overridden automatically when `--rfjackknife_pool_all` is used)
+- `--rffold_intercept` -> `-in` (intercept for reactivity-to-constraint conversion; default `-2.2`; overridden automatically when `--rfjackknife_pool_all` is used)
 
 Replicate handling:
 
@@ -360,22 +404,13 @@ These modules are not run automatically. They are invoked by passing the appropr
 - **DSCI** — probability that a randomly selected unpaired base has higher reactivity than a paired base
 - **AUROC** — area under the ROC curve treating reactivity as a classifier of unpaired bases
 
-```bash
-nextflow run nf-core/rnastructurome \
-  --input samplesheet.csv \
-  --outdir results \
-  --rf_eval_structures ./reference_structures.db \
-  -profile docker
-```
-
 Key parameters:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--rf_eval_structures` | `null` | Path to reference structures in dotbracket format — **required to enable** |
-| `--rf_eval_reactivity_cutoff` | `0.7` | Reactivity threshold for unpaired classification |
-| `--rf_eval_img` | `false` | Generate metric plots — distributions, ROC curves, histograms (requires R) |
-| `--rf_eval_ignore_terminal` | `false` | Exclude terminal base pairs from calculations |
+| `--rfeval_reactivity_cutoff` | `0.7` | Reactivity threshold for unpaired classification |
+| `--rfeval_img` | `false` | Generate metric plots — distributions, ROC curves, histograms (requires R) |
+| `--rfeval_ignore_terminal` | `false` | Exclude terminal base pairs from calculations |
 
 Output: `eval/<group>/` — CSV with per-transcript Unpaired Coefficient, DSCI, and AUROC; optional PDF plots.
 
@@ -395,11 +430,11 @@ Main output areas under `--outdir`:
 - `count/` — count tables and always-on plots
 - `norm/<group>/` — normalized XML, normalization plots, and per-transcript wiggle tracks
 - `norm/merged_bw/` — per-cell-line genomic reactivity BigWigs (`<cell_line>_reactivity.bw`); reactivity values are averaged across replicates before genomic remapping and conversion when multiple replicates are available
-- `jackknife/<group>/` — FMI CSV and optional heatmap (always produced; `--jackknife_reference` is required)
+- `jackknife/<group>/` — FMI CSV and optional heatmap (only when `--jackknife_reference` is set)
 - `fold/<group>/` — inferred secondary structures (dot-bracket by default), fold reports, optional CT, optional dotplots
 - `fold/merged_bp/` — merged base-pair files per cell line (produced from dotplots when `--rffold_dotplot` is enabled)
 - `fold/shannon_bw/` — per-cell-line genomic Shannon entropy BigWigs (`<cell_line>_shannon.bw`; produced when `--rffold_shannon_entropy` is enabled, which is the default)
-- `eval/<group>/` — per-transcript evaluation metrics CSV and optional plots (when `--rf_eval_structures` is set)
+- `eval/<group>/` — per-transcript evaluation metrics CSV and optional plots (when rf-eval is enabled)
 - `multiqc/` — final aggregated QC report
 
 For full output details, see [output documentation](output.md).
@@ -435,22 +470,6 @@ work                # Nextflow working directory
 <OUTDIR>            # Published results
 .nextflow.log       # Nextflow run log
 ```
-
-For repeated runs, use a params file:
-
-```bash
-nextflow run nf-core/rnastructurome -profile docker -params-file params.yaml
-```
-
-```yaml title="params.yaml"
-input: "./samplesheet.csv"
-outdir: "./results/"
-fasta: "./transcripts.fa"
-gtf: "./annotation.gtf.gz"
-```
-
-> [!WARNING]
-> Use `-params-file` for pipeline parameters. Do not use `-c` for ordinary pipeline params.
 
 ## Core Nextflow arguments
 
@@ -507,3 +526,73 @@ If needed, cap Nextflow JVM memory:
 ```bash
 NXF_OPTS='-Xms1g -Xmx4g'
 ```
+
+## Troubleshooting
+
+### General debugging steps
+
+1. Check `.nextflow.log` for the first error message — Nextflow prints the root cause before cascading failures.
+2. Check `pipeline_info/execution_trace_<timestamp>.txt` to identify which process failed and its exit status.
+3. Use `-resume` after fixing issues — all previously successful tasks will be cached and skipped.
+
+### Missing outputs
+
+If expected output files are absent:
+
+- Confirm the process completed successfully in the execution trace (`status = COMPLETED`).
+- For processes that ran in a cluster scratch directory (`scratch = true` in your profile), intermediate inputs are not persisted to the work directory — only declared outputs are copied back.
+- For `rf-fold` problems, inspect `fold/<group>/rffold.log` and check that the input XMLs from `rf-norm` are non-empty.
+
+### rf-jackknife: "0 imported" error
+
+If `rf-jackknife` exits with `Error: No reference structure passed checks`, the import step failed. Common causes:
+
+**Sequence mismatch between reference DB and mapping reference**
+
+The reference `.db` file supplied via `--jackknife_reference` contains sequences that must match the sequences in the genome/transcriptome FASTA used for mapping. If the reference DB was built from a different genome assembly or annotation source (e.g. CRW vs. Ensembl), the per-nucleotide sequence comparison will fail even when the transcript IDs match.
+
+To diagnose, extract the sequence from a failed sample's XML and diff it against the corresponding entry in the `.db` file:
+
+```bash
+# Get the sequence from a failed rf-norm XML
+python3 -c "
+import re
+with open('path/to/transcript.xml') as f:
+    c = f.read()
+m = re.search(r'<sequence>(.*?)</sequence>', c, re.DOTALL)
+print(m.group(1).strip().replace('\n','').replace('\t','').replace(' ',''))
+" > /tmp/xml_seq.txt
+
+# Get the sequence from the reference DB (e.g. line 2 for the first entry)
+sed -n '2p' path/to/reference.db > /tmp/db_seq.txt
+
+diff /tmp/xml_seq.txt /tmp/db_seq.txt
+```
+
+The fix is to rebuild the reference DB using sequences extracted from the same FASTA the pipeline maps to, while retaining the original dot-bracket structure annotation (valid as long as sequence lengths are identical).
+
+**Invalid rf-fold parameters passed via `--rfjackknife_rf_fold_params`**
+
+rf-jackknife validates the rf-fold parameters before starting. If any flag is unrecognised by the version of RNA Framework in the container, you will see `Error: Invalid RF Fold parameters`. Check which flags are supported by running:
+
+```bash
+singularity exec <container.img> rf-fold --help 2>&1 | grep -E "^\s+\-"
+```
+
+Note that `-x` (`--relaxed`) is a **rf-jackknife** flag, not an rf-fold flag — it should not be included in `--rfjackknife_rf_fold_params`.
+
+### rf-jackknife: ID mismatch warning
+
+If the transcript IDs in your reference `.db` file do not match the IDs in the XML files, no structures will be imported. RNA Framework derives transcript IDs from the first whitespace-delimited token of each FASTA header — so `>16S_rRNA U00096.3:...` becomes `16S_rRNA`. Ensure the entries in your `.db` file use the same short IDs.
+
+### Strandedness inference failures (genome route)
+
+On the genome route, the pipeline runs `RSeQC infer_experiment` to detect strandedness. If the BAM is very small or the BED annotation is missing, this can produce ambiguous results and stall the pipeline. Supply `--strandedness` explicitly to bypass inference:
+
+```bash
+--strandedness forward   # or reverse, unstranded
+```
+
+### Container / singularity issues
+
+If running with Singularity and processes fail with locale or `TERM` errors, ensure `singularity.autoMounts = true` is set in your config. The pipeline exports `TERM` inside each task script to work around missing terminal environment variables inside containers.

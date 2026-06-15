@@ -11,7 +11,7 @@ process ENSEMBL_GENOME {
     path ensembl_genome_script
 
     output:
-    tuple val(meta), path("${meta.id}.genome.fa.gz"), optional: true, emit: fasta
+    tuple val(meta), path("${meta.id}.genome.fa"), optional: true, emit: fasta
     tuple val(meta), path("ensembl_source_url.txt"),  optional: true, emit: source_url
     tuple val(meta), path("${meta.id}.not_found"),    optional: true, emit: not_found
     path "versions.yml",                                               emit: versions
@@ -26,7 +26,7 @@ process ENSEMBL_GENOME {
         --species   "${ensembl_species}" \
         --release   "${ensembl_config.ensembl_release}" \
         --base-url  "${ensembl_config.ensembl_base_url}" \
-        --output    "${meta.id}.genome.fa.gz" \
+        --output    "${meta.id}.genome.fa" \
         --source-url    "ensembl_source_url.txt" \
         --not-found-file "${meta.id}.not_found"
 
@@ -39,9 +39,9 @@ process ENSEMBL_GENOME {
     stub:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
-    touch ${meta.id}.genome.fa.gz
+    touch ${meta.id}.genome.fa
     printf '%s\\n' \
-        "stub://${meta.id}.genome.fa.gz" \
+        "stub://${meta.id}.genome.fa" \
         > ensembl_source_url.txt
     printf '%s\\n' \\
         '"${task.process}":' \\

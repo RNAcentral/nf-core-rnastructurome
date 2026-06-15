@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import gzip
+import io
+import shutil
 import sys
 import urllib.error
 import urllib.request
@@ -140,7 +143,10 @@ def main() -> int:
         file=sys.stderr,
     )
 
-    urllib.request.urlretrieve(genome_url, args.output)
+    with urllib.request.urlopen(genome_url, timeout=600) as response:
+        with gzip.GzipFile(fileobj=io.BufferedReader(response)) as gz_in:
+            with open(args.output, "wb") as fa_out:
+                shutil.copyfileobj(gz_in, fa_out, length=1024 * 1024)
 
     with open(args.source_url, "w", encoding="utf-8") as fh:
         fh.write(f"{genome_url}\n")

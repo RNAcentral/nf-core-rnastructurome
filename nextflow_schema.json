@@ -738,6 +738,14 @@
                     "description": "Compute and report Shannon entropy in rf-fold (`-sh`).",
                     "default": true
                 },
+                "rffold_slope": {
+                    "type": "number",
+                    "description": "Slope for reactivity-to-folding-constraint conversion in rf-fold (`-sl`). Overridden automatically when `--rfjackknife_pool_all` is used."
+                },
+                "rffold_intercept": {
+                    "type": "number",
+                    "description": "Intercept for reactivity-to-folding-constraint conversion in rf-fold (`-in`). Overridden automatically when `--rfjackknife_pool_all` is used."
+                },
                 "rffold_vienna_rnaplot": {
                     "type": "string",
                     "description": "Path to ViennaRNA `RNAplot` binary for SVG structure plots in rf-fold (`-vrp`).",

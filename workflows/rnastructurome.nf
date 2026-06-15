@@ -1116,7 +1116,9 @@ workflow RNASTRUCTUROME {
     //
     // MODULE: rf-jackknife — optional normalisation quality assessment against a reference structure set.
     // When --jackknife_reference is provided, rf-jackknife runs and rf-fold is gated on its completion.
-    // When omitted, rf-fold runs directly (use calibrated slope/intercept via rf-fold params instead).
+    // When --rfjackknife_pool_all is true, the optimal slope/intercept from the jackknife CSV is parsed
+    // and injected directly into rf-fold (via meta), bypassing the need for a separate calibration run.
+    // When omitted, rf-fold runs directly using --rffold_slope/--rffold_intercept if set.
     //
     def ch_fold_for_rffold = ch_fold_input
 
@@ -1147,11 +1149,33 @@ workflow RNASTRUCTUROME {
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFJACKKNIFE.out.versions.first())
 
         if (pipeline_config.rfjackknife_pool_all as Boolean) {
-            // Broadcast the single pooled-jackknife completion to all fold groups
-            def ch_jackknife_done = RNAFRAMEWORK_RFJACKKNIFE.out.csv.map { _meta, _csv -> 'done' }
+            // Parse optimal slope/intercept from the pooled jackknife CSV and inject into fold meta.
+            // FMI.csv is a semicolon-delimited matrix: rows = slopes, columns = intercepts, cells = FMI.
+            // Header row: FMI;<intercept0>;<intercept1>;...
+            // Data rows:  <slope>;<fmi0>;<fmi1>;...
+            def ch_calibration = RNAFRAMEWORK_RFJACKKNIFE.out.csv
+                .map { _meta, csv_files ->
+                    def csv_file = [csv_files].flatten()[0]
+                    def lines = csv_file.readLines()
+                    def intercepts = lines[0].split(';').drop(1)*.trim()
+                    def best_slope = null; def best_intercept = null; def best_fmi = -1d
+                    lines.drop(1).findAll { line -> line.trim() }.each { line ->
+                        def parts = line.split(';')*.trim()
+                        def slope = parts[0]
+                        parts.drop(1).eachWithIndex { fmi_str, i ->
+                            def fmi = fmi_str.toDouble()
+                            if (fmi > best_fmi) {
+                                best_fmi = fmi; best_slope = slope; best_intercept = intercepts[i]
+                            }
+                        }
+                    }
+                    [ best_slope, best_intercept ]
+                }
             ch_fold_for_rffold = ch_fold_input
-                .combine(ch_jackknife_done)
-                .map { meta, xmls, _done -> [ meta, xmls ] }
+                .combine(ch_calibration)
+                .map { meta, xmls, slope, intercept ->
+                    [ meta + [ jackknife_slope: slope, jackknife_intercept: intercept ], xmls ]
+                }
         } else {
             // Gate each fold group on all jackknife jobs for that cell_line completing.
             ch_fold_for_rffold = ch_fold_input

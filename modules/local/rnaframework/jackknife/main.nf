@@ -47,11 +47,10 @@ process RNAFRAMEWORK_RFJACKKNIFE {
     """
     mkdir -p ${prefix}_jackknife
 
-    cat <<-END_CSV > ${prefix}_jackknife/${prefix}_fmi.csv
-    slope,intercept,FMI
-    1.0,-1.5,0.72
-    1.0,-1.0,0.75
-    1.2,-1.0,0.78
+    cat <<-END_CSV > ${prefix}_jackknife/FMI.csv
+    FMI;-2;-1;0
+    1.0;0.72;0.75;0.60
+    1.2;0.70;0.78;0.65
     END_CSV
 
     touch ${prefix}_jackknife/rfjackknife.log

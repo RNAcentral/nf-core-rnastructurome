@@ -1127,17 +1127,14 @@ workflow RNASTRUCTUROME {
 
         // Jackknife runs per rfnorm group (cell_line + replicate), not per fold group.
         // Fold groups flatten XMLs from multiple replicates which produce identically-named
-        // files (e.g. 16S_rRNA.xml), causing Nextflow staging collisions in input0/.
+        // files (e.g. 16S_rRNA.xml); using input*/* staging gives each file its own
+        // numbered directory so rf-jackknife receives them as separate experiment dirs.
         def ch_jackknife_input
         if (pipeline_config.rfjackknife_pool_all as Boolean) {
-            // Deduplicate by transcript filename so each transcript appears only once.
             ch_jackknife_input = RNAFRAMEWORK_RFNORM.out.xml
                 .flatMap { _meta, xmls -> [xmls].flatten() }
-                .map { xml -> [ xml.name, xml ] }
-                .groupTuple()
-                .map { _name, xmls -> xmls[0] }
                 .collect()
-                .map { deduped_xmls -> [ [ id: 'all_groups', fold_group: 'all_groups' ], deduped_xmls ] }
+                .map { all_xmls -> [ [ id: 'all_groups', fold_group: 'all_groups' ], all_xmls ] }
         } else {
             ch_jackknife_input = RNAFRAMEWORK_RFNORM.out.xml
         }

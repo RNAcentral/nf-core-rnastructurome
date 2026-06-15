@@ -636,8 +636,8 @@
                 },
                 "rfjackknife_pool_all": {
                     "type": "boolean",
-                    "description": "Pool XMLs from all cell-line groups into a single rf-jackknife run (output: `jackknife/all_groups/`) instead of running one jackknife per group.",
-                    "default": false
+                    "description": "Pool XMLs from all cell-line groups into a single rf-jackknife run (output: `jackknife/all_groups/`) instead of running one jackknife per group. Default: true.",
+                    "default": true
                 },
                 "rfrctools_gtf_feature": {
                     "type": "string",
@@ -740,10 +740,12 @@
                 },
                 "rffold_slope": {
                     "type": "number",
+                    "default": 4.6,
                     "description": "Slope for reactivity-to-folding-constraint conversion in rf-fold (`-sl`). Overridden automatically when `--rfjackknife_pool_all` is used."
                 },
                 "rffold_intercept": {
                     "type": "number",
+                    "default": -2.2,
                     "description": "Intercept for reactivity-to-folding-constraint conversion in rf-fold (`-in`). Overridden automatically when `--rfjackknife_pool_all` is used."
                 },
                 "rffold_vienna_rnaplot": {

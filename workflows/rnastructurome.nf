@@ -44,19 +44,25 @@ include { NCBI_GTF             } from '../modules/local/ncbi/gtf/main'
 include { FASTA_SORT as FASTA_SORT_LOCAL    } from '../modules/local/fasta/sort/main'
 include { FASTA_SORT as FASTA_SORT_ENSEMBL } from '../modules/local/fasta/sort/main'
 include { FASTA_SORT as FASTA_SORT_NCBI    } from '../modules/local/fasta/sort/main'
-include { RNAFRAMEWORK_DOTPLOT2BP } from '../modules/local/dotplot2bp/main'
-include { MERGE_BP               } from '../modules/local/merge_bp/main'
+include { RNAFRAMEWORK_DOTPLOT2BP                                  } from '../modules/local/dotplot2bp/main'
+include { RNAFRAMEWORK_DOTPLOT2BP as RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT } from '../modules/local/dotplot2bp/main'
+include { MERGE_BP                                                 } from '../modules/local/merge_bp/main'
+include { MERGE_BP as MERGE_BP_TRANSCRIPT                          } from '../modules/local/merge_bp/main'
 include { RNAFRAMEWORK_RFWIGGLE  } from '../modules/local/rnaframework/wiggle/main'
 include { MERGE_WIG              } from '../modules/local/merge_wig/main'
 include { AVERAGE_WIG            } from '../modules/local/average_wig/main'
 include { MERGE_SHANNON_WIG      } from '../modules/local/merge_shannon_wig/main'
 include { WIG_TO_GENOME as WIG_TO_GENOME_REACTIVITY } from '../modules/local/wig_to_genome/main'
 include { WIG_TO_GENOME as WIG_TO_GENOME_SHANNON    } from '../modules/local/wig_to_genome/main'
+include { WIG_CHROM_SIZES as WIG_CHROM_SIZES_REACTIVITY } from '../modules/local/wig_chrom_sizes/main'
+include { WIG_CHROM_SIZES as WIG_CHROM_SIZES_SHANNON    } from '../modules/local/wig_chrom_sizes/main'
 include { RNAFRAMEWORK_TORDAT    } from '../modules/local/tordat/main'
 include { R2DT                   } from '../modules/local/r2dt/main'
 include { VIENNARNA              } from '../modules/local/viennarna/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_REACTIVITY            } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON               } from '../modules/nf-core/ucsc/wigtobigwig/main'
+include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_TRANSCRIPT_REACTIVITY } from '../modules/nf-core/ucsc/wigtobigwig/main'
+include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_TRANSCRIPT_SHANNON    } from '../modules/nf-core/ucsc/wigtobigwig/main'
 
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -1235,11 +1241,22 @@ workflow RNASTRUCTUROME {
         file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
     )
 
+    // Transcript-coordinate arc files — same dot-plots, skip GTF remapping.
+    RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT (
+        ch_dotplot_bp_input,
+        file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
+    )
+
     //
     // MODULE: merge_bp — merge per-transcript .bp files into a single file per fold group for genome browser visualisation
     //
     MERGE_BP (
         RNAFRAMEWORK_DOTPLOT2BP.out.bp,
+        file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
+    )
+
+    MERGE_BP_TRANSCRIPT (
+        RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.bp,
         file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
     )
 
@@ -1378,8 +1395,36 @@ workflow RNASTRUCTUROME {
     )
 
     //
+    // MODULE: WIG_CHROM_SIZES + wigToBigWig — transcript-coordinate reactivity BigWig.
+    // Independent channel subscriptions (separate .map{} calls on the same sources) ensure
+    // items are not consumed by the genome BigWig operators above.
+    //
+    def ch_wig_chrom_sizes_script = file("${projectDir}/bin/wig_chrom_sizes.py", checkIfExists: true)
+    def ch_reactivity_wig_for_sizes = ch_reactivity_branches.single
+        .map { meta, wigs -> [ meta, wigs[0] ] }
+        .mix(AVERAGE_WIG.out.merged_wig)
+    def ch_reactivity_wig_for_transcript_bw = ch_reactivity_branches.single
+        .map { meta, wigs -> [ meta, wigs[0] ] }
+        .mix(AVERAGE_WIG.out.merged_wig)
+
+    WIG_CHROM_SIZES_REACTIVITY(ch_reactivity_wig_for_sizes, ch_wig_chrom_sizes_script)
+
+    def ch_reactivity_transcript_bw_split = ch_reactivity_wig_for_transcript_bw
+        .map { meta, wig -> [ meta.id.toString(), meta, wig ] }
+        .join(WIG_CHROM_SIZES_REACTIVITY.out.sizes.map { meta, sizes -> [ meta.id.toString(), sizes ] })
+        .multiMap { _id, meta, wig, sizes ->
+            wig:   [ meta, wig ]
+            sizes: sizes
+        }
+
+    UCSC_WIGTOBIGWIG_TRANSCRIPT_REACTIVITY(
+        ch_reactivity_transcript_bw_split.wig,
+        ch_reactivity_transcript_bw_split.sizes
+    )
+
+    //
     // MODULE: merge_shannon_wig + wigToBigWig — merge per-transcript Shannon entropy WIG files
-    // and convert to BigWig for genome browser visualisation
+    // and convert to genome-coordinate and transcript-coordinate BigWigs for genome browser visualisation
     //
     if (params.rffold_shannon_entropy) {
         MERGE_SHANNON_WIG (
@@ -1410,6 +1455,25 @@ workflow RNASTRUCTUROME {
         UCSC_WIGTOBIGWIG_SHANNON (
             WIG_TO_GENOME_SHANNON.out.wig,
             WIG_TO_GENOME_SHANNON.out.chrom_sizes.map { _meta, sizes -> sizes }
+        )
+
+        // Transcript-coordinate Shannon BigWig — independent subscriptions from the genome path above.
+        def ch_shannon_wig_for_sizes = MERGE_SHANNON_WIG.out.merged_wig
+        def ch_shannon_wig_for_transcript_bw = MERGE_SHANNON_WIG.out.merged_wig
+
+        WIG_CHROM_SIZES_SHANNON(ch_shannon_wig_for_sizes, ch_wig_chrom_sizes_script)
+
+        def ch_shannon_transcript_bw_split = ch_shannon_wig_for_transcript_bw
+            .map { meta, wig -> [ meta.id.toString(), meta, wig ] }
+            .join(WIG_CHROM_SIZES_SHANNON.out.sizes.map { meta, sizes -> [ meta.id.toString(), sizes ] })
+            .multiMap { _id, meta, wig, sizes ->
+                wig:   [ meta, wig ]
+                sizes: sizes
+            }
+
+        UCSC_WIGTOBIGWIG_TRANSCRIPT_SHANNON(
+            ch_shannon_transcript_bw_split.wig,
+            ch_shannon_transcript_bw_split.sizes
         )
     }
 
@@ -1569,7 +1633,9 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
+    ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.versions.first())
     ch_versions = ch_versions.mix(MERGE_BP.out.versions.first())
+    ch_versions = ch_versions.mix(MERGE_BP_TRANSCRIPT.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFWIGGLE.out.versions.first())
     ch_versions = ch_versions.mix(MERGE_WIG.out.versions.first())
     ch_versions = ch_versions.mix(AVERAGE_WIG.out.versions.first())

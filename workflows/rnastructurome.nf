@@ -408,6 +408,12 @@ workflow RNASTRUCTUROME {
         .mix(ENSEMBL_GTF.out.gtf)
         .mix(NCBI_GTF.out.gtf)
 
+    // Keyed GTF channel for .join() in STAR alignment blocks.
+    // Format: [ ref_key, meta, gtf ] — allows join with keyed sample channels.
+    def ch_gtf_for_star_join = ch_all_reference_gtf.map { meta, gtf ->
+        [ meta.id.toString(), meta, gtf ]
+    }
+
     def ch_fasta_sort_script = file("${projectDir}/bin/fasta_sort.py", checkIfExists: true)
 
     FASTA_SORT_LOCAL (
@@ -499,6 +505,7 @@ workflow RNASTRUCTUROME {
     // INDEX BUILDING — conditional on chosen aligner per principle
     //
     def ch_star_index_map    = channel.value([:])
+    def ch_star_index_keyed  = channel.empty()
     def ch_bowtie_index_map  = channel.value([:])
     def ch_bowtie2_index_map = channel.value([:])
 
@@ -526,6 +533,8 @@ workflow RNASTRUCTUROME {
             .collect()
             .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
             .first()
+        ch_star_index_keyed = STAR_GENOMEGENERATE.out.index
+            .map { meta, index -> [ meta.id.toString(), meta, index ] }
     }
 
     if (pipeline_config.transcriptome) {
@@ -552,22 +561,14 @@ workflow RNASTRUCTUROME {
     def ch_rtstop_aligned_bam      = channel.empty()
 
     if (!pipeline_config.transcriptome) {
-        def ch_rtstop_star_inputs = ch_rtstop_trimmed_for_align
-            .combine(ch_star_index_map)
-            .combine(ch_reference_gtf_map)
-            .map { combined ->
-                def meta      = combined[0]
-                def reads     = combined[1]
-                def index_map = combined[2]
-                def gtf_map   = combined[3]
-                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
-                def idx_tuple = index_map[ref_key]
-                def gtf_tuple = gtf_map[ref_key]
-                if (!idx_tuple) error("No STAR index resolved for reference '${ref_key}' (RT-stop).")
-                def gtf_meta  = gtf_tuple ? gtf_tuple[0] : [id: 'no_gtf']
-                def gtf       = gtf_tuple ? gtf_tuple[1] : []
-                def ignore    = !gtf_tuple
-                [ [meta, reads], idx_tuple, [gtf_meta, gtf], ignore ]
+        def ch_rtstop_keyed = ch_rtstop_trimmed_for_align
+            .map { meta, reads -> [ resolveReferenceKey(meta, pipeline_config.organism), meta, reads ] }
+        def ch_rtstop_star_inputs = ch_rtstop_keyed
+            .join(ch_star_index_keyed)
+            .join(ch_gtf_for_star_join, remainder: true)
+            .map { ref_key, sample_meta, reads, idx_meta, index, gtf_meta, gtf ->
+                def has_gtf = gtf_meta != null
+                [ [sample_meta, reads], [idx_meta, index], [gtf_meta ?: [id: 'no_gtf'], gtf ?: []], !has_gtf ]
             }
         def ch_rtstop_star_split = ch_rtstop_star_inputs.multiMap { entry ->
             reads:      entry[0]
@@ -610,22 +611,14 @@ workflow RNASTRUCTUROME {
     def ch_map_aligned_bam    = channel.empty()
 
     if (!pipeline_config.transcriptome) {
-        def ch_map_star_inputs = ch_map_trimmed_for_align
-            .combine(ch_star_index_map)
-            .combine(ch_reference_gtf_map)
-            .map { combined ->
-                def meta      = combined[0]
-                def reads     = combined[1]
-                def index_map = combined[2]
-                def gtf_map   = combined[3]
-                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
-                def idx_tuple = index_map[ref_key]
-                def gtf_tuple = gtf_map[ref_key]
-                if (!idx_tuple) error("No STAR index resolved for reference '${ref_key}' (MaP).")
-                def gtf_meta  = gtf_tuple ? gtf_tuple[0] : [id: 'no_gtf']
-                def gtf       = gtf_tuple ? gtf_tuple[1] : []
-                def ignore    = !gtf_tuple
-                [ [meta, reads], idx_tuple, [gtf_meta, gtf], ignore ]
+        def ch_map_keyed = ch_map_trimmed_for_align
+            .map { meta, reads -> [ resolveReferenceKey(meta, pipeline_config.organism), meta, reads ] }
+        def ch_map_star_inputs = ch_map_keyed
+            .join(ch_star_index_keyed)
+            .join(ch_gtf_for_star_join, remainder: true)
+            .map { ref_key, sample_meta, reads, idx_meta, index, gtf_meta, gtf ->
+                def has_gtf = gtf_meta != null
+                [ [sample_meta, reads], [idx_meta, index], [gtf_meta ?: [id: 'no_gtf'], gtf ?: []], !has_gtf ]
             }
         def ch_map_star_split = ch_map_star_inputs.multiMap { entry ->
             reads:      entry[0]

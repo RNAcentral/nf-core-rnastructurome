@@ -42,7 +42,8 @@ All paths are relative to the top-level output directory specified with `--outdi
 ├── reference/                         (only when reference downloaded from Ensembl)
 │   ├── *.sorted.fa
 │   ├── *.annotation.gtf.gz
-│   └── ensembl_source_url.txt
+│   ├── ensembl_fasta_source_url.txt
+│   └── ensembl_gtf_source_url.txt
 ├── multiqc/
 └── pipeline_info/
 ```
@@ -172,7 +173,8 @@ This step only runs when `--eval_reference` is provided.
 <summary>Output files</summary>
 
 - `reference/`
-  - `ensembl_source_url.txt`: URL(s) of files downloaded from Ensembl, for provenance.
+  - `ensembl_fasta_source_url.txt`: URL of the FASTA file downloaded from Ensembl, for provenance.
+  - `ensembl_gtf_source_url.txt`: URL of the GTF file downloaded from Ensembl, for provenance.
   - `<organism>.sorted.fa`: Chromosome-sorted reference FASTA, ready for reuse in subsequent runs via `--genome_fasta` / `--transcriptome_fasta`.
   - `<organism>.annotation.gtf.gz`: Ensembl gene annotation GTF, ready for reuse via `--gtf`.
 

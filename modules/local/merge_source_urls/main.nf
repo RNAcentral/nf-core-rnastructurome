@@ -6,7 +6,7 @@ process MERGE_SOURCE_URLS {
     container 'docker.io/library/python:3.12.11'
 
     input:
-    tuple val(meta), path(url_files, stageAs: "inputs/*")
+    tuple val(meta), path(url_files, stageAs: "inputs/url_??.txt")
 
     output:
     tuple val(meta), path("ensembl_source_url.txt"), emit: urls

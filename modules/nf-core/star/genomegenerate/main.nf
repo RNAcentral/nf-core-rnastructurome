@@ -21,12 +21,15 @@ process STAR_GENOMEGENERATE {
     task.ext.when == null || task.ext.when
 
     script:
-    def args        = task.ext.args ?: ''
-    def args_list   = args.tokenize()
-    def memory      = task.memory ? "--limitGenomeGenerateRAM ${task.memory.toBytes() - 100000000}" : ''
-    def include_gtf = gtf ? "--sjdbGTFfile $gtf" : ''
+    def args          = task.ext.args ?: ''
+    def args_list     = args.tokenize()
+    def memory        = task.memory ? "--limitGenomeGenerateRAM ${task.memory.toBytes() - 100000000}" : ''
+    def gtf_decompressed = (gtf && gtf.name.endsWith('.gz')) ? gtf.baseName : gtf
+    def decompress_gtf   = (gtf && gtf.name.endsWith('.gz')) ? "gzip -dc ${gtf} > ${gtf.baseName}" : ''
+    def include_gtf      = gtf ? "--sjdbGTFfile ${gtf_decompressed}" : ''
     if (args_list.contains('--genomeSAindexNbases')) {
         """
+        ${decompress_gtf}
         mkdir star
         STAR \\
             --runMode genomeGenerate \\
@@ -39,6 +42,7 @@ process STAR_GENOMEGENERATE {
         """
     } else {
         """
+        ${decompress_gtf}
         samtools faidx $fasta
         NUM_BASES=`gawk '{sum = sum + \$2}END{if ((log(sum)/log(2))/2 - 1 > 14) {printf "%.0f", 14} else {printf "%.0f", (log(sum)/log(2))/2 - 1}}' ${fasta}.fai`
 

@@ -23,8 +23,11 @@ _EG_FLAT_DIVISIONS = [
     ("protists", "https://ftp.ensemblgenomes.ebi.ac.uk/pub/protists"),
 ]
 
-# Preference order: soft-masked (best for alignment), then unmasked
+# Preference order: primary assembly (no alt/patch contigs, reduces multi-mapping) over toplevel,
+# and soft-masked over unmasked (prevents spurious alignments to repetitive regions).
 _GENOME_PATTERNS = [
+    r"\.dna_sm\.primary_assembly\.fa\.gz$",
+    r"\.dna\.primary_assembly\.fa\.gz$",
     r"\.dna_sm\.toplevel\.fa\.gz$",
     r"\.dna\.toplevel\.fa\.gz$",
 ]

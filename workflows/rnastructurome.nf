@@ -39,6 +39,7 @@ include { RNAFRAMEWORK_RFFOLD      } from '../modules/local/rnaframework/fold/ma
 include { ENSEMBL_TRANSCRIPTOME } from '../modules/local/ensembl/transcriptome/main'
 include { ENSEMBL_GENOME        } from '../modules/local/ensembl/genome/main'
 include { ENSEMBL_GTF          } from '../modules/local/ensembl/gtf/main'
+include { MERGE_SOURCE_URLS    } from '../modules/local/merge_source_urls/main'
 include { NCBI_FASTA           } from '../modules/local/ncbi/fasta/main'
 include { NCBI_GTF             } from '../modules/local/ncbi/gtf/main'
 include { FASTA_SORT as FASTA_SORT_LOCAL    } from '../modules/local/fasta/sort/main'
@@ -405,6 +406,17 @@ workflow RNASTRUCTUROME {
         file("${projectDir}/bin/ensembl_gtf.py", checkIfExists: true)
     )
     ch_versions = ch_versions.mix(ENSEMBL_GTF.out.versions)
+
+    // Merge FASTA and GTF source URLs into a single provenance file per reference.
+    MERGE_SOURCE_URLS(
+        ch_ensembl_fasta_source_url
+            .map { meta, f -> [ meta.id.toString(), meta, f ] }
+            .join(ENSEMBL_GTF.out.source_urls.map { meta, f -> [ meta.id.toString(), f ] }, remainder: true)
+            .map { _id, meta, fasta_url, gtf_url ->
+                [ meta, gtf_url ? [ fasta_url, gtf_url ] : [ fasta_url ] ]
+            }
+    )
+    ch_versions = ch_versions.mix(MERGE_SOURCE_URLS.out.versions.first())
 
     // NCBI references (both pre-configured and Ensembl-not-found): annotation is the synthetic
     // GTF from NCBI_GTF, which has already run above from NCBI_FASTA.out.fasta.

@@ -62,7 +62,7 @@ def fetch_text(url: str, timeout: int = 60) -> str:
 
 def release_path_for_value(release: str) -> str:
     if release in ("current", "latest"):
-        return "current_gtf"
+        return "current/gtf"
     if release.startswith("release-"):
         return f"{release}/gtf"
     return f"release-{release}/gtf"
@@ -71,8 +71,11 @@ def release_path_for_value(release: str) -> str:
 def _find_gtf_in_listing(species_root: str, timeout: int = 60) -> str:
     listing = fetch_text(species_root, timeout=timeout)
     matches = [m for m in re.findall(r'href="([^"]+)"', listing) if re.search(r"\.gtf\.gz$", m)]
-    preferred = [m for m in matches if "abinitio" not in m.lower()]
-    gtf_name = (preferred or matches or [None])[0]
+    non_abinitio = [m for m in matches if "abinitio" not in m.lower()]
+    # Prefer chromosome-only GTF (matches primary_assembly FASTA, excludes patches/haplotypes),
+    # then fall back to the full GTF.
+    chr_only = [m for m in non_abinitio if re.search(r"\.chr\.gtf\.gz$", m)]
+    gtf_name = (chr_only or non_abinitio or matches or [None])[0]
     if not gtf_name:
         raise RuntimeError(f"No .gtf.gz file found at {species_root}")
     return gtf_name

@@ -300,6 +300,7 @@ workflow RNASTRUCTUROME {
     }
 
     // MODULE: ENSEMBL_GENOME — download soft-masked genome FASTA for STAR alignment.
+    // ch_reference_genome_fasta_keyed is populated after sorting (see FASTA_SORT_ENSEMBL block below).
     if (!pipeline_config.transcriptome) {
         ENSEMBL_GENOME(
             ch_reference_ensembl_input,
@@ -310,8 +311,6 @@ workflow RNASTRUCTUROME {
             file("${projectDir}/bin/ensembl_genome.py", checkIfExists: true)
         )
         ch_versions = ch_versions.mix(ENSEMBL_GENOME.out.versions)
-        ch_reference_genome_fasta_keyed = ENSEMBL_GENOME.out.fasta
-            .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
         ch_ensembl_not_found        = ENSEMBL_GENOME.out.not_found
         ch_ensembl_fasta_source_url = ENSEMBL_GENOME.out.source_url
     }
@@ -430,6 +429,15 @@ workflow RNASTRUCTUROME {
         )
         ch_versions = ch_versions.mix(FASTA_SORT_ENSEMBL.out.versions)
         ch_fasta_sort_ensembl_out = FASTA_SORT_ENSEMBL.out.fasta
+    } else {
+        // Genome route: sort the Ensembl genome FASTA so it is published to reference/
+        // and so STAR_GENOMEGENERATE receives a chromosome-sorted FASTA.
+        FASTA_SORT_ENSEMBL (
+            ENSEMBL_GENOME.out.fasta,
+            ch_fasta_sort_script
+        )
+        ch_versions = ch_versions.mix(FASTA_SORT_ENSEMBL.out.versions)
+        ch_fasta_sort_ensembl_out = FASTA_SORT_ENSEMBL.out.fasta
     }
 
     FASTA_SORT_NCBI (
@@ -460,11 +468,15 @@ workflow RNASTRUCTUROME {
     // the genome (e.g. a viral/mitochondrial genome or a custom assembly).
     def ch_reference_genome_ncbi_keyed = NCBI_FASTA.out.fasta
         .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
-    ch_reference_genome_fasta_keyed = ch_reference_genome_fasta_keyed
-        .mix(ch_reference_genome_ncbi_keyed)
     if (!pipeline_config.transcriptome) {
-        ch_reference_genome_fasta_keyed = ch_reference_genome_fasta_keyed
+        // Genome route: use the sorted Ensembl genome FASTA for STAR index building.
+        ch_reference_genome_fasta_keyed = FASTA_SORT_ENSEMBL.out.fasta
+            .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+            .mix(ch_reference_genome_ncbi_keyed)
             .mix(FASTA_SORT_LOCAL.out.fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] })
+    } else {
+        ch_reference_genome_fasta_keyed = ch_reference_genome_fasta_keyed
+            .mix(ch_reference_genome_ncbi_keyed)
     }
 
     ch_rtstop_reference_fasta = principle_branches.rtstop
@@ -519,10 +531,11 @@ workflow RNASTRUCTUROME {
                 [ [fasta_meta, fasta], [gtf_meta, gtf] ]
             }
 
-        STAR_GENOMEGENERATE(
-            ch_star_build.map { entry -> entry[0] },
-            ch_star_build.map { entry -> entry[1] }
-        )
+        def ch_star_build_split = ch_star_build.multiMap { fasta_entry, gtf_entry ->
+            fasta: fasta_entry
+            gtf:   gtf_entry
+        }
+        STAR_GENOMEGENERATE(ch_star_build_split.fasta, ch_star_build_split.gtf)
     }
 
     if (pipeline_config.transcriptome) {

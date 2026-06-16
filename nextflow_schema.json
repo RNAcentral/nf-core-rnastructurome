@@ -205,8 +205,7 @@
                 },
                 "bowtie_manual_only": {
                     "type": "boolean",
-                    "description": "Use only options from `--bowtie_mapping_params` and ignore other Bowtie/Bowtie2 tuning flags.",
-                    "default": false
+                    "description": "Use only options from `--bowtie_mapping_params` and ignore other Bowtie/Bowtie2 tuning flags."
                 },
                 "bowtie_k": {
                     "type": "integer",
@@ -218,25 +217,21 @@
                         "boolean",
                         "string"
                     ],
-                    "description": "Report all valid alignments (`-a`).",
-                    "default": false
+                    "description": "Report all valid alignments (`-a`)."
                 },
                 "bowtie_norc": {
                     "type": "boolean",
-                    "description": "Map only to sense strand (`--norc`).",
-                    "default": false
+                    "description": "Map only to sense strand (`--norc`)."
                 },
                 "bowtie_trim5": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Trim this many bases from 5' read end (`--trim5`).",
-                    "default": 0
+                    "description": "Trim this many bases from 5' read end (`--trim5`)."
                 },
                 "bowtie_trim3": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Trim this many bases from 3' read end (`--trim3`).",
-                    "default": 0
+                    "description": "Trim this many bases from 3' read end (`--trim3`)."
                 },
                 "bowtie_index": {
                     "type": "string",
@@ -251,8 +246,7 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 3,
-                    "description": "Bowtie v1 `-n` seed mismatch mode value.",
-                    "default": 2
+                    "description": "Bowtie v1 `-n` seed mismatch mode value."
                 },
                 "bowtie_v": {
                     "type": "integer",
@@ -263,78 +257,65 @@
                 "bowtie_max": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "Bowtie v1 `-m` maximum reportable alignments per read before suppression.",
-                    "default": 1
+                    "description": "Bowtie v1 `-m` maximum reportable alignments per read before suppression."
                 },
                 "bowtie_chunkmbs": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "Bowtie v1 `--chunkmbs` memory chunk size.",
-                    "default": 512
+                    "description": "Bowtie v1 `--chunkmbs` memory chunk size."
                 },
                 "bowtie2_N": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 1,
-                    "description": "Bowtie2 `-N` seed mismatches.",
-                    "default": 0
+                    "description": "Bowtie2 `-N` seed mismatches."
                 },
                 "bowtie2_D": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Bowtie2 `-D` max seed extension attempts.",
-                    "default": 15
+                    "description": "Bowtie2 `-D` max seed extension attempts."
                 },
                 "bowtie2_R": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Bowtie2 `-R` max re-seeding attempts.",
-                    "default": 2
+                    "description": "Bowtie2 `-R` max re-seeding attempts."
                 },
                 "bowtie2_mp": {
                     "type": "string",
                     "pattern": "^\\d+,\\d+$",
-                    "description": "Bowtie2 `--mp` mismatch penalties as `max,min`.",
-                    "default": "6,2"
+                    "description": "Bowtie2 `--mp` mismatch penalties as `max,min`."
                 },
                 "bowtie2_dpad": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Bowtie2 `--dpad` padding around DP table.",
-                    "default": 15
+                    "description": "Bowtie2 `--dpad` padding around DP table."
                 },
                 "bowtie2_rdg": {
                     "type": "string",
                     "pattern": "^\\d+,\\d+$",
-                    "description": "Bowtie2 `--rdg` read gap penalties as `open,extend`.",
-                    "default": "5,3"
+                    "description": "Bowtie2 `--rdg` read gap penalties as `open,extend`."
                 },
                 "bowtie2_rfg": {
                     "type": "string",
                     "pattern": "^\\d+,\\d+$",
-                    "description": "Bowtie2 `--rfg` reference gap penalties as `open,extend`.",
-                    "default": "5,3"
+                    "description": "Bowtie2 `--rfg` reference gap penalties as `open,extend`."
                 },
                 "bowtie2_softclip": {
                     "type": "boolean",
-                    "description": "Enable Bowtie2 local alignment mode (`--local`).",
-                    "default": false
+                    "description": "Enable Bowtie2 local alignment mode (`--local`)."
                 },
                 "bowtie2_ma": {
                     "type": "integer",
-                    "description": "Bowtie2 `--ma` match bonus used with `--local`.",
-                    "default": 2
+                    "description": "Bowtie2 `--ma` match bonus used with `--local`."
                 },
                 "bowtie2_dovetail": {
                     "type": "boolean",
-                    "description": "Allow dovetailing mates (`--dovetail`).",
-                    "default": false
+                    "description": "Allow dovetailing mates (`--dovetail`)."
                 },
                 "star_map_sjdb_overhang": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "STAR `--sjdbOverhang` for MaP alignment. Ideally `readLength - 1`; default 200 suits 201 bp reads.",
-                    "default": 200
+                    "description": "STAR `--sjdbOverhang` for MaP alignment. Ideally `readLength - 1`; default 200 suits 201 bp reads."
                 }
             }
         },
@@ -579,56 +560,46 @@
                 "rfjackknife_slope": {
                     "type": "string",
                     "pattern": "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$",
-                    "description": "Comma-separated slope range to search in rf-jackknife (`-sl`), e.g. `0,5`.",
-                    "default": "0,5"
+                    "description": "Comma-separated slope range to search in rf-jackknife (`-sl`), e.g. `0,5`."
                 },
                 "rfjackknife_intercept": {
                     "type": "string",
                     "pattern": "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$",
-                    "description": "Comma-separated intercept range to search in rf-jackknife (`-in`), e.g. `-3,0`.",
-                    "default": "-3,0"
+                    "description": "Comma-separated intercept range to search in rf-jackknife (`-in`), e.g. `-3,0`."
                 },
                 "rfjackknife_slope_step": {
                     "type": "number",
                     "exclusiveMinimum": 0,
-                    "description": "Step size for slope grid search in rf-jackknife (`-ss`).",
-                    "default": 0.2
+                    "description": "Step size for slope grid search in rf-jackknife (`-ss`)."
                 },
                 "rfjackknife_intercept_step": {
                     "type": "number",
                     "exclusiveMinimum": 0,
-                    "description": "Step size for intercept grid search in rf-jackknife (`-is`).",
-                    "default": 0.2
+                    "description": "Step size for intercept grid search in rf-jackknife (`-is`)."
                 },
                 "rfjackknife_mfmi": {
                     "type": "boolean",
-                    "description": "Use modified FMI (Lan et al. 2022) instead of standard FMI in rf-jackknife (`-m`).",
-                    "default": false
+                    "description": "Use modified FMI (Lan et al. 2022) instead of standard FMI in rf-jackknife (`-m`)."
                 },
                 "rfjackknife_relaxed": {
                     "type": "boolean",
-                    "description": "Use relaxed FMI criteria (Deigan et al. 2009) in rf-jackknife (`-x`).",
-                    "default": false
+                    "description": "Use relaxed FMI criteria (Deigan et al. 2009) in rf-jackknife (`-x`)."
                 },
                 "rfjackknife_keep_lonelypairs": {
                     "type": "boolean",
-                    "description": "Retain lonely base-pairs (1 bp helices) in the reference structure before comparison (`-kl`).",
-                    "default": true
+                    "description": "Retain lonely base-pairs (1 bp helices) in the reference structure before comparison (`-kl`)."
                 },
                 "rfjackknife_keep_pseudoknots": {
                     "type": "boolean",
-                    "description": "Retain pseudoknotted base-pairs (`[]` notation) in the reference structure before comparison (`-kp`). Required when using reference files that mark pseudoknots explicitly.",
-                    "default": true
+                    "description": "Retain pseudoknotted base-pairs (`[]` notation) in the reference structure before comparison (`-kp`). Required when using reference files that mark pseudoknots explicitly."
                 },
                 "rfjackknife_only_common": {
                     "type": "boolean",
-                    "description": "Only use transcripts present across all replicates in rf-jackknife (`-oc`).",
-                    "default": false
+                    "description": "Only use transcripts present across all replicates in rf-jackknife (`-oc`)."
                 },
                 "rfjackknife_img": {
                     "type": "boolean",
-                    "description": "Generate R heatmap of grid-search results in rf-jackknife (`-g`).",
-                    "default": false
+                    "description": "Generate R heatmap of grid-search results in rf-jackknife (`-g`)."
                 },
                 "rfjackknife_rf_fold_params": {
                     "type": "string",
@@ -636,8 +607,7 @@
                 },
                 "rfjackknife_pool_all": {
                     "type": "boolean",
-                    "description": "Pool XMLs from all cell-line groups into a single rf-jackknife run (output: `jackknife/all_groups/`) instead of running one jackknife per group. Default: true.",
-                    "default": true
+                    "description": "Pool XMLs from all cell-line groups into a single rf-jackknife run (output: `jackknife/all_groups/`) instead of running one jackknife per group. Default: true."
                 },
                 "rfrctools_gtf_feature": {
                     "type": "string",

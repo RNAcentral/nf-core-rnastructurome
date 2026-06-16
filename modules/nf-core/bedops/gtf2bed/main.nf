@@ -22,8 +22,7 @@ process BEDOPS_GTF2BED {
     def prefix = task.ext.prefix ?: "${gtf.baseName}"
 
     """
-    cat \\
-    $gtf \\
+    if [[ "${gtf}" == *.gz ]]; then gzip -dc "${gtf}"; else cat "${gtf}"; fi \\
     | gtf2bed \\
     $args \\
     --attribute-key=exon_id \\

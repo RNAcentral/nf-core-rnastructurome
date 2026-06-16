@@ -408,12 +408,6 @@ workflow RNASTRUCTUROME {
         .mix(ENSEMBL_GTF.out.gtf)
         .mix(NCBI_GTF.out.gtf)
 
-    // Keyed GTF channel for .join() in STAR alignment blocks.
-    // Format: [ ref_key, meta, gtf ] — allows join with keyed sample channels.
-    def ch_gtf_for_star_join = ch_all_reference_gtf.map { meta, gtf ->
-        [ meta.id.toString(), meta, gtf ]
-    }
-
     def ch_fasta_sort_script = file("${projectDir}/bin/fasta_sort.py", checkIfExists: true)
 
     FASTA_SORT_LOCAL (
@@ -447,12 +441,10 @@ workflow RNASTRUCTUROME {
         .map { key, value -> [ (key): value ] }
         .collect()
         .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
-        .first()
     ch_reference_gtf_map     = ch_reference_gtf_keyed
         .map { key, value -> [ (key): value ] }
         .collect()
         .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
-        .first()
 
     // Genome FASTA map for STAR index building.
     // For Ensembl species: ENSEMBL_GENOME output (soft-masked genome).
@@ -504,8 +496,6 @@ workflow RNASTRUCTUROME {
     //
     // INDEX BUILDING — conditional on chosen aligner per principle
     //
-    def ch_star_index_map    = channel.value([:])
-    def ch_star_index_keyed  = channel.empty()
     def ch_bowtie_index_map  = channel.value([:])
     def ch_bowtie2_index_map = channel.value([:])
 
@@ -527,14 +517,6 @@ workflow RNASTRUCTUROME {
             ch_star_build.map { entry -> entry[0] },
             ch_star_build.map { entry -> entry[1] }
         )
-
-        ch_star_index_map = STAR_GENOMEGENERATE.out.index
-            .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
-            .collect()
-            .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
-            .first()
-        ch_star_index_keyed = STAR_GENOMEGENERATE.out.index
-            .map { meta, index -> [ meta.id.toString(), meta, index ] }
     }
 
     if (pipeline_config.transcriptome) {
@@ -543,7 +525,6 @@ workflow RNASTRUCTUROME {
             .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
             .collect()
             .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
-            .first()
     }
 
     if (pipeline_config.transcriptome) {
@@ -552,7 +533,6 @@ workflow RNASTRUCTUROME {
             .map { meta, index -> [ (meta.id.toString()): [meta, index] ] }
             .collect()
             .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
-            .first()
     }
 
     //
@@ -563,11 +543,22 @@ workflow RNASTRUCTUROME {
     if (!pipeline_config.transcriptome) {
         def ch_rtstop_keyed = ch_rtstop_trimmed_for_align
             .map { meta, reads -> [ resolveReferenceKey(meta, pipeline_config.organism), meta, reads ] }
+        // Independent subscriptions to avoid queue-channel consumption by the sibling MAP join.
+        def ch_rtstop_idx_keyed = STAR_GENOMEGENERATE.out.index
+            .map { meta, index -> [ meta.id.toString(), meta, index ] }
+        def ch_rtstop_gtf_keyed = ch_all_reference_gtf
+            .map { meta, gtf -> [ meta.id.toString(), meta, gtf ] }
         def ch_rtstop_star_inputs = ch_rtstop_keyed
-            .join(ch_star_index_keyed)
-            .join(ch_gtf_for_star_join, remainder: true)
-            .map { ref_key, sample_meta, reads, idx_meta, index, gtf_meta, gtf ->
-                def has_gtf = gtf_meta != null
+            .join(ch_rtstop_idx_keyed)
+            .join(ch_rtstop_gtf_keyed, remainder: true)
+            .map { combined ->
+                def sample_meta = combined[1]
+                def reads       = combined[2]
+                def idx_meta    = combined[3]
+                def index       = combined[4]
+                def gtf_meta    = combined.size() > 5 ? combined[5] : null
+                def gtf         = combined.size() > 6 ? combined[6] : null
+                def has_gtf     = gtf_meta != null && gtf != null
                 [ [sample_meta, reads], [idx_meta, index], [gtf_meta ?: [id: 'no_gtf'], gtf ?: []], !has_gtf ]
             }
         def ch_rtstop_star_split = ch_rtstop_star_inputs.multiMap { entry ->
@@ -613,11 +604,22 @@ workflow RNASTRUCTUROME {
     if (!pipeline_config.transcriptome) {
         def ch_map_keyed = ch_map_trimmed_for_align
             .map { meta, reads -> [ resolveReferenceKey(meta, pipeline_config.organism), meta, reads ] }
+        // Independent subscriptions to avoid queue-channel consumption by the sibling RTSTOP join.
+        def ch_map_idx_keyed = STAR_GENOMEGENERATE.out.index
+            .map { meta, index -> [ meta.id.toString(), meta, index ] }
+        def ch_map_gtf_keyed = ch_all_reference_gtf
+            .map { meta, gtf -> [ meta.id.toString(), meta, gtf ] }
         def ch_map_star_inputs = ch_map_keyed
-            .join(ch_star_index_keyed)
-            .join(ch_gtf_for_star_join, remainder: true)
-            .map { ref_key, sample_meta, reads, idx_meta, index, gtf_meta, gtf ->
-                def has_gtf = gtf_meta != null
+            .join(ch_map_idx_keyed)
+            .join(ch_map_gtf_keyed, remainder: true)
+            .map { combined ->
+                def sample_meta = combined[1]
+                def reads       = combined[2]
+                def idx_meta    = combined[3]
+                def index       = combined[4]
+                def gtf_meta    = combined.size() > 5 ? combined[5] : null
+                def gtf         = combined.size() > 6 ? combined[6] : null
+                def has_gtf     = gtf_meta != null && gtf != null
                 [ [sample_meta, reads], [idx_meta, index], [gtf_meta ?: [id: 'no_gtf'], gtf ?: []], !has_gtf ]
             }
         def ch_map_star_split = ch_map_star_inputs.multiMap { entry ->

@@ -543,23 +543,27 @@ workflow RNASTRUCTUROME {
     if (!pipeline_config.transcriptome) {
         def ch_rtstop_keyed = ch_rtstop_trimmed_for_align
             .map { meta, reads -> [ resolveReferenceKey(meta, pipeline_config.organism), meta, reads ] }
-        // Independent subscriptions to avoid queue-channel consumption by the sibling MAP join.
+        // Build one combined reference entry per key (1 STAR index × 1 GTF → 1 item).
+        // Then combine with samples using by:0 so every sample gets the reference,
+        // not just the first one (.join would consume the right-channel item after the first match).
         def ch_rtstop_idx_keyed = STAR_GENOMEGENERATE.out.index
             .map { meta, index -> [ meta.id.toString(), meta, index ] }
         def ch_rtstop_gtf_keyed = ch_all_reference_gtf
             .map { meta, gtf -> [ meta.id.toString(), meta, gtf ] }
-        def ch_rtstop_star_inputs = ch_rtstop_keyed
-            .join(ch_rtstop_idx_keyed)
+        def ch_rtstop_star_ref = ch_rtstop_idx_keyed
             .join(ch_rtstop_gtf_keyed, remainder: true)
             .map { combined ->
-                def sample_meta = combined[1]
-                def reads       = combined[2]
-                def idx_meta    = combined[3]
-                def index       = combined[4]
-                def gtf_meta    = combined.size() > 5 ? combined[5] : null
-                def gtf         = combined.size() > 6 ? combined[6] : null
-                def has_gtf     = gtf_meta != null && gtf != null
-                [ [sample_meta, reads], [idx_meta, index], [gtf_meta ?: [id: 'no_gtf'], gtf ?: []], !has_gtf ]
+                def ref_key  = combined[0]
+                def idx_meta = combined[1]
+                def index    = combined[2]
+                def gtf_meta = combined.size() > 3 ? combined[3] : null
+                def gtf      = combined.size() > 4 ? combined[4] : null
+                [ ref_key, idx_meta, index, gtf_meta ?: [id: 'no_gtf'], gtf ?: [], gtf_meta != null && gtf != null ]
+            }
+        def ch_rtstop_star_inputs = ch_rtstop_keyed
+            .combine(ch_rtstop_star_ref, by: 0)
+            .map { ref_key, sample_meta, reads, idx_meta, index, gtf_meta, gtf, has_gtf ->
+                [ [sample_meta, reads], [idx_meta, index], [gtf_meta, gtf], !has_gtf ]
             }
         def ch_rtstop_star_split = ch_rtstop_star_inputs.multiMap { entry ->
             reads:      entry[0]
@@ -604,23 +608,27 @@ workflow RNASTRUCTUROME {
     if (!pipeline_config.transcriptome) {
         def ch_map_keyed = ch_map_trimmed_for_align
             .map { meta, reads -> [ resolveReferenceKey(meta, pipeline_config.organism), meta, reads ] }
-        // Independent subscriptions to avoid queue-channel consumption by the sibling RTSTOP join.
+        // Build one combined reference entry per key (1 STAR index × 1 GTF → 1 item).
+        // Then combine with samples using by:0 so every sample gets the reference,
+        // not just the first one (.join would consume the right-channel item after the first match).
         def ch_map_idx_keyed = STAR_GENOMEGENERATE.out.index
             .map { meta, index -> [ meta.id.toString(), meta, index ] }
         def ch_map_gtf_keyed = ch_all_reference_gtf
             .map { meta, gtf -> [ meta.id.toString(), meta, gtf ] }
-        def ch_map_star_inputs = ch_map_keyed
-            .join(ch_map_idx_keyed)
+        def ch_map_star_ref = ch_map_idx_keyed
             .join(ch_map_gtf_keyed, remainder: true)
             .map { combined ->
-                def sample_meta = combined[1]
-                def reads       = combined[2]
-                def idx_meta    = combined[3]
-                def index       = combined[4]
-                def gtf_meta    = combined.size() > 5 ? combined[5] : null
-                def gtf         = combined.size() > 6 ? combined[6] : null
-                def has_gtf     = gtf_meta != null && gtf != null
-                [ [sample_meta, reads], [idx_meta, index], [gtf_meta ?: [id: 'no_gtf'], gtf ?: []], !has_gtf ]
+                def ref_key  = combined[0]
+                def idx_meta = combined[1]
+                def index    = combined[2]
+                def gtf_meta = combined.size() > 3 ? combined[3] : null
+                def gtf      = combined.size() > 4 ? combined[4] : null
+                [ ref_key, idx_meta, index, gtf_meta ?: [id: 'no_gtf'], gtf ?: [], gtf_meta != null && gtf != null ]
+            }
+        def ch_map_star_inputs = ch_map_keyed
+            .combine(ch_map_star_ref, by: 0)
+            .map { ref_key, sample_meta, reads, idx_meta, index, gtf_meta, gtf, has_gtf ->
+                [ [sample_meta, reads], [idx_meta, index], [gtf_meta, gtf], !has_gtf ]
             }
         def ch_map_star_split = ch_map_star_inputs.multiMap { entry ->
             reads:      entry[0]

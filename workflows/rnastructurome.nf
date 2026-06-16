@@ -850,7 +850,17 @@ workflow RNASTRUCTUROME {
             .collect()
             .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
 
-        def ch_rfcount_genome_inputs = ch_markdup_bam_bai
+        // Annotate each BAM with the per-sample strandedness inferred by RSeQC.
+        // remainder: true keeps samples whose reference had no BED (e.g. viral) — they
+        // get strandedness = null, and modules.config falls back to params.rfcount_strandedness.
+        def ch_bam_stranded = ch_markdup_bam_bai
+            .map { meta, bam, bai -> [ meta.id.toString(), meta, bam, bai ] }
+            .join(ch_strandedness_by_id, remainder: true)
+            .map { _id, meta, bam, bai, strandedness ->
+                [ meta + [strandedness: strandedness], bam, bai ]
+            }
+
+        def ch_rfcount_genome_inputs = ch_bam_stranded
             .combine(ch_genome_fasta_map)
             .map { combined ->
                 def meta    = combined[0]

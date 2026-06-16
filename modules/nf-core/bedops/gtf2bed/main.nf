@@ -23,7 +23,7 @@ process BEDOPS_GTF2BED {
 
     """
     if [[ "${gtf}" == *.gz ]]; then gzip -dc "${gtf}"; else cat "${gtf}"; fi \\
-    | grep -v '^#' \\
+    | awk -F'\\t' '\$3 == "exon"' \\
     | gtf2bed \\
     $args \\
     --attribute-key=exon_id \\

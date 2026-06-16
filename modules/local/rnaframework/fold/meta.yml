@@ -55,7 +55,7 @@ output:
       - "*":
           type: file
           description: 2D structure plots from rf-fold
-          pattern: "*_fold_publish/2D-structures/*"
+          pattern: "*_fold_publish/structures/*"
           ontologies: []
   summaries:
     - - meta:

@@ -12,7 +12,7 @@ process ENSEMBL_TRANSCRIPTOME {
 
     output:
     tuple val(meta), path("${meta.id}.transcripts.fa.gz"), optional: true, emit: fasta
-    tuple val(meta), path("ensembl_source_urls.txt"),      optional: true, emit: source_urls
+    tuple val(meta), path("ensembl_source_url.txt"),      optional: true, emit: source_urls
     tuple val(meta), path("${meta.id}.not_found"),         optional: true, emit: not_found
     path "ensembl_warnings.log",                           optional: true, emit: warnings
     path "versions.yml",                                                    emit: versions
@@ -25,7 +25,7 @@ process ENSEMBL_TRANSCRIPTOME {
         --release "${ensembl_config.ensembl_release}" \
         --base-url "${ensembl_config.ensembl_base_url}" \
         --output "${meta.id}.transcripts.fa.gz" \
-        --source-urls "ensembl_source_urls.txt" \
+        --source-urls "ensembl_source_url.txt" \
         --warnings-log "ensembl_warnings.log" \
         --not-found-file "${meta.id}.not_found"
 
@@ -41,7 +41,7 @@ process ENSEMBL_TRANSCRIPTOME {
     touch ${meta.id}.transcripts.fa.gz
     printf '%s\n' \
         "stub://${meta.id}.transcripts.fa.gz" \
-        > ensembl_source_urls.txt
+        > ensembl_source_url.txt
     printf '%s\n' \
         '"${task.process}":' \
         '    ensembl_release: "${ensembl_config.ensembl_release}"' \

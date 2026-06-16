@@ -47,7 +47,7 @@ output:
     - - meta:
           type: map
           description: Groovy Map containing group metadata
-      - "${prefix}_2D_structures/*.svg":
+      - "${prefix}_structures/*.svg":
           type: file
           description: Reactivity-coloured SVG structure diagrams (absent if no structures were drawn)
           pattern: "*.svg"

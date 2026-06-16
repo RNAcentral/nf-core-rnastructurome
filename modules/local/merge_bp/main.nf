@@ -10,7 +10,7 @@ process MERGE_BP {
     path merge_script
 
     output:
-    tuple val(meta), path("${meta.id}.bp"), optional: true, emit: bp
+    tuple val(meta), path("${task.ext.prefix ?: meta.id}.bp"), optional: true, emit: bp
     path "versions.yml", emit: versions
 
     script:

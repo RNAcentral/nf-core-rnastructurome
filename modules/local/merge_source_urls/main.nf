@@ -9,12 +9,12 @@ process MERGE_SOURCE_URLS {
     tuple val(meta), path(url_files, stageAs: "inputs/*")
 
     output:
-    tuple val(meta), path("ensembl_source_urls.txt"), emit: urls
+    tuple val(meta), path("ensembl_source_url.txt"), emit: urls
     path "versions.yml",                               emit: versions
 
     script:
     """
-    cat inputs/* > ensembl_source_urls.txt
+    cat inputs/* > ensembl_source_url.txt
 
     printf '"%s":\\n    python: %s\\n' \
         "${task.process}" \
@@ -24,7 +24,7 @@ process MERGE_SOURCE_URLS {
 
     stub:
     """
-    touch ensembl_source_urls.txt
+    touch ensembl_source_url.txt
     printf '"%s":\\n    python: stub\\n' "${task.process}" > versions.yml
     """
 }

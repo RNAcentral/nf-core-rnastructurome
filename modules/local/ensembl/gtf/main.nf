@@ -12,7 +12,7 @@ process ENSEMBL_GTF {
 
     output:
     tuple val(meta), path("${meta.id}.annotation.gtf.gz"), optional: true, emit: gtf
-    tuple val(meta), path("ensembl_source_urls.txt"),       optional: true, emit: source_urls
+    tuple val(meta), path("ensembl_source_url.txt"),       optional: true, emit: source_urls
     tuple val(meta), path("${meta.id}.not_found"),          optional: true, emit: not_found
     path "versions.yml",                                                     emit: versions
 
@@ -24,7 +24,7 @@ process ENSEMBL_GTF {
         --release "${ensembl_config.ensembl_release}" \
         --base-url "${ensembl_config.ensembl_base_url}" \
         --output "${meta.id}.annotation.gtf.gz" \
-        --source-urls "ensembl_source_urls.txt" \
+        --source-urls "ensembl_source_url.txt" \
         --not-found-file "${meta.id}.not_found"
 
     printf '%s\n' \
@@ -39,7 +39,7 @@ process ENSEMBL_GTF {
     touch ${meta.id}.annotation.gtf.gz
     printf '%s\n' \
         "stub://${meta.id}.annotation.gtf.gz" \
-        > ensembl_source_urls.txt
+        > ensembl_source_url.txt
     printf '%s\n' \
         '"${task.process}":' \
         '    ensembl_release: "${ensembl_config.ensembl_release}"' \

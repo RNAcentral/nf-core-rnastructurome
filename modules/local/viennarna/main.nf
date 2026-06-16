@@ -11,7 +11,7 @@ process VIENNARNA {
     path colour_script
 
     output:
-    tuple val(meta), path("${prefix}_2D_structures/*.svg"), optional: true, emit: plots
+    tuple val(meta), path("${prefix}_structures/*.svg"), optional: true, emit: plots
     path "versions.yml",                                                    emit: versions
 
     when:
@@ -21,7 +21,7 @@ process VIENNARNA {
     def rnaplot = task.ext.rnaplot ?: 'RNAplot'
     prefix      = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p ${prefix}_2D_structures
+    mkdir -p ${prefix}_structures
 
     sort "${drawn_ids}" > .r2dt_drawn.txt
 
@@ -32,8 +32,8 @@ process VIENNARNA {
         python3 "${xml_script}" "\${_id}" xml_input*/"\${_id}".xml > "\${_id}.shape" || true
         "${rnaplot}" --output-format=svg < "\$_db" || true
         if [[ -f "\${_id}_ss.svg" ]]; then
-            mv "\${_id}_ss.svg" "${prefix}_2D_structures/\${_id}.svg"
-            python3 "${colour_script}" "\${_id}.shape" "${prefix}_2D_structures/\${_id}.svg" || true
+            mv "\${_id}_ss.svg" "${prefix}_structures/\${_id}.svg"
+            python3 "${colour_script}" "\${_id}.shape" "${prefix}_structures/\${_id}.svg" || true
         fi
     }
 
@@ -58,8 +58,8 @@ process VIENNARNA {
     stub:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p ${prefix}_2D_structures
-    touch ${prefix}_2D_structures/stub_ENST00000000001.svg
+    mkdir -p ${prefix}_structures
+    touch ${prefix}_structures/stub_ENST00000000001.svg
     printf '"%s":\\n    viennarna: 2.6.4\\n' "${task.process}" > versions.yml
     """
 }

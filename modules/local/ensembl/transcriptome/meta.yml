@@ -40,10 +40,10 @@ output:
             - edam: "http://edamontology.org/format_1929" # FASTA
             - edam: "http://edamontology.org/format_3989" # GZIP
   source_urls:
-    - "ensembl_source_urls.txt":
+    - "ensembl_source_url.txt":
         type: file
         description: Text file listing Ensembl source FASTA URLs used to build the merged transcript FASTA
-        pattern: "ensembl_source_urls.txt"
+        pattern: "ensembl_source_url.txt"
         ontologies:
           - edam: "http://edamontology.org/format_2330" # Textual format
   warnings:

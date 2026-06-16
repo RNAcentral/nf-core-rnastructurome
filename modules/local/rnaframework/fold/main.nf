@@ -11,7 +11,7 @@ process RNAFRAMEWORK_RFFOLD {
     output:
     tuple val(meta), path("${prefix}_fold/"),                                        emit: structures
     tuple val(meta), path("${prefix}_fold_publish/dotbracket/*"),  optional: true,   emit: dotbracket
-    tuple val(meta), path("${prefix}_fold_publish/2D-structures/*"), optional: true, emit: structure_plots
+    tuple val(meta), path("${prefix}_fold_publish/structures/*"), optional: true, emit: structure_plots
     tuple val(meta), path("${prefix}_fold_publish/summaries/*"),   optional: true,   emit: summaries
     tuple val(meta), path("${prefix}_fold_publish/dotplot/*"),     optional: true,   emit: dotplot
     tuple val(meta), path("${prefix}_fold_publish/shannon/*.wig"), optional: true,   emit: shannon_wig
@@ -72,7 +72,7 @@ process RNAFRAMEWORK_RFFOLD {
     rffold_check_missing.sh ${prefix}_fold unique_xml
 
     mv ${prefix}_fold/structures ${prefix}_fold/dotbracket
-    [[ -d ${prefix}_fold/plots/structures ]] && mv ${prefix}_fold/plots/structures ${prefix}_fold/2D-structures
+    [[ -d ${prefix}_fold/plots/structures ]] && mv ${prefix}_fold/plots/structures ${prefix}_fold/structures
     [[ -d ${prefix}_fold/plots/summaries  ]] && mv ${prefix}_fold/plots/summaries  ${prefix}_fold/summaries
     rmdir ${prefix}_fold/plots 2>/dev/null || true
 
@@ -87,7 +87,7 @@ process RNAFRAMEWORK_RFFOLD {
     stub:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p ${prefix}_fold/dotbracket ${prefix}_fold/2D-structures ${prefix}_fold/summaries ${prefix}_fold/shannon
+    mkdir -p ${prefix}_fold/dotbracket ${prefix}_fold/structures ${prefix}_fold/summaries ${prefix}_fold/shannon
     touch ${prefix}_fold/rffold.log ${prefix}_fold/dotbracket/example.db ${prefix}_fold/shannon/example.wig
 
     rffold_publish.sh ${prefix}_fold ${prefix}_fold_publish

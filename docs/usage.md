@@ -4,84 +4,9 @@
 
 > _Documentation of pipeline parameters is generated automatically from the pipeline schema and can no longer be found in markdown files._
 
-## Introduction
-
-`nf-core/rnastructurome` processes structure-probing data from FASTQ to normalized reactivities and secondary structure outputs.
-
-High-level workflow:
-
-1. Input QC and trimming (`FastQC`, `cutadapt`, optional `umi_tools extract`)
-2. Reference download — genome FASTA + GTF from Ensembl (NCBI fallback for bacteria/viruses)
-3. Alignment (`STAR`) and BAM post-processing (`samtools`, optional `umi_tools dedup`)
-4. Reactivity counting (`rf-count`) for RT-stop and MaP; genome route additionally runs `rf-rctools extract` to convert genome-level counts to transcript-level
-5. Reactivity normalization (`rf-norm`) using available controls; per-transcript WIG tracks produced by `rf-wiggle`
-6. Normalisation quality assessment (`rf-jackknife`) against a reference structure set — optional, runs only when `--jackknife_reference` is provided
-7. Structure inference (`rf-fold`) from normalized XMLs
-8. Aggregated reporting (`MultiQC`)
-
-The probing principle (`RT-stop` or `MaP`) is read from the `principle` column in the samplesheet CSV and controls chemistry-specific trimming, alignment and normalization parameters automatically.
-
-## Quick start
-
-```bash
-nextflow run main.nf \
-  -profile docker \
-  --input samplesheet.csv \
-  --outdir results
-```
-
-The pipeline downloads the genome FASTA and GTF automatically from Ensembl for each organism in the samplesheet.
-
-Supply your own genome files to skip the download:
-
-```bash
-nextflow run main.nf -profile docker \
-  --input samplesheet.csv \
-  --jackknife_reference known_structures.db \
-  --genome_fasta genome.fa.gz \
-  --gtf annotation.gtf.gz \
-  --outdir results
-```
-
-Resume after an interruption:
-
-```bash
-nextflow run main.nf -profile docker \
-  --input samplesheet.csv \
-  --jackknife_reference known_structures.db \
-  --outdir results \
-  -resume
-```
-
 ## Pipeline parameters
 
 Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files supplied with `-c` can be used for infrastructure settings such as resources, executors, containers, or module arguments, but should not be used for ordinary pipeline parameters.
-
-For short runs, pass parameters directly:
-
-```bash
-nextflow run nf-core/rnastructurome -profile docker \
-  --input samplesheet.csv \
-  --outdir results
-```
-
-For repeatable runs, pass parameters via a YAML or JSON file:
-
-```bash
-nextflow run nf-core/rnastructurome -profile docker -params-file params.yaml
-```
-
-```yaml title="params.yaml"
-input: "./samplesheet.csv"
-outdir: "./results/"
-genome_fasta: "./genome.fa.gz"
-gtf: "./annotation.gtf.gz"
-jackknife_reference: "./known_structures.db"
-rfnorm_nan: 100
-```
-
-> [!WARNING]
-> Use `-params-file` for pipeline parameters. Do not use `-c` for ordinary pipeline params — `-c` is for Nextflow config overrides such as resources, executor behaviour, containers, and custom tool arguments.
 
 ## Required inputs
 

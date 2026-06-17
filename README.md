@@ -68,6 +68,10 @@ Each row is one sample. `fastq_2` is optional (leave empty for single-end). `cel
 
 Supported `condition` values: `treated`, `untreated`, `denatured`.
 
+If you omit `--fasta` and `--gtf`, add an `organism` column to your samplesheet (e.g. `Homo sapiens`) and the pipeline will download the reference from Ensembl automatically.
+
+The pipeline handles reference resolution automatically: supply a transcript FASTA and GTF directly, configure them via `params.genomes`, or let the pipeline download them from Ensembl by organism name. Samples are grouped by cell line and replicate so that treated, untreated, and denatured controls are paired correctly for normalisation.
+
 Now run the pipeline:
 
 ```bash
@@ -78,10 +82,6 @@ nextflow run nf-core/rnastructurome \
    --gtf annotation.gtf.gz \
    --outdir <OUTDIR>
 ```
-
-If you omit `--fasta` and `--gtf`, add an `organism` column to your samplesheet (e.g. `Homo sapiens`) and the pipeline will download the reference from Ensembl automatically.
-
-The pipeline handles reference resolution automatically: supply a transcript FASTA and GTF directly, configure them via `params.genomes`, or let the pipeline download them from Ensembl by organism name. Samples are grouped by cell line and replicate so that treated, untreated, and denatured controls are paired correctly for normalisation.
 
 > [!WARNING]
 > Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files).
@@ -96,11 +96,11 @@ For more details about the output files and reports, please refer to the
 
 ## Credits
 
-nf-core/rnastructurome was originally written by RNAcentral.
+nf-core/rnastructurome was originally written by Victoria Begley (@Vicbeg) and Pedro Madrigal (@pmb59) from RNAcentral (EBI-EMBL).
 
 We thank the following people for their extensive assistance in the development of this pipeline:
-
-<!-- TODO nf-core: If applicable, make list of people who have also contributed -->
+- Danny Incarnato
+- Yiliang Ding
 
 ## Contributions and Support
 

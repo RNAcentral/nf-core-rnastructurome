@@ -21,25 +21,33 @@
 
 ## Introduction
 
-**nf-core/rnastructurome** is a bioinformatics pipeline for the analysis of chemical-based high-throughput RNA structure probing data. It accepts FASTQ files from SHAPE or DMS experiments using either the **RT-stop** or **mutational profiling (MaP)** principle, and processes them from raw reads through alignment and deduplication to per-base reactivity scores, RNA secondary structure predictions, and publication-quality 2D structure diagrams.
+**nf-core/rnastructurome** is a bioinformatics pipeline for the analysis of chemical-based high-throughput RNA structure probing data. It accepts FASTQ files from **SHAPE** or **DMS** experiments using either the **RT-stop** or **mutational profiling (MaP)** principle, and processes them from raw reads through alignment and deduplication to per-base reactivity scores and RNA secondary structure predictions.
 
-The pipeline handles reference resolution automatically: supply a transcript FASTA and GTF directly, configure them via `params.genomes`, or let the pipeline download them from Ensembl by organism name. Samples are grouped by cell line and replicate so that treated, untreated, and denatured controls are paired correctly for normalisation.
+// TODO: insert final nf-metro image
 
-Default pipeline steps:
 
-1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
-2. Adapter and quality trimming ([`Cutadapt`](https://cutadapt.readthedocs.io/)) with principle-aware settings (5′ quality trimming disabled for RT-stop)
-3. Optional UMI extraction ([`UMI-tools`](https://umi-tools.readthedocs.io/))
-4. Alignment to transcript reference ([`Bowtie`](http://bowtie-bio.sourceforge.net/) for RT-stop; [`Bowtie2`](http://bowtie-bio.sourceforge.net/bowtie2/) for MaP)
-5. BAM sorting, indexing, and QC ([`SAMtools`](https://www.htslib.org/))
-6. Optional UMI-aware deduplication ([`UMI-tools dedup`](https://umi-tools.readthedocs.io/)) or duplicate marking ([`SAMtools markdup`](https://www.htslib.org/))
-7. Per-base reactivity counting ([`rf-count`](https://rnaframework.readthedocs.io/en/latest/rf-count/))
-8. Reactivity normalisation with automatic control-pairing and scoring-method selection ([`rf-norm`](https://rnaframework.readthedocs.io/en/latest/rf-norm/))
-9. RNA secondary structure prediction ([`rf-fold`](https://rnaframework.readthedocs.io/en/latest/rf-fold/))
-10. Reactivity WIG tracks and genomic BigWig files ([`rf-wiggle`](https://rnaframework.readthedocs.io/en/latest/rf-wiggle/))
-11. 2D structure diagram drawing: template-matched diagrams via [`R2DT`](https://github.com/RNAcentral/R2DT) where a template exists, [`ViennaRNA`](https://www.tbi.univie.ac.at/RNA/) RNAplot fallback for the remainder, both coloured by reactivity
-12. RDAT export combining per-transcript reactivity and structure ([`rnaframework_to_rdat`](bin/rnaframework_to_rdat.py))
-13. Aggregated QC report ([`MultiQC`](http://multiqc.info/))
+
+Pipeline steps:
+
+1. Merge re-sequenced FASTQ files (`cat/fastq`)
+2. Raw read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
+3. Optional UMI extraction ([`UMI-tools extract`](https://umi-tools.readthedocs.io/)) when `umi_pattern` is supplied
+4. Adapter and quality trimming ([`Cutadapt`](https://cutadapt.readthedocs.io/)) with principle-aware settings, followed by post-trim FastQC
+5. Reference resolution: use local FASTA/GTF inputs, download genome FASTA and GTF from Ensembl, or fall back to NCBI for organisms not captured by Ensembl like bacteria or viruses.
+6. Reference indexing: [`STAR`](https://github.com/alexdobin/STAR) genome index by default; optional [`Bowtie`](http://bowtie-bio.sourceforge.net/) / [`Bowtie2`](http://bowtie-bio.sourceforge.net/bowtie2/) transcriptome indexes with `--transcriptome`
+7. Alignment: STAR for the default genome route; Bowtie for RT-stop and Bowtie2 for MaP on the optional transcriptome route
+8. BAM sorting, indexing, and alignment QC ([`SAMtools`](https://www.htslib.org/))
+9. Duplicate handling: optional UMI-aware deduplication ([`UMI-tools dedup`](https://umi-tools.readthedocs.io/)) or duplicate marking ([`SAMtools markdup`](https://www.htslib.org/))
+10. Genome-route strandedness support: GTF-to-BED conversion ([`BEDOPS`](https://bedops.readthedocs.io/)) and MaP strandedness inference ([`RSeQC infer_experiment`](https://rseqc.sourceforge.net/))
+11. Per-base reactivity counting: [`rf-count-genome`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count-genome/) plus [`rf-rctools extract`](https://rnaframework-docs.readthedocs.io/en/latest/rf-rctools/) on the default genome route, or [`rf-count`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count/) directly on the transcriptome route
+12. Reactivity normalisation with automatic control pairing and scoring-method selection ([`rf-norm`](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/))
+13. Reactivity track generation from rf-norm outputs, including transcript-coordinate and genome-coordinate WIG/BigWig files ([`rf-wiggle`](https://rnaframework-docs.readthedocs.io/en/latest/rf-wiggle/))
+14. Optional normalisation calibration against reference structures ([`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/)) when `--jackknife_reference` is provided
+15. RNA secondary structure prediction across grouped replicates ([`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/))
+16. Base-pair and Shannon entropy track generation from rf-fold outputs, including transcript-coordinate and genome-coordinate files where possible
+17. 2D structure diagram drawing: template-matched diagrams via [`R2DT`](https://github.com/RNAcentral/R2DT) when enabled, with [`ViennaRNA`](https://www.tbi.univie.ac.at/RNA/) RNAplot fallback; conda/mamba runs skip R2DT and draw all structures with ViennaRNA
+18. RDAT export combining per-transcript reactivity and structure ([`rnaframework_to_rdat`](bin/rnaframework_to_rdat.py))
+19. Aggregated QC report ([`MultiQC`](http://multiqc.info/))
 
 ## Usage
 
@@ -72,6 +80,8 @@ nextflow run nf-core/rnastructurome \
 ```
 
 If you omit `--fasta` and `--gtf`, add an `organism` column to your samplesheet (e.g. `Homo sapiens`) and the pipeline will download the reference from Ensembl automatically.
+
+The pipeline handles reference resolution automatically: supply a transcript FASTA and GTF directly, configure them via `params.genomes`, or let the pipeline download them from Ensembl by organism name. Samples are grouped by cell line and replicate so that treated, untreated, and denatured controls are paired correctly for normalisation.
 
 > [!WARNING]
 > Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files).

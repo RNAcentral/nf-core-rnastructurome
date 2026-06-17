@@ -53,9 +53,19 @@ nextflow run main.nf -profile docker \
   -resume
 ```
 
-## Passing parameters
+## Pipeline parameters
 
-You can pass parameters via a YAML params file rather than on the command line:
+Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files supplied with `-c` can be used for infrastructure settings such as resources, executors, containers, or module arguments, but should not be used for ordinary pipeline parameters.
+
+For short runs, pass parameters directly:
+
+```bash
+nextflow run nf-core/rnastructurome -profile docker \
+  --input samplesheet.csv \
+  --outdir results
+```
+
+For repeatable runs, pass parameters via a YAML or JSON file:
 
 ```bash
 nextflow run nf-core/rnastructurome -profile docker -params-file params.yaml
@@ -71,7 +81,7 @@ rfnorm_nan: 100
 ```
 
 > [!WARNING]
-> Use `-params-file` for pipeline parameters. Do not use `-c` for ordinary pipeline params — `-c` is for Nextflow config overrides (resources, execution behaviour) only.
+> Use `-params-file` for pipeline parameters. Do not use `-c` for ordinary pipeline params — `-c` is for Nextflow config overrides such as resources, executor behaviour, containers, and custom tool arguments.
 
 ## Required inputs
 
@@ -100,7 +110,11 @@ nextflow run main.nf -profile docker \
   --outdir results
 ```
 
-## Reference input flags
+## Reference genome options
+
+The minimum reference inputs for the default genome route are a genome FASTA and a GTF annotation. The pipeline can either download these automatically from Ensembl/NCBI using the `organism` column, or use files you provide explicitly.
+
+### Explicit reference file specification
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -109,7 +123,17 @@ nextflow run main.nf -profile docker \
 | `--gtf` | *(auto)* | Path to a local GTF (skips Ensembl GTF download). |
 | `--transcriptome` | `false` | Use transcriptome alignment route (Bowtie/Bowtie2) instead of genome (STAR). |
 
-## Reference resolution
+For example:
+
+```bash
+nextflow run nf-core/rnastructurome -profile docker \
+  --input samplesheet.csv \
+  --genome_fasta genome.fa.gz \
+  --gtf annotation.gtf.gz \
+  --outdir results
+```
+
+### Automatic reference resolution
 
 The pipeline resolves a `reference_key` from the per-sample `organism` column or the global `--organism` flag.
 
@@ -143,9 +167,19 @@ Ensembl source can be tuned with:
 - `--ensembl_release` (`current` by default; `latest` is treated the same, and values such as `114` or `release-114` are also accepted)
 - `--ensembl_base_url` (default `https://ftp.ensembl.org/pub`)
 
+### Reference reuse
+
+When references are downloaded automatically, the sorted FASTA, GTF, and source URL provenance are published under `reference/`. Reuse these files in subsequent runs with `--genome_fasta` / `--transcriptome_fasta` and `--gtf` to avoid repeated downloads and to keep the reference version fixed.
+
 ## Samplesheet input
 
-The samplesheet must be CSV and include:
+Create a samplesheet with information about the samples you would like to analyse, then pass it with:
+
+```bash
+--input '[path to samplesheet file]'
+```
+
+The samplesheet must be comma-separated, include a header row, and contain at least:
 
 - `sample`
 - `fastq_1`
@@ -155,12 +189,36 @@ The samplesheet must be CSV and include:
 
 `fastq_2` is optional (leave empty for single-end).
 
-### Minimal example
+### Multiple runs of the same sample
+
+Use the same `sample` value when the same biological sample has been sequenced more than once, for example across multiple lanes. The pipeline concatenates all FASTQs for that sample before downstream analysis.
+
+All rows for a repeated `sample` must have the same layout: either all single-end or all paired-end.
 
 ```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2,cell_line,condition,replicate
-HEK293T_treated_r1,/data/treated_r1.fastq.gz,,HEK293T,treated,1
-HEK293T_untreated_r1,/data/untreated_r1.fastq.gz,,HEK293T,untreated,1
+sample,fastq_1,fastq_2,cell_line,condition,replicate,organism,principle
+HEK293T_treated_r1,lane1_R1.fastq.gz,,HEK293T,treated,1,Homo sapiens,RT-stop
+HEK293T_treated_r1,lane2_R1.fastq.gz,,HEK293T,treated,1,Homo sapiens,RT-stop
+HEK293T_untreated_r1,lane1_untreated_R1.fastq.gz,,HEK293T,untreated,1,Homo sapiens,RT-stop
+```
+
+### Minimal samplesheet
+
+```csv title="samplesheet.csv"
+sample,fastq_1,fastq_2,cell_line,condition,replicate,organism,principle
+HEK293T_treated_r1,/data/treated_r1.fastq.gz,,HEK293T,treated,1,Homo sapiens,RT-stop
+HEK293T_untreated_r1,/data/untreated_r1.fastq.gz,,HEK293T,untreated,1,Homo sapiens,RT-stop
+```
+
+### Full samplesheet
+
+The samplesheet can include optional per-sample metadata columns. A more complete example with both single-end and paired-end rows is shown below.
+
+```csv title="samplesheet.csv"
+sample,sample_id,fastq_1,fastq_2,method,principle,cell_line,condition,replicate,organism,pH,adapter_3p,adapter_5p,umi_pattern
+HEK293T_treated_r1,GSM000001,/data/treated_r1.fastq.gz,,SHAPE,RT-stop,HEK293T,treated,1,Homo sapiens,7.5,,,
+HEK293T_untreated_r1,GSM000002,/data/untreated_r1.fastq.gz,,SHAPE,RT-stop,HEK293T,untreated,1,Homo sapiens,7.5,,,
+HEK293T_map_r1,GSM000003,/data/map_r1_1.fastq.gz,/data/map_r1_2.fastq.gz,DMS,MaP,HEK293T,treated,1,Homo sapiens,8.0,AGATCGGAAGAGC,AGATCGGAAGAGC,NNNNNN
 ```
 
 ### Column reference
@@ -176,8 +234,11 @@ HEK293T_untreated_r1,/data/untreated_r1.fastq.gz,,HEK293T,untreated,1
 
 Optional per-sample columns supported by the pipeline include:
 
+- `sample_id` (external accession or display identifier; falls back to global `--sample_id` when set)
+- `method` (`SHAPE` or `DMS`; controls chemistry-specific defaults)
 - `organism` (used for automatic genome/transcriptome download from Ensembl/NCBI; e.g. `Homo sapiens`)
 - `principle` (`RT-stop` or `MaP`) — **required**; controls chemistry-specific alignment parameters, rf-count mutation counting, and rf-norm scoring/normalisation defaults
+- `pH` (used for DMS reactive-base defaults; `pH >= 8.0` treats all bases as potentially reactive)
 - `adapter_5p`
 - `adapter_3p`
 - `umi_pattern`
@@ -203,11 +264,11 @@ Advanced override:
 
 - `--rfnorm_norm_method 2|3` forces the `rf-norm` normalisation mode while leaving scoring-method auto-selection unchanged.
 
-## Preprocessing behavior
+## Adapter trimming options
 
-### Cutadapt by principle
+The pipeline uses Cutadapt for quality and adapter trimming. Trimming defaults depend on the probing principle because RT-stop experiments encode signal at the read end.
 
-| Principle | `--cutadapt-5quality` | `--cutadapt-3quality` | Notes                                         |
+| Principle | `--cutadapt_5quality` | `--cutadapt_3quality` | Notes                                         |
 | --------- | --------------------- | --------------------- | --------------------------------------------- |
 | `RT-stop` | forced to `0`         | default `20`          | 5' quality trimming is intentionally disabled |
 | `MaP`     | default `20`          | default `20`          | both are user-configurable                    |
@@ -219,12 +280,14 @@ Adapter precedence:
 
 If no adapters are provided, the pipeline falls back to `AGATCGGAAGAGC` for both the 5' and 3' adapter. Set `--cutadapt_quality_only` to skip adapter trimming entirely and perform quality/length filtering only.
 
-### Optional UMI extraction
+## Unique Molecular Identifiers (UMI)
 
 Enable with `umi_pattern` (sample-level or global `--umi_pattern`).
 
 - Patterns containing only `N/C/X` use direct `umi_tools --bc-pattern` mode.
 - IUPAC patterns (for example with `D`) are converted automatically to regex mode.
+
+UMI extraction runs before Cutadapt so that molecular tags are available during deduplication.
 
 ### Duplicate handling
 
@@ -255,6 +318,13 @@ Key parameters:
 Paired-end default:
 
 - If neither paired filter is set, pipeline defaults to `--properly-paired`.
+
+#### Genome route: strandedness
+
+On the genome route, `rf-count-genome` requires a library strandedness value (`--library-strandedness`) to correctly assign reads to the plus or minus strand. Getting this wrong puts counts on the wrong strand and produces incorrect reactivity profiles.
+
+- **RT-stop**: always treated as second-strand (`second`) — this is fixed by experimental design and requires no user input.
+- **MaP**: strandedness is inferred automatically per sample using `RSeQC infer_experiment`. If inference is ambiguous (very small BAM, missing BED annotation), you can override it with `--rfcount_strandedness` (`first`, `second`, or `unstranded`).
 
 #### Genome route: `rf-rctools extract`
 
@@ -390,7 +460,7 @@ For transcripts without an R2DT template, the pipeline uses [`ViennaRNA`](https:
 - All transcripts not covered by R2DT receive a ViennaRNA diagram.
 - Nucleotides are coloured with the same reactivity scale as R2DT diagrams.
 
-Both diagram types are published to `fold/<group>/2D-structures/`.
+R2DT diagrams are published to `fold/<group>/structures/r2dt/`; ViennaRNA fallback diagrams are published to `fold/<group>/structures/viennarna/`.
 
 ## Optional analysis modules
 
@@ -430,10 +500,13 @@ Main output areas under `--outdir`:
 - `count/` — count tables and always-on plots
 - `norm/<group>/` — normalized XML, normalization plots, and per-transcript wiggle tracks
 - `norm/merged_bw/` — per-cell-line genomic reactivity BigWigs (`<cell_line>_reactivity.bw`); reactivity values are averaged across replicates before genomic remapping and conversion when multiple replicates are available
+- `norm/transcript_bw/` — per-cell-line transcript-coordinate reactivity BigWigs
 - `jackknife/<group>/` — FMI CSV and optional heatmap (only when `--jackknife_reference` is set)
-- `fold/<group>/` — inferred secondary structures (dot-bracket by default), fold reports, optional CT, optional dotplots
+- `fold/<group>/` — inferred secondary structures (dot-bracket by default), fold reports, optional CT, optional dotplots, and `structures/r2dt/` or `structures/viennarna/` SVG diagrams
 - `fold/merged_bp/` — merged base-pair files per cell line (produced from dotplots when `--rffold_dotplot` is enabled)
+- `fold/transcript_merged_bp/` — transcript-coordinate merged base-pair files
 - `fold/shannon_bw/` — per-cell-line genomic Shannon entropy BigWigs (`<cell_line>_shannon.bw`; produced when `--rffold_shannon_entropy` is enabled, which is the default)
+- `fold/transcript_shannon_bw/` — transcript-coordinate Shannon entropy BigWigs
 - `eval/<group>/` — per-transcript evaluation metrics CSV and optional plots (when rf-eval is enabled)
 - `multiqc/` — final aggregated QC report
 
@@ -444,23 +517,32 @@ For full output details, see [output documentation](output.md).
 Typical usage (genome route, auto-downloads reference from Ensembl):
 
 ```bash
-nextflow run nf-core/rnastructurome --input ./samplesheet.csv \
-  --jackknife_reference ./known_structures.db --outdir ./results -profile docker
+nextflow run nf-core/rnastructurome \
+  --input ./samplesheet.csv \
+  --outdir ./results \
+  -profile docker
 ```
 
 With local genome files:
 
 ```bash
-nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results \
+nextflow run nf-core/rnastructurome \
+  --input ./samplesheet.csv \
+  --outdir ./results \
   --jackknife_reference ./known_structures.db \
-  --genome_fasta ./genome.fa.gz --gtf ./annotation.gtf.gz -profile docker
+  --genome_fasta ./genome.fa.gz \
+  --gtf ./annotation.gtf.gz \
+  -profile docker
 ```
 
 Transcriptome route (Bowtie/Bowtie2):
 
 ```bash
-nextflow run nf-core/rnastructurome --input ./samplesheet.csv --outdir ./results \
-  --jackknife_reference ./known_structures.db --transcriptome -profile docker
+nextflow run nf-core/rnastructurome \
+  --input ./samplesheet.csv \
+  --outdir ./results \
+  --transcriptome \
+  -profile docker
 ```
 
 The pipeline creates:
@@ -471,29 +553,58 @@ work                # Nextflow working directory
 .nextflow.log       # Nextflow run log
 ```
 
+If you repeatedly use the same parameters, put them in a params file and run with `-params-file`:
+
+```bash
+nextflow run nf-core/rnastructurome -profile docker -params-file params.yaml
+```
+
 ## Core Nextflow arguments
+
+These options are part of Nextflow itself and use a single hyphen. Pipeline parameters use a double hyphen.
 
 ### `-profile`
 
-Select execution and software backend presets. Common options include `docker`, `singularity`, `podman`, `apptainer`, and `conda`.
+Use this parameter to choose configuration profiles for software packaging and execution backends.
 
-Multiple profiles can be combined, for example:
+Common software profiles include:
+
+- `docker`
+- `singularity`
+- `apptainer`
+- `podman`
+- `conda`
+
+Cluster or institution-specific profiles can also be loaded, either from this repository or from `nf-core/configs`.
+
+Multiple profiles can be combined:
 
 ```bash
 -profile test,docker
 ```
 
-Order matters: later profiles override earlier ones.
+Order matters: later profiles override earlier ones. If `-profile` is not specified, the pipeline runs locally and expects all software to be available on `PATH`, which is not recommended for reproducible analyses.
 
 ### `-resume`
 
 Resume from cached work where inputs and process configuration match prior runs.
 
+```bash
+nextflow run nf-core/rnastructurome -profile docker \
+  --input samplesheet.csv \
+  --outdir results \
+  -resume
+```
+
+You can also resume a specific run name: `-resume <run-name>`. Use `nextflow log` to list previous run names.
+
 ### `-c`
 
-Use only for Nextflow config overrides (resources/execution behavior), not routine pipeline params.
+Use `-c` to load a Nextflow config file for process resources, executors, containers, publish behaviour, or module-specific `ext.args`.
 
-## Reproducibility and updates
+Do not use `-c` for routine pipeline parameters such as `input`, `outdir`, `genome_fasta`, or `gtf`; use CLI flags or `-params-file` for those.
+
+## Updating the pipeline
 
 Update cached pipeline code:
 
@@ -501,15 +612,71 @@ Update cached pipeline code:
 nextflow pull nf-core/rnastructurome
 ```
 
+When running from a local checkout, update the checkout with Git instead.
+
+## Reproducibility
+
 Pin a release for reproducibility:
 
 ```bash
-nextflow run nf-core/rnastructurome -r 1.3.1 ...
+nextflow run nf-core/rnastructurome -r <VERSION> ...
 ```
+
+The release, parameters, software versions, and execution trace are recorded under `pipeline_info/`. For published or shared analyses, keep the `params_<timestamp>.json`, trace file, MultiQC report, and exact samplesheet alongside the final outputs.
 
 ## Custom configuration
 
-For resources, tool args, custom containers, and institutional configs, see:
+### Resource requests
+
+Default CPU, memory, and time requests are defined in the pipeline config. Processes that fail with retryable resource-related exit codes are automatically retried with increased resources.
+
+Use a custom Nextflow config for local resource tuning:
+
+```groovy title="custom_resources.config"
+process {
+    withName: 'STAR_GENOMEGENERATE' {
+        cpus   = 16
+        memory = '120.GB'
+        time   = '24.h'
+    }
+}
+```
+
+Run with:
+
+```bash
+nextflow run nf-core/rnastructurome -profile docker -c custom_resources.config ...
+```
+
+### Custom containers
+
+Container and conda environments are defined per process. Override them only when you need a patched or site-specific image, and keep overrides scoped to the affected process.
+
+```groovy title="custom_container.config"
+process {
+    withName: 'RNAFRAMEWORK_RFCOUNT_GENOME' {
+        container = 'docker.io/dincarnato/rnaframework:2.9.6'
+    }
+}
+```
+
+### Custom tool arguments
+
+Some modules expose `ext.args` for advanced tool flags that are not regular pipeline parameters. Use this sparingly and scope it to the specific process.
+
+```groovy title="custom_args.config"
+process {
+    withName: 'STAR_ALIGN_RTSTOP' {
+        ext.args = '--outFilterMultimapNmax 20'
+    }
+}
+```
+
+### nf-core/configs
+
+The pipeline can load institutional profiles from `nf-core/configs`. If your organisation needs a reusable shared profile, test it locally with `-c` first, then consider contributing it to `nf-core/configs`.
+
+For more details, see:
 
 - [nf-core configuration docs](https://nf-co.re/docs/usage/configuration)
 - [nf-core/configs](https://github.com/nf-core/configs)
@@ -587,10 +754,10 @@ If the transcript IDs in your reference `.db` file do not match the IDs in the X
 
 ### Strandedness inference failures (genome route)
 
-On the genome route, the pipeline runs `RSeQC infer_experiment` to detect strandedness. If the BAM is very small or the BED annotation is missing, this can produce ambiguous results and stall the pipeline. Supply `--strandedness` explicitly to bypass inference:
+On the genome route, the pipeline runs `RSeQC infer_experiment` to detect strandedness for MaP samples. If the BAM is very small or the BED annotation is missing, inference can be ambiguous. Supply `--rfcount_strandedness` explicitly to set the fallback value used by `rf-count-genome`:
 
 ```bash
---strandedness forward   # or reverse, unstranded
+--rfcount_strandedness first   # or second, unstranded
 ```
 
 ### Container / singularity issues

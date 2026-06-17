@@ -46,7 +46,16 @@ process RNAFRAMEWORK_RFCOUNT {
     summary_tsv="${outdir}/${prefix}.rfcount_summary.tsv"
     {
         printf 'sample\\tcovered\\tpct_a_stops\\tpct_c_stops\\tpct_g_stops\\tpct_u_stops\\n'
-        awk -v sample="${prefix}" '\$1 == sample {print \$1 "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6}' "\${cleaned_log}" | tail -n 1
+        awk -v sample="${prefix}" '
+            \$1 == sample {
+                if (\$3 ~ /\\// && \$4 ~ /^\(/) {
+                    pct_a = \$4; gsub(/[()%]/, "", pct_a)
+                    print \$1 "\\t" \$2 "\\t" pct_a "\\t" \$5 "\\t" \$6 "\\t" \$7
+                } else {
+                    print \$1 "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
+                }
+            }
+        ' "\${cleaned_log}" | tail -n 1
     } > "\${summary_tsv}"
 
     covered=\$(awk -F'\\t' 'NR == 2 {print \$2}' "\${summary_tsv}")

@@ -57,8 +57,6 @@ include { WIG_TO_GENOME as WIG_TO_GENOME_SHANNON    } from '../modules/local/wig
 include { WIG_CHROM_SIZES as WIG_CHROM_SIZES_REACTIVITY } from '../modules/local/wig_chrom_sizes/main'
 include { WIG_CHROM_SIZES as WIG_CHROM_SIZES_SHANNON    } from '../modules/local/wig_chrom_sizes/main'
 include { RNAFRAMEWORK_TORDAT    } from '../modules/local/tordat/main'
-include { R2DT                   } from '../modules/local/r2dt/main'
-include { VIENNARNA              } from '../modules/local/viennarna/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_REACTIVITY            } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON               } from '../modules/nf-core/ucsc/wigtobigwig/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_TRANSCRIPT_REACTIVITY } from '../modules/nf-core/ucsc/wigtobigwig/main'
@@ -68,6 +66,7 @@ include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_rnastructurome_pipeline'
+include { VISUALISE_STRUCTURES   } from '../subworkflows/local/visualise/main'
 
 // Pure helper functions (parsers, arg renderers, MultiQC table builders) — see rnastructurome_functions.nf
 include {
@@ -1164,70 +1163,16 @@ workflow RNASTRUCTUROME {
     )
 
     //
-    // MODULE: R2DT — template-based 2D structure diagrams with reactivity overlay
+    // SUBWORKFLOW: VISUALISE_STRUCTURES — R2DT / ViennaRNA 2D structure diagrams
     //
-    if (params.r2dt) {
-        def ch_r2dt_xml = RNAFRAMEWORK_RFNORM.out.xml
-            .map { meta, xml ->
-                def fold_group = meta.cell_line?.toString()
-                if (!fold_group) error("Missing cell_line for '${meta.id}' — required for R2DT grouping.")
-                [ fold_group, xml instanceof List ? xml : [xml] ]
-            }
-            .groupTuple()
-            .map { fold_group, xml_lists -> [ fold_group, xml_lists.flatten() ] }
-
-        def ch_r2dt_input = RNAFRAMEWORK_RFFOLD.out.structures
-            .map { meta, dir -> [ meta.id.toString(), meta, dir ] }
-            .join(ch_r2dt_xml)
-            .map { _fg, meta, dir, xmls -> [ meta, dir, xmls ] }
-            .combine(ch_reference_fasta_map)
-            .flatMap { combined ->
-                def meta      = combined[0]
-                def fold_dir  = combined[1]
-                def xmls      = combined[2]
-                def fasta_map = combined[3]
-                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
-                def fasta_t   = fasta_map[ref_key]
-                if (!fasta_t) {
-                    log.warn("Skipping R2DT for '${meta.id}': no FASTA for '${ref_key}'")
-                    return []
-                }
-                return [ [ meta, fold_dir, xmls, fasta_t[1] ] ]
-            }
-
-        R2DT(
-            ch_r2dt_input,
-            file("${projectDir}/bin/r2dt_colour_svg.py",         checkIfExists: true),
-            file("${projectDir}/bin/r2dt_extract_sequences.py",  checkIfExists: true)
-        )
-        ch_versions = ch_versions.mix(R2DT.out.versions.first())
-
-        def ch_rnaplot_input = RNAFRAMEWORK_RFFOLD.out.structures
-            .map { meta, dir -> [ meta.id.toString(), meta, dir ] }
-            .join(ch_fold_input.map { meta, xmls -> [ meta.id.toString(), xmls ] })
-            .join(R2DT.out.drawn_ids.map { meta, f -> [ meta.id.toString(), f ] })
-            .map { _id, meta, dir, xmls, drawn -> [ meta, dir, xmls, drawn ] }
-
-        VIENNARNA(
-            ch_rnaplot_input,
-            file("${projectDir}/bin/viennarna_extract_xml.py",   checkIfExists: true),
-            file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
-        )
-        ch_versions = ch_versions.mix(VIENNARNA.out.versions.first())
-    } else {
-        // R2DT is container-only; when running without containers draw all structures with ViennaRNA
-        def ch_rnaplot_input = RNAFRAMEWORK_RFFOLD.out.structures
-            .map { meta, dir -> [ meta.id.toString(), meta, dir ] }
-            .join(ch_fold_input.map { meta, xmls -> [ meta.id.toString(), xmls ] })
-            .map { _id, meta, dir, xmls -> [ meta, dir, xmls, file('/dev/null') ] }
-
-        VIENNARNA(
-            ch_rnaplot_input,
-            file("${projectDir}/bin/viennarna_extract_xml.py",   checkIfExists: true),
-            file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
-        )
-        ch_versions = ch_versions.mix(VIENNARNA.out.versions.first())
-    }
+    VISUALISE_STRUCTURES (
+        RNAFRAMEWORK_RFNORM.out.xml,
+        RNAFRAMEWORK_RFFOLD.out.structures,
+        ch_fold_input,
+        ch_reference_fasta_map,
+        pipeline_config
+    )
+    ch_versions = ch_versions.mix(VISUALISE_STRUCTURES.out.versions)
 
     //
     // MODULE: rf-wiggle — convert rf-norm XML reactivities to WIG + chrom.sizes

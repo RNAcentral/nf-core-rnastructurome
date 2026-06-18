@@ -582,7 +582,7 @@ workflow RNASTRUCTUROME {
             }
         def ch_rtstop_star_inputs = ch_rtstop_keyed
             .combine(ch_rtstop_star_ref, by: 0)
-            .map { ref_key, sample_meta, reads, idx_meta, index, gtf_meta, gtf, has_gtf ->
+            .map { _ref_key, sample_meta, reads, idx_meta, index, gtf_meta, gtf, has_gtf ->
                 [ [sample_meta, reads], [idx_meta, index], [gtf_meta, gtf], !has_gtf ]
             }
         def ch_rtstop_star_split = ch_rtstop_star_inputs.multiMap { entry ->
@@ -647,7 +647,7 @@ workflow RNASTRUCTUROME {
             }
         def ch_map_star_inputs = ch_map_keyed
             .combine(ch_map_star_ref, by: 0)
-            .map { ref_key, sample_meta, reads, idx_meta, index, gtf_meta, gtf, has_gtf ->
+            .map { _ref_key, sample_meta, reads, idx_meta, index, gtf_meta, gtf, has_gtf ->
                 [ [sample_meta, reads], [idx_meta, index], [gtf_meta, gtf], !has_gtf ]
             }
         def ch_map_star_split = ch_map_star_inputs.multiMap { entry ->

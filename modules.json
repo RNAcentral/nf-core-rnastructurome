@@ -8,7 +8,8 @@
                     "bedops/gtf2bed": {
                         "branch": "master",
                         "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": ["modules"]
+                        "installed_by": ["modules"],
+                        "patch": "modules/nf-core/bedops/gtf2bed/bedops-gtf2bed.diff"
                     },
                     "bowtie/align": {
                         "branch": "master",
@@ -103,7 +104,8 @@
                     "star/genomegenerate": {
                         "branch": "master",
                         "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": ["modules"]
+                        "installed_by": ["modules"],
+                        "patch": "modules/nf-core/star/genomegenerate/star-genomegenerate.diff"
                     },
                     "ucsc/wigtobigwig": {
                         "branch": "master",

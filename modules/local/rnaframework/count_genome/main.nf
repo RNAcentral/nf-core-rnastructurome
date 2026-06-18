@@ -63,7 +63,7 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     # rf-count-genome reports "Covered: 0" when run without a -a annotation file
     # (genome-wide mode); that is expected here — rf-rctools extract handles transcript
     # extraction using the GTF in the next step.  Fail only if no RC files were produced.
-    rc_count=\$(find "${outdir}" -name '*.rc' | wc -l)
+    rc_count=\$(find "${outdir}" -type f -name '*.rc' 2>/dev/null | wc -l)
     if [[ "\${rc_count}" -eq 0 ]]; then
         echo "[RNAFRAMEWORK_RFCOUNT_GENOME] rf-count-genome produced no RC files for sample '${prefix}'." >&2
         exit 1

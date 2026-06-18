@@ -32,6 +32,7 @@ process RNAFRAMEWORK_RFCOUNT {
     rfcount_log_tmp="${prefix}.rfcount.log"
 
     set -o pipefail
+    set +e
     rf-count \\
         -p ${task.cpus} \\
         -f "\${FASTA_PATH}" \\
@@ -39,9 +40,28 @@ process RNAFRAMEWORK_RFCOUNT {
         -ow \\
         ${args} \\
         "${prefix}:${bam}" 2>&1 | tee "\${rfcount_log_tmp}"
+    pipeline_statuses=( "\${PIPESTATUS[@]}" )
+    rfcount_status="\${pipeline_statuses[0]}"
+    tee_status="\${pipeline_statuses[1]}"
+    set -e
+
+    if [[ "\${tee_status}" -ne 0 ]]; then
+        echo "[RNAFRAMEWORK_RFCOUNT] tee failed while writing rf-count log for sample '${prefix}'." >&2
+        exit "\${tee_status}"
+    fi
 
     cleaned_log="${prefix}.rfcount.clean.log"
     sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' "\${rfcount_log_tmp}" | tr '\\r' '\\n' > "\${cleaned_log}"
+
+    rfcount_completed_with_nonzero=0
+    if [[ "\${rfcount_status}" -ne 0 ]]; then
+        if grep -Fq '[+] All done.' "\${cleaned_log}"; then
+            rfcount_completed_with_nonzero=1
+        else
+            echo "[RNAFRAMEWORK_RFCOUNT] rf-count failed with exit status \${rfcount_status} for sample '${prefix}'." >&2
+            exit "\${rfcount_status}"
+        fi
+    fi
 
     summary_tsv="${outdir}/${prefix}.rfcount_summary.tsv"
     {
@@ -68,6 +88,15 @@ process RNAFRAMEWORK_RFCOUNT {
             exit 1
             ;;
     esac
+
+    rc_count=\$(find "${outdir}" -type f -name '*.rc' 2>/dev/null | wc -l)
+    if [[ "\${rc_count}" -eq 0 ]]; then
+        echo "[RNAFRAMEWORK_RFCOUNT] rf-count produced no RC files for sample '${prefix}'." >&2
+        exit 1
+    fi
+    if [[ "\${rfcount_completed_with_nonzero}" -eq 1 ]]; then
+        echo "[RNAFRAMEWORK_RFCOUNT] rf-count exited with status \${rfcount_status} after reporting completion; continuing because RC files were produced." >&2
+    fi
 
     rm -f "\${rfcount_log_tmp}" "\${cleaned_log}"
 

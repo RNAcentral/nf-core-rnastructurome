@@ -14,3 +14,4 @@ local.config
 nf-metro/old
 nf-metro/final
 tmp/*
+nf-test.log

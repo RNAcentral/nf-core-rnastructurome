@@ -189,6 +189,24 @@ Advanced override:
 
 - `--rfnorm_norm_method 2|3` forces the `rf-norm` normalisation mode while leaving scoring-method auto-selection unchanged.
 
+### Fuzzy untreated pairing
+
+By default, if a treated group has no exact `cell_line + replicate` untreated match, the pipeline falls back to any untreated sample that shares the same **cell_line base token** (the portion before the first underscore) at the same replicate. For example, `MDA-MB-231_MTX_treated_r1` will automatically pair with an `MDA-MB-231_untreated_r1` control even though the `cell_line` values differ (`MDA-MB-231_MTX` vs `MDA-MB-231`).
+
+The pipeline warns when a fallback is used:
+
+```
+[WARN] No exact untreated match for 'MDA-MB-231_MTX_r1' — falling back to 'MDA-MB-231_r1' (shared cell_line base token at same replicate).
+```
+
+If more than one untreated group matches the base token at the same replicate, the pipeline errors rather than choosing arbitrarily. To disable fuzzy matching entirely and require exact `cell_line + replicate` pairing, set:
+
+```bash
+--fuzzy_untreated_pairing false
+```
+
+When disabled, treated groups with no exact untreated match proceed without a negative control (scoring method 2 or 4 instead of 1 or 3).
+
 ## Adapter trimming options
 
 The pipeline uses Cutadapt for quality and adapter trimming. Trimming defaults depend on the probing principle because RT-stop experiments encode signal at the read end.

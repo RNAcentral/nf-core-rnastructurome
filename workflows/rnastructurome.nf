@@ -3,45 +3,32 @@
     IMPORT MODULES / SUBWORKFLOWS / FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-include { MULTIQC                } from '../modules/nf-core/multiqc/main'
-include { RNAFRAMEWORK_RFNORM      } from '../modules/local/rnaframework/norm/main'
-include { RNAFRAMEWORK_RFJACKKNIFE } from '../modules/local/rnaframework/jackknife/main'
-include { RNAFRAMEWORK_RFFOLD      } from '../modules/local/rnaframework/fold/main'
-include { RNAFRAMEWORK_DOTPLOT2BP                                  } from '../modules/local/dotplot2bp/main'
-include { RNAFRAMEWORK_DOTPLOT2BP as RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT } from '../modules/local/dotplot2bp/main'
-include { MERGE_BP                                                 } from '../modules/local/merge_bp/main'
-include { MERGE_BP as MERGE_BP_TRANSCRIPT                          } from '../modules/local/merge_bp/main'
-include { RNAFRAMEWORK_TORDAT    } from '../modules/local/tordat/main'
+include { MULTIQC             } from '../modules/nf-core/multiqc/main'
+include { RNAFRAMEWORK_TORDAT } from '../modules/local/tordat/main'
 
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_rnastructurome_pipeline'
-include { FASTQ_QC_TRIM          } from '../subworkflows/local/fastq_qc_trim/main'
-include { PREPARE_REFERENCES     } from '../subworkflows/local/prepare_references/main'
-include { ALIGN_READS            } from '../subworkflows/local/align_reads/main'
-include { QUANTIFY_REACTIVITY    } from '../subworkflows/local/quantify_reactivity/main'
-include { VISUALISE_STRUCTURES   } from '../subworkflows/local/visualise/main'
-include { BROWSER_TRACKS         } from '../subworkflows/local/browser_tracks/main'
+include { FASTQ_QC_TRIM            } from '../subworkflows/local/fastq_qc_trim/main'
+include { PREPARE_REFERENCES       } from '../subworkflows/local/prepare_references/main'
+include { ALIGN_READS              } from '../subworkflows/local/align_reads/main'
+include { QUANTIFY_REACTIVITY      } from '../subworkflows/local/quantify_reactivity/main'
+include { NORMALISE_REACTIVITIES   } from '../subworkflows/local/normalise_reactivities/main'
+include { FOLD_STRUCTURES          } from '../subworkflows/local/fold_structures/main'
+include { VISUALISE_STRUCTURES     } from '../subworkflows/local/visualise/main'
+include { BROWSER_TRACKS           } from '../subworkflows/local/browser_tracks/main'
 
 // Pure helper functions (parsers, arg renderers, MultiQC table builders) — see rnastructurome_functions.nf
 include {
     resolveReferenceKey
-    resolveReferenceResolution
-    uniqueReferenceResolution
-    collectToMap
-    buildStarAlignInputs
     parseFlagstatMappedReads
     parseRfcountCoveredTranscripts
-    parseInferExperiment
     parseRfnormLog
     parseRffoldLog
-    parseCutadaptCommandArg
-    resolveRfNormNormMethod
     countProgressionMultiqc
     rfnormStatsMultiqc
     rffoldStatsMultiqc
-    cutadaptAdaptersMultiqc
     filterSummaryParams
     addModuleOptionsSummary
 } from './rnastructurome_functions.nf'
@@ -167,301 +154,32 @@ workflow RNASTRUCTUROME {
     )
 
     //
-    // MODULE: rf-norm — normalise RC files to per-base reactivities (XML)
+    // SUBWORKFLOW: NORMALISE_REACTIVITIES — group RC files, pair treated/untreated, run rf-norm
     //
-
-    ch_rc_with_rci = ch_rfcount_rc
-        .map { meta, rc -> [ meta.id.toString(), meta, rc ] }
-        .join(
-            ch_rfcount_rci
-                .map { meta, rci -> [ meta.id.toString(), rci ] },
-            remainder: true
-        )
-        .map { _sample_id, meta, rc, rci -> [ meta, rc, rci ?: [] ] }
-
-    ch_rc_by_group = ch_rc_with_rci
-        .map { meta, rc, rci ->
-            if (!meta.cell_line || !meta.replicate) {
-                error("Missing cell_line or replicate for sample '${meta.id}'. rf-norm requires both columns to pair samples safely.")
-            }
-            def group = "${meta.cell_line}_${meta.replicate}".toString()
-            def condition = (meta.condition ?: 'treated').toLowerCase()
-            [ group, condition, meta, rc, rci ]
-        }
-
-    ch_treated   = ch_rc_by_group
-        .filter  { _group, condition, _meta, _rc, _rci -> condition == 'treated' }
-        .map     { group, _condition, _meta, rc, _rci -> [ group, rc ] }
-        .groupTuple()
-
-    ch_untreated = ch_rc_by_group
-        .filter  { _group, condition, _meta, _rc, _rci -> condition == 'untreated' }
-        .map     { group, _condition, _meta, rc, _rci -> [ group, rc ] }
-
-    ch_denatured = ch_rc_by_group
-        .filter  { _group, condition, _meta, _rc, _rci -> condition == 'denatured' }
-        .map     { group, _condition, _meta, rc, _rci -> [ group, rc ] }
-
-    // Stage any available .rci sidecars alongside RC files so rf-norm can auto-discover them.
-    ch_group_rci = ch_rc_by_group
-        .filter  { _group, _condition, _meta, _rc, rci -> rci }
-        .map     { group, _condition, _meta, _rc, rci -> [ group, rci ] }
-        .groupTuple()
-
-    // Enforce rf-norm pairing rules explicitly and select the representative meta per group.
-    // Must be defined before the fallback channels so ch_treated_no_untreated can join against it.
-    ch_group_meta = ch_rc_by_group
-        .map     { group, condition, meta, _rc, _rci -> [ group, [ condition: condition, meta: meta ] ] }
-        .groupTuple()
-        .map     { group, entries ->
-            def conditions = entries.collect { entry -> entry.condition }.toSet()
-            if (!conditions.contains('treated') && conditions.contains('untreated')) {
-                def offendingConditions = entries
-                    .findAll { entry -> entry.condition == 'untreated' }
-                    .collect { entry -> "${entry.meta.id} (${entry.condition})" }
-                    .sort()
-                    .join(', ')
-                error("rf-norm requires a treated sample for cell_line/replicate group '${group}'. Invalid samples: ${offendingConditions}")
-            }
-            if (conditions.contains('denatured') && (!conditions.contains('treated') || !conditions.contains('untreated'))) {
-                def offendingConditions = entries
-                    .findAll { entry -> entry.condition == 'denatured' }
-                    .collect { entry -> "${entry.meta.id} (${entry.condition})" }
-                    .sort()
-                    .join(', ')
-                error("rf-norm requires treated and untreated samples for denatured controls in cell_line/replicate group '${group}'. Invalid samples: ${offendingConditions}")
-            }
-            [ group, entries[0].meta ]
-        }
-
-    // Fuzzy untreated pairing fallback via channel joins (avoids combine-with-empty-list issues).
-    // When a treated group has no exact cell_line+replicate untreated match, the pipeline
-    // falls back to an untreated sample that shares the same first cell_line base token
-    // (e.g. MDA-MB-231_DMSO untreated covers MDA-MB-231_MTX treated) at the same replicate.
-    //
-    // Each untreated sample is emitted as [base_token, replicate, group, rc] for cross-matching.
-    def ch_untreated_for_lookup = ch_rc_by_group
-        .filter  { _group, condition, _meta, _rc, _rci -> condition == 'untreated' }
-        .map     { group, _condition, meta, rc, _rci ->
-            [ meta.cell_line.toString().tokenize('_')[0], meta.replicate.toString(), group, rc ]
-        }
-
-    // Treated groups with no direct untreated match — need a fallback.
-    def ch_treated_no_untreated = ch_treated
-        .join(ch_group_meta)
-        .join(ch_untreated, remainder: true)
-        .filter { _group, _treated_rcs, _base_meta, untreated_rc -> !untreated_rc }
-        .map    { group, _treated_rcs, base_meta, _untreated_rc ->
-            [ base_meta.cell_line.toString().tokenize('_')[0], base_meta.replicate.toString(), group ]
-        }
-
-    // Cross-product treated-without-untreated × available untreated, filter on base+rep match,
-    // then group by treated group to validate uniqueness before selecting the fallback.
-    // When ch_untreated_for_lookup is empty (all-treated datasets), this channel is empty too
-    // and the remainder:true join below correctly produces null for untreated.
-    def ch_fallback_untreated = ch_treated_no_untreated
-        .combine(ch_untreated_for_lookup)
-        .filter { treated_base, treated_rep, _group, unt_base, unt_rep, _unt_group, _unt_rc ->
-            treated_base == unt_base && treated_rep == unt_rep
-        }
-        .map { _treated_base, _treated_rep, group, _unt_base, _unt_rep, unt_group, unt_rc ->
-            [ group, [ untreated_group: unt_group, rc: unt_rc ] ]
-        }
-        .groupTuple()
-        .map { group, candidates ->
-            if (candidates.size() > 1) {
-                def candidateGroups = candidates.collect { c -> c.untreated_group }.sort().join(', ')
-                error("Ambiguous untreated fallback for '${group}': multiple untreated groups share the same cell_line base and replicate: ${candidateGroups}.")
-            }
-            log.warn "No exact untreated match for '${group}' — falling back to '${candidates[0].untreated_group}' (shared cell_line base at same replicate)."
-            [ group, candidates[0].rc ]
-        }
-
-    // Resolved untreated: direct exact match OR fuzzy fallback.
-    def ch_resolved_untreated = ch_untreated.mix(ch_fallback_untreated)
-
-    ch_norm_input = ch_treated
-        .join(ch_group_meta)
-        .join(ch_resolved_untreated, remainder: true)
-        .join(ch_denatured, remainder: true)
-        .join(ch_group_rci, remainder: true)
-        .map { group, treated_rcs, base_meta, untreated_rc, denatured_rc, rci_files ->
-            def hasUntreated = untreated_rc ? true : false
-            def hasDenatured = denatured_rc ? true : false
-            def principle    = (base_meta.principle ?: '').toLowerCase()
-            def scoringMethod = principle == 'map'
-                ? (hasUntreated ? 3 : 4)
-                : (hasUntreated ? 1 : 2)
-            def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
-            def gmeta = base_meta + [
-                id                    : group,
-                rfnorm_has_untreated  : hasUntreated,
-                rfnorm_has_denatured  : hasDenatured,
-                rfnorm_scoring_method : scoringMethod,
-                rfnorm_norm_method    : normMethod
-            ]
-            [ gmeta, treated_rcs, untreated_rc ?: [], denatured_rc ?: [], rci_files ?: [] ]
-        }
-
-    RNAFRAMEWORK_RFNORM (
-        ch_norm_input
+    NORMALISE_REACTIVITIES (
+        ch_rfcount_rc,
+        ch_rfcount_rci,
+        pipeline_config
     )
+    ch_versions = ch_versions.mix(NORMALISE_REACTIVITIES.out.versions)
 
     //
-    // MODULE: rf-fold — predict RNA secondary structures from reactivity XML
+    // SUBWORKFLOW: FOLD_STRUCTURES — group by cell_line, optional jackknife, rf-fold, dotplot→bp
     //
-    // Fold across all available replicate XMLs per experimental group.
-    // Group key intentionally excludes replicate so biological replicates can
-    // be folded together when present.
-    ch_fold_input = RNAFRAMEWORK_RFNORM.out.xml
-        .map { meta, xml ->
-            if (!meta.cell_line) {
-                error("Missing cell_line for sample '${meta.id}'. rf-fold replicate grouping requires cell_line.")
-            }
-            def fold_group = meta.cell_line.toString()
-            [ fold_group, [ meta, xml ] ]
-        }
-        .groupTuple()
-        .map { fold_group, entries ->
-            def metas = entries.collect { entry -> entry[0] }
-            def xmls = entries.collect { entry -> entry[1] }.flatten()
-            def base = metas[0]
-            def replicates = metas.collect { meta -> (meta.replicate ?: 'na').toString() }.unique().sort()
-            def sampleIds = metas.collect { meta -> (meta.id ?: 'na').toString() }.unique().sort()
-            def foldMeta = base + [
-                id                 : fold_group,
-                fold_group         : fold_group,
-                fold_replicates    : replicates.join(','),
-                fold_source_ids    : sampleIds.join(','),
-                fold_xml_count     : xmls.size()
-            ]
-            [ foldMeta, xmls ]
-        }
-
-    //
-    // MODULE: rf-jackknife — optional normalisation quality assessment against a reference structure set.
-    // When --jackknife_reference is provided, rf-jackknife runs and rf-fold is gated on its completion.
-    // When --rfjackknife_pool_all is true, the optimal slope/intercept from the jackknife CSV is parsed
-    // and injected directly into rf-fold (via meta), bypassing the need for a separate calibration run.
-    // When omitted, rf-fold runs directly using --rffold_slope/--rffold_intercept if set.
-    //
-    def ch_fold_for_rffold = ch_fold_input
-
-    if (pipeline_config.jackknife_reference) {
-        def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
-
-        // Jackknife runs per rfnorm group (cell_line + replicate), not per fold group.
-        // Fold groups flatten XMLs from multiple replicates which produce identically-named
-        // files (e.g. 16S_rRNA.xml); using input*/* staging gives each file its own
-        // numbered directory so rf-jackknife receives them as separate experiment dirs.
-        def ch_jackknife_input
-        if (pipeline_config.rfjackknife_pool_all as Boolean) {
-            ch_jackknife_input = RNAFRAMEWORK_RFNORM.out.xml
-                .flatMap { _meta, xmls -> [xmls].flatten() }
-                .collect()
-                .map { all_xmls -> [ [ id: 'all_groups', fold_group: 'all_groups' ], all_xmls ] }
-        } else {
-            ch_jackknife_input = RNAFRAMEWORK_RFNORM.out.xml
-        }
-
-        RNAFRAMEWORK_RFJACKKNIFE (
-            ch_jackknife_input,
-            ch_jackknife_reference
-        )
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFJACKKNIFE.out.versions.first())
-
-        if (pipeline_config.rfjackknife_pool_all as Boolean) {
-            // Parse optimal slope/intercept from the pooled jackknife CSV and inject into fold meta.
-            // FMI.csv is a semicolon-delimited matrix: rows = slopes, columns = intercepts, cells = FMI.
-            // Header row: FMI;<intercept0>;<intercept1>;...
-            // Data rows:  <slope>;<fmi0>;<fmi1>;...
-            def ch_calibration = RNAFRAMEWORK_RFJACKKNIFE.out.csv
-                .map { _meta, csv_files ->
-                    def csv_file = [csv_files].flatten()[0]
-                    def lines = csv_file.readLines()
-                    def intercepts = lines[0].split(';').drop(1)*.trim()
-                    def best_slope = null; def best_intercept = null; def best_fmi = -1d
-                    lines.drop(1).findAll { line -> line.trim() }.each { line ->
-                        def parts = line.split(';')*.trim()
-                        def slope = parts[0]
-                        parts.drop(1).eachWithIndex { fmi_str, i ->
-                            def fmi = fmi_str.toDouble()
-                            if (fmi > best_fmi) {
-                                best_fmi = fmi; best_slope = slope; best_intercept = intercepts[i]
-                            }
-                        }
-                    }
-                    [ best_slope, best_intercept ]
-                }
-            ch_fold_for_rffold = ch_fold_input
-                .combine(ch_calibration)
-                .map { meta, xmls, slope, intercept ->
-                    [ meta + [ jackknife_slope: slope, jackknife_intercept: intercept ], xmls ]
-                }
-        } else {
-            // Gate each fold group on all jackknife jobs for that cell_line completing.
-            ch_fold_for_rffold = ch_fold_input
-                .map { meta, xmls -> [ meta.id.toString(), meta, xmls ] }
-                .join(
-                    RNAFRAMEWORK_RFJACKKNIFE.out.csv
-                        .map { meta, _csv -> [ meta.cell_line.toString(), 'done' ] }
-                        .groupTuple()
-                        .map { cell_line, _dones -> [ cell_line, 'done' ] }
-                )
-                .map { _id, meta, xmls, _done -> [ meta, xmls ] }
-        }
-    }
-
-    RNAFRAMEWORK_RFFOLD (
-        ch_fold_for_rffold
+    FOLD_STRUCTURES (
+        NORMALISE_REACTIVITIES.out.xml,
+        ch_reference_gtf_map,
+        pipeline_config
     )
-
-    def ch_dotplot_bp_input = RNAFRAMEWORK_RFFOLD.out.structures
-        .combine(ch_reference_gtf_map)
-        .flatMap { combined ->
-            def meta = combined[0]
-            def fold_dir = combined[1]
-            def gtf_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
-            def gtf_tuple = gtf_map[reference_key]
-            if (!gtf_tuple) {
-                log.warn("Skipping dotplot-to-bp conversion for '${reference_key}': no GTF available (expected for NCBI/viral references).")
-                return []
-            }
-            return [ [ meta, fold_dir, gtf_tuple[1] ] ]
-        }
-
-    RNAFRAMEWORK_DOTPLOT2BP (
-        ch_dotplot_bp_input,
-        file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
-    )
-
-    // Transcript-coordinate arc files — same dot-plots, skip GTF remapping.
-    RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT (
-        ch_dotplot_bp_input,
-        file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
-    )
-
-    //
-    // MODULE: merge_bp — merge per-transcript .bp files into a single file per fold group for genome browser visualisation
-    //
-    MERGE_BP (
-        RNAFRAMEWORK_DOTPLOT2BP.out.bp,
-        file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
-    )
-
-    MERGE_BP_TRANSCRIPT (
-        RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.bp,
-        file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
-    )
+    ch_versions = ch_versions.mix(FOLD_STRUCTURES.out.versions)
 
     //
     // SUBWORKFLOW: VISUALISE_STRUCTURES — R2DT / ViennaRNA 2D structure diagrams
     //
     VISUALISE_STRUCTURES (
-        RNAFRAMEWORK_RFNORM.out.xml,
-        RNAFRAMEWORK_RFFOLD.out.structures,
-        ch_fold_input,
+        NORMALISE_REACTIVITIES.out.xml,
+        FOLD_STRUCTURES.out.structures,
+        FOLD_STRUCTURES.out.fold_input,
         ch_reference_fasta_map,
         pipeline_config
     )
@@ -471,8 +189,8 @@ workflow RNASTRUCTUROME {
     // SUBWORKFLOW: BROWSER_TRACKS — rf-wiggle → BigWig genome/transcript tracks (+ Shannon)
     //
     BROWSER_TRACKS (
-        RNAFRAMEWORK_RFNORM.out.xml,
-        RNAFRAMEWORK_RFFOLD.out.shannon_wig,
+        NORMALISE_REACTIVITIES.out.xml,
+        FOLD_STRUCTURES.out.shannon_wig,
         ch_reference_gtf_map,
         pipeline_config
     )
@@ -518,10 +236,10 @@ workflow RNASTRUCTUROME {
                 .map { meta, _acc -> [ meta.id.toString(), '' ] })
     }
 
-    def ch_rdat_input = ch_fold_input
+    def ch_rdat_input = FOLD_STRUCTURES.out.fold_input
         .map { meta, xml -> [ meta.id.toString(), meta, xml ] }
         .combine(
-            RNAFRAMEWORK_RFFOLD.out.structures
+            FOLD_STRUCTURES.out.structures
                 .map { meta, fold_dir -> [ meta.id.toString(), fold_dir ] },
             by: 0
         )
@@ -543,13 +261,13 @@ workflow RNASTRUCTUROME {
     // Add RNAframework outputs to MultiQC input collection.
     ch_multiqc_files = ch_multiqc_files.mix(ch_rfcount_rc.collect { rc_file -> rc_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(ch_rfcount_plots.collect { plot_file -> plot_file[1] })
-    ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFNORM.out.xml.collect { xml_file -> xml_file[1] })
-    ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFNORM.out.plots.collect { plot_file -> plot_file[1] })
-    ch_multiqc_files = ch_multiqc_files.mix(RNAFRAMEWORK_RFFOLD.out.structures.collect { fold_dir -> fold_dir[1] })
+    ch_multiqc_files = ch_multiqc_files.mix(NORMALISE_REACTIVITIES.out.xml.collect { xml_file -> xml_file[1] })
+    ch_multiqc_files = ch_multiqc_files.mix(NORMALISE_REACTIVITIES.out.plots.collect { plot_file -> plot_file[1] })
+    ch_multiqc_files = ch_multiqc_files.mix(FOLD_STRUCTURES.out.structures.collect { fold_dir -> fold_dir[1] })
 
     // RF-norm summary table: one row per normalisation group (cell_line + replicate).
     // Join RF-count covered transcript counts per group (max across treated replicates).
-    def ch_rfcount_covered_by_group = ch_rc_by_group
+    def ch_rfcount_covered_by_group = NORMALISE_REACTIVITIES.out.norm_groups
         .filter  { _group, condition, _meta, _rc, _rci -> condition == 'treated' }
         .map     { group, _condition, meta, _rc, _rci -> [ meta.id.toString(), group ] }
         .join(ch_rfcount_covered_transcripts)
@@ -557,7 +275,7 @@ workflow RNASTRUCTUROME {
         .groupTuple()
         .map     { group, covered_list -> [ group, covered_list.max() ] }
 
-    def ch_rfnorm_stats_mqc = RNAFRAMEWORK_RFNORM.out.log
+    def ch_rfnorm_stats_mqc = NORMALISE_REACTIVITIES.out.rfnorm_log
         .map { meta, log -> [ meta.id.toString(), parseRfnormLog(log) ] }
         .join(ch_rfcount_covered_by_group, remainder: true)
         .map { group_id, rfnorm_stats, rfcount_covered ->
@@ -571,7 +289,7 @@ workflow RNASTRUCTUROME {
     )
 
     // RF-fold summary table: one row per fold group (cell_line; may span replicates).
-    def ch_rffold_stats_mqc = RNAFRAMEWORK_RFFOLD.out.log
+    def ch_rffold_stats_mqc = FOLD_STRUCTURES.out.rffold_log
         .map { meta, log -> [ meta.id.toString(), parseRffoldLog(log) ] }
         .collect()
         .map { rows -> rffoldStatsMultiqc(rows) }
@@ -631,12 +349,6 @@ workflow RNASTRUCTUROME {
     //
     // FASTQC, SAMtools, cutadapt, bowtie2, umitools use topic: versions → captured by channel.topic("versions") below
     // Old-style modules (emit: versions) must be mixed in explicitly
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.versions.first())
-    ch_versions = ch_versions.mix(MERGE_BP.out.versions.first())
-    ch_versions = ch_versions.mix(MERGE_BP_TRANSCRIPT.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_TORDAT.out.versions.first())
 
     //
@@ -672,11 +384,11 @@ workflow RNASTRUCTUROME {
     emit:
     multiqc_report   = MULTIQC.out.report.toList()             // channel: /path/to/multiqc_report.html
     mapped_bam       = ch_dedup_bam                            // channel: [ val(meta), path(bam) ]
-    normalized_xml   = RNAFRAMEWORK_RFNORM.out.xml             // channel: [ val(meta), path(xml) ]
-    jackknife_csv    = pipeline_config.jackknife_reference ? RNAFRAMEWORK_RFJACKKNIFE.out.csv : channel.empty()  // channel: [ val(meta), path(csv) ]
-    fold_structures  = RNAFRAMEWORK_RFFOLD.out.structures      // channel: [ val(meta), path(dir) ]
-    fold_bp          = RNAFRAMEWORK_DOTPLOT2BP.out.bp          // channel: [ val(meta), path(bp) ]
-    merged_bp        = MERGE_BP.out.bp                        // channel: [ val(meta), path(*_merged.bp) ]
+    normalized_xml   = NORMALISE_REACTIVITIES.out.xml           // channel: [ val(meta), path(xml) ]
+    jackknife_csv    = FOLD_STRUCTURES.out.jackknife_csv        // channel: [ val(meta), path(csv) ] — empty when --jackknife_reference not set
+    fold_structures  = FOLD_STRUCTURES.out.structures           // channel: [ val(meta), path(dir) ]
+    fold_bp          = FOLD_STRUCTURES.out.bp_dotplot           // channel: [ val(meta), path(bp) ]
+    merged_bp        = FOLD_STRUCTURES.out.bp                  // channel: [ val(meta), path(*_merged.bp) ]
     versions         = ch_versions                             // channel: [ path(versions.yml) ]
 
 }
@@ -739,6 +451,7 @@ def defaultPipelineConfig() {
         rfnorm_raw                        : false,
         rfnorm_pseudocount                : null,
         rfnorm_max_score                  : null,
+        fuzzy_untreated_pairing           : true,
         rfnorm_ignore_lower_than_untreated: false,
         rfnorm_max_untreated_mut          : null,
         rfnorm_max_mutation_rate          : null,

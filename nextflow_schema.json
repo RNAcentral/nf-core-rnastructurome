@@ -138,6 +138,11 @@
                 "umi_pattern": {
                     "type": "string",
                     "description": "Fallback UMI pattern for rows missing `umi_pattern`. Supplying a pattern enables umi_tools extract before cutadapt."
+                },
+                "fuzzy_untreated_pairing": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "When true (default), a treated group with no exact `cell_line`+`replicate` untreated match falls back to the untreated sample sharing the same cell_line base token (portion before the first `_`) at the same replicate — e.g. `MDA-MB-231_untreated_r1` can serve as control for `MDA-MB-231_MTX_treated_r1`. Set false to require exact matches; unmatched treated groups then proceed without an untreated control (scoring method 2 or 4)."
                 }
             }
         },

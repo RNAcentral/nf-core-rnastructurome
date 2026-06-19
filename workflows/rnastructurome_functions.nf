@@ -41,11 +41,7 @@ def resolveReferenceResolution(meta, cfg, kind) {
 
     // 1. Explicit local path (user-supplied or from params.genomes)
     if (kind == 'fasta') {
-        // User-supplied local FASTA: genome_fasta for STAR route, transcriptome_fasta for
-        // --transcriptome route. The legacy --fasta flag maps to the appropriate route.
-        def local_fasta = cfg.transcriptome
-            ? (cfg.transcriptome_fasta ?: cfg.fasta)
-            : (cfg.genome_fasta        ?: cfg.fasta)
+        def local_fasta = cfg.fasta
         if (local_fasta) {
             return [ reference_key, "path::${local_fasta.toString()}", original_organism ]
         }

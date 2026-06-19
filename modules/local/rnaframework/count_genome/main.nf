@@ -29,6 +29,7 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     export TERM="\${TERM:-xterm}"
 
     mkdir -p ${outdir}
+    rfcount_outdir="${outdir}"
     rfcount_log_tmp="${prefix}.rfcount_genome.log"
 
     set -o pipefail
@@ -70,7 +71,7 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
             \$1 == sample {
                 # rf-count-genome reports the A-stop coverage as "x/y  (pct%)" — two fields.
                 # Detect this by checking if field 3 contains "/" and field 4 starts with "(".
-                if (\$3 ~ /\\// && \$4 ~ /^\(/) {
+                if (\$3 ~ /\\// && substr(\$4, 1, 1) == "(") {
                     pct_a = \$4; gsub(/[()%]/, "", pct_a)
                     print \$1 "\\t" \$2 "\\t" pct_a "\\t" \$5 "\\t" \$6 "\\t" \$7
                 } else {
@@ -83,7 +84,7 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     # rf-count-genome reports "Covered: 0" when run without a -a annotation file
     # (genome-wide mode); that is expected here — rf-rctools extract handles transcript
     # extraction using the GTF in the next step.  Fail only if no RC files were produced.
-    rc_count=\$(find "${outdir}" -type f -name '*.rc' 2>/dev/null | wc -l)
+    rc_count=\$(find "\${rfcount_outdir}" -type f -name '*.rc' 2>/dev/null | wc -l)
     if [[ "\${rc_count}" -eq 0 ]]; then
         echo "[RNAFRAMEWORK_RFCOUNT_GENOME] rf-count-genome produced no RC files for sample '${prefix}'." >&2
         exit 1

@@ -686,8 +686,6 @@ def defaultPipelineConfig() {
     [
         organism                          : null,
         fasta                             : null,
-        genome_fasta                      : null,
-        transcriptome_fasta               : null,
         gtf                               : null,
         transcriptome                     : false,
         genomes                           : null,

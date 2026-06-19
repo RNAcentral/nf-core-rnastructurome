@@ -172,7 +172,9 @@ workflow FOLD_STRUCTURES {
     )
 
     ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
+    ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.versions.first())
     ch_versions = ch_versions.mix(MERGE_BP.out.versions.first())
+    ch_versions = ch_versions.mix(MERGE_BP_TRANSCRIPT.out.versions.first())
 
     emit:
     fold_input    = ch_fold_input                          // channel: [ val(meta), list(path(xml)) ] — grouped by cell_line

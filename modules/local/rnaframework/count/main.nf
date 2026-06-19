@@ -29,6 +29,7 @@ process RNAFRAMEWORK_RFCOUNT {
     export TERM="\${TERM:-xterm}"
 
     mkdir -p ${outdir}
+    rfcount_outdir="${outdir}"
     rfcount_log_tmp="${prefix}.rfcount.log"
 
     set -o pipefail
@@ -68,7 +69,7 @@ process RNAFRAMEWORK_RFCOUNT {
         printf 'sample\\tcovered\\tpct_a_stops\\tpct_c_stops\\tpct_g_stops\\tpct_u_stops\\n'
         awk -v sample="${prefix}" '
             \$1 == sample {
-                if (\$3 ~ /\\// && \$4 ~ /^\(/) {
+                if (\$3 ~ /\\// && substr(\$4, 1, 1) == "(") {
                     pct_a = \$4; gsub(/[()%]/, "", pct_a)
                     print \$1 "\\t" \$2 "\\t" pct_a "\\t" \$5 "\\t" \$6 "\\t" \$7
                 } else {
@@ -89,7 +90,7 @@ process RNAFRAMEWORK_RFCOUNT {
             ;;
     esac
 
-    rc_count=\$(find "${outdir}" -type f -name '*.rc' 2>/dev/null | wc -l)
+    rc_count=\$(find "\${rfcount_outdir}" -type f -name '*.rc' 2>/dev/null | wc -l)
     if [[ "\${rc_count}" -eq 0 ]]; then
         echo "[RNAFRAMEWORK_RFCOUNT] rf-count produced no RC files for sample '${prefix}'." >&2
         exit 1

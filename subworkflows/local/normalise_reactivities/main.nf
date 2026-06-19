@@ -62,6 +62,8 @@ workflow NORMALISE_REACTIVITIES {
 
     // Enforce rf-norm pairing rules and select the representative meta per group.
     // Defined before the fallback channels so ch_treated_no_untreated can join against it.
+    // Note: the denatured-without-untreated check is deferred to ch_norm_input assembly
+    // so that fuzzy untreated resolution can supply the missing control first.
     def ch_group_meta = ch_rc_by_group
         .map     { group, condition, meta, _rc, _rci -> [ group, [ condition: condition, meta: meta ] ] }
         .groupTuple()
@@ -73,13 +75,14 @@ workflow NORMALISE_REACTIVITIES {
                     .collect { entry -> "${entry.meta.id} (${entry.condition})" }.sort().join(', ')
                 error("rf-norm requires a treated sample for cell_line/replicate group '${group}'. Invalid samples: ${offending}")
             }
-            if (conditions.contains('denatured') && (!conditions.contains('treated') || !conditions.contains('untreated'))) {
+            if (conditions.contains('denatured') && !conditions.contains('treated')) {
                 def offending = entries
                     .findAll { entry -> entry.condition == 'denatured' }
                     .collect { entry -> "${entry.meta.id} (${entry.condition})" }.sort().join(', ')
-                error("rf-norm requires treated and untreated samples for denatured controls in cell_line/replicate group '${group}'. Invalid samples: ${offending}")
+                error("rf-norm requires a treated sample for denatured controls in cell_line/replicate group '${group}'. Invalid samples: ${offending}")
             }
-            [ group, entries[0].meta ]
+            // Always use the treated sample's meta so principle drives scoring-method selection correctly.
+            [ group, entries.find { entry -> entry.condition == 'treated' }.meta ]
         }
 
     // Fuzzy untreated pairing fallback (enabled by default; disable with --fuzzy_untreated_pairing false).
@@ -145,6 +148,10 @@ workflow NORMALISE_REACTIVITIES {
         .map { group, treated_rcs, base_meta, untreated_rc, denatured_rc, rci_files ->
             def hasUntreated  = untreated_rc ? true : false
             def hasDenatured  = denatured_rc ? true : false
+            // Deferred from ch_group_meta: checked here so fuzzy pairing can supply the untreated first.
+            if (hasDenatured && !hasUntreated) {
+                error("rf-norm requires an untreated sample for denatured controls in group '${group}'. No untreated was available (neither an exact cell_line+replicate match nor a fuzzy base-token fallback). Add an untreated sample or set --fuzzy_untreated_pairing false.")
+            }
             def principle     = (base_meta.principle ?: '').toLowerCase()
             def scoringMethod = principle == 'map'
                 ? (hasUntreated ? 3 : 4)

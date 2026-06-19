@@ -5,6 +5,7 @@ import argparse
 import gzip
 import math
 import re
+import sys
 from pathlib import Path
 
 
@@ -245,7 +246,11 @@ def main() -> int:
         warnings_path.unlink()
 
     if dotplot_paths and bp_count == 0:
-        raise SystemExit("No .bp files were generated from the available .dp files.")
+        print(
+            "WARNING: No .bp files were generated from the available .dp files. "
+            "Check conversion_warnings.log for per-transcript details.",
+            file=sys.stderr,
+        )
 
     return 0
 

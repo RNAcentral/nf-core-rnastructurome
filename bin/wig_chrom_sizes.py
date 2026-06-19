@@ -42,8 +42,12 @@ def main() -> int:
         if chrom is None:
             return
         if mode == "fixed":
+            if count == 0:
+                return
             end = start + (count - 1) * step + span - 1
         else:
+            if max_pos == 0:
+                return
             end = max_pos + span - 1
         sizes[chrom] = max(sizes.get(chrom, 0), end)
 

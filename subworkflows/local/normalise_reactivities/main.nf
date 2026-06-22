@@ -4,7 +4,8 @@
 // run rf-norm to produce per-base reactivity XML files.
 //
 
-include { RNAFRAMEWORK_RFNORM } from '../../../modules/local/rnaframework/norm/main'
+include { RNAFRAMEWORK_RFNORM        } from '../../../modules/local/rnaframework/norm/main'
+include { RNAFRAMEWORK_RFRCTOOLS_SPLIT } from '../../../modules/local/rnaframework/rctools/split/main'
 include {
     cellLineBaseToken
     resolveRfNormNormMethod
@@ -167,15 +168,77 @@ workflow NORMALISE_REACTIVITIES {
             [ gmeta, treated_rcs, untreated_rc ?: [], denatured_rc ?: [], rci_files ?: [] ]
         }
 
-    RNAFRAMEWORK_RFNORM (
-        ch_norm_input
-    )
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
+    def ch_xml
+    def ch_plots
+    def ch_rfnorm_log
+
+    if (pipeline_config.rfnorm_chunk_size) {
+        // Scatter: split the treated RC into transcript chunks; fan out a RFNORM job per chunk.
+        // Only the first treated RC per group is split (groups with multiple treated samples are
+        // uncommon; multi-treated support can be added if needed).
+        def ch_norm_branched = ch_norm_input.multiMap { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ->
+            for_split:    [ gmeta, treated_rcs instanceof List ? treated_rcs[0] : treated_rcs ]
+            for_controls: [ gmeta.id.toString(), untreated_rc, denatured_rc, rci_files ]
+        }
+
+        RNAFRAMEWORK_RFRCTOOLS_SPLIT(ch_norm_branched.for_split)
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFRCTOOLS_SPLIT.out.versions.first())
+
+        // Flatten chunk RC files into individual items, tag each with (group_id, chunk_id).
+        def ch_chunked_inputs = RNAFRAMEWORK_RFRCTOOLS_SPLIT.out.chunks
+            .transpose()
+            .map { gmeta, chunk_rc ->
+                def chunk_id    = (chunk_rc.name =~ /_chunk_(\d+)\.rc$/)[0][1]
+                def chunk_gmeta = gmeta + [id: "${gmeta.id}_chunk_${chunk_id}".toString()]
+                [ gmeta.id.toString(), chunk_gmeta, chunk_rc ]
+            }
+            .combine(ch_norm_branched.for_controls, by: 0)
+            .map { _group_key, chunk_gmeta, chunk_rc, untreated_rc, denatured_rc, rci_files ->
+                [ chunk_gmeta, [chunk_rc], untreated_rc ?: [], denatured_rc ?: [], rci_files ?: [] ]
+            }
+
+        RNAFRAMEWORK_RFNORM(ch_chunked_inputs)
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
+
+        // Gather: re-collect outputs from all chunks back into one item per original group.
+        ch_xml = RNAFRAMEWORK_RFNORM.out.xml
+            .map { gmeta, xmls ->
+                def orig_id = gmeta.id.replaceAll(/_chunk_\d+$/, '')
+                [ orig_id, gmeta + [id: orig_id], xmls instanceof List ? xmls : [xmls] ]
+            }
+            .groupTuple(by: 0)
+            .map { _orig_id, gmetas, xml_lists -> [ gmetas[0], xml_lists.flatten() ] }
+
+        // Collect logs per original group — only the first chunk log is retained since
+        // rf-norm's "covered" count is per-chunk; a proper aggregate would need summing.
+        ch_rfnorm_log = RNAFRAMEWORK_RFNORM.out.log
+            .map { gmeta, log ->
+                def orig_id = gmeta.id.replaceAll(/_chunk_\d+$/, '')
+                [ orig_id, gmeta + [id: orig_id], log ]
+            }
+            .groupTuple(by: 0)
+            .map { _orig_id, gmetas, logs -> [ gmetas[0], logs[0] ] }
+
+        ch_plots = RNAFRAMEWORK_RFNORM.out.plots
+            .map { gmeta, plots ->
+                def orig_id = gmeta.id.replaceAll(/_chunk_\d+$/, '')
+                [ orig_id, gmeta + [id: orig_id], plots instanceof List ? plots : [plots] ]
+            }
+            .groupTuple(by: 0)
+            .map { _orig_id, gmetas, plot_lists -> [ gmetas[0], plot_lists.flatten() ] }
+
+    } else {
+        RNAFRAMEWORK_RFNORM(ch_norm_input)
+        ch_versions   = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
+        ch_xml        = RNAFRAMEWORK_RFNORM.out.xml
+        ch_plots      = RNAFRAMEWORK_RFNORM.out.plots
+        ch_rfnorm_log = RNAFRAMEWORK_RFNORM.out.log
+    }
 
     emit:
-    xml         = RNAFRAMEWORK_RFNORM.out.xml     // channel: [ val(meta), path(xml) ]
-    plots       = RNAFRAMEWORK_RFNORM.out.plots   // channel: [ val(meta), path(plots) ]
-    rfnorm_log  = RNAFRAMEWORK_RFNORM.out.log     // channel: [ val(meta), path(log) ]
-    norm_groups = ch_rc_by_group                  // channel: [ group, condition, val(meta), path(rc), path(rci) ]
-    versions    = ch_versions                     // channel: [ path(versions.yml) ]
+    xml         = ch_xml          // channel: [ val(meta), path(xml) ]
+    plots       = ch_plots        // channel: [ val(meta), path(plots) ]
+    rfnorm_log  = ch_rfnorm_log   // channel: [ val(meta), path(log) ]
+    norm_groups = ch_rc_by_group  // channel: [ group, condition, val(meta), path(rc), path(rci) ]
+    versions    = ch_versions     // channel: [ path(versions.yml) ]
 }

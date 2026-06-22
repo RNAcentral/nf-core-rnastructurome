@@ -1,0 +1,96 @@
+nextflow_process {
+
+    name "Test Process RNAFRAMEWORK_RFRCTOOLS_SPLIT"
+    script "../main.nf"
+    process "RNAFRAMEWORK_RFRCTOOLS_SPLIT"
+
+    tag "modules"
+    tag "modules_local"
+    tag "rnaframework"
+    tag "rnaframework/rctools"
+    config "./nextflow.config"
+
+    test("rfrctools_split - stub default chunk size") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_chunk_size = 5000
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'test_sample' ],
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.chunks.size() == 1 },
+                { assert process.out.versions.size() == 1 },
+                { assert path(process.out.chunks[0][1]).exists() }
+            )
+        }
+    }
+
+    test("rfrctools_split - stub small chunk size") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_chunk_size = 1000
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'test_small_chunks' ],
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.chunks.size() == 1 },
+                { assert process.out.versions.size() == 1 },
+                { assert path(process.out.chunks[0][1]).exists() }
+            )
+        }
+    }
+
+    test("rfrctools_split - stub preserves meta") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_chunk_size = 5000
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'MDA-MB-231_MTX_1', cell_line:'MDA-MB-231_MTX', replicate:1 ],
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.chunks.size() == 1 },
+                { assert process.out.chunks[0][0].id == 'MDA-MB-231_MTX_1' },
+                { assert process.out.chunks[0][0].cell_line == 'MDA-MB-231_MTX' }
+            )
+        }
+    }
+}

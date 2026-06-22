@@ -458,6 +458,7 @@ def defaultPipelineConfig() {
         rfnorm_mean_coverage              : 0,
         rfnorm_median_coverage            : 0,
         rfnorm_nan                        : 1000,
+        rfnorm_chunk_size                 : params.rfnorm_chunk_size,
         rnaframework_r_path               : '/usr/bin/R'
     ]
 }

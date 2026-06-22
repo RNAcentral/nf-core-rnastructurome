@@ -19,6 +19,9 @@ process RNAFRAMEWORK_RFRCTOOLS_SPLIT {
     """
     export TERM="\${TERM:-xterm}"
 
+    # Ensure the RCI index exists for the treated RC before calling stats.
+    rf-rctools index ${treated_rc}
+
     # Get transcript IDs and lengths via per-transcript statistics.
     rf-rctools stats ${treated_rc} > rc_stats.txt
 

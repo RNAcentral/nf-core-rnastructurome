@@ -130,7 +130,10 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
 
 </details>
 
-[`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/) predicts RNA secondary structures from normalised reactivity profiles. Replicates for the same cell line are combined and folded together using ViennaRNA RNAfold in a windowed manner, which improves accuracy for long transcripts by folding overlapping sequence windows and merging the results. Key outputs per transcript include 2D structure diagrams, RDAT files summarising the predicted structure and reactivity values, and per-transcript summary PDF plots. Genome-wide Shannon entropy profiles and base-pair arcs are additionally provided as BigWig and `.bp` tracks for visualisation in a genome browser, in both genome and transcript coordinates.
+[`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/) predicts RNA secondary structures from normalised reactivity profiles. Replicates for the same cell line are combined and folded together using ViennaRNA RNAfold in a windowed manner, which improves accuracy for long transcripts by folding overlapping sequence windows and merging the results. Key outputs per transcript include 2D structure diagrams, [RDAT] (https://rmdb.stanford.edu/deposit/specs/) files summarising the predicted structure and reactivity values, and per-transcript summary PDF plots. Genome-wide Shannon entropy profiles and base-pair arcs are additionally provided as BigWig and `.bp` tracks for visualisation in a genome browser, in both genome and transcript coordinates.
+
+- **[R2DT](https://github.com/RNAcentral/R2DT)** — used when a matching template exists in the R2DT library (rRNA, snRNA, tRNA, etc.). Produces layouts comparable across organisms. Published to `fold/<group>/structures/r2dt/`.
+- **[ViennaRNA](https://www.tbi.univie.ac.at/RNA/)** — fallback for transcripts without an R2DT template. `RNAplot` draws an energy-minimised 2D diagram from the dot-bracket structure. Published to `fold/<group>/structures/viennarna/`.
 
 ---
 
@@ -161,9 +164,15 @@ This step only runs when `--jackknife_reference` is provided.
 
 </details>
 
-[`rf-eval`](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/) compares predicted secondary structures from `rf-fold` against a set of known reference structures, reporting accuracy metrics such as sensitivity, positive predictive value (PPV), and the Fowlkes–Mallows Index (FMI).
+[`rf-eval`](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/) evaluates how well normalised reactivity profiles agree with a set of reference structures. It reports three metrics per transcript:
+
+- **Unpaired Coefficient** — fraction of highly reactive bases that are unpaired
+- **DSCI** — probability that a randomly selected unpaired base has higher reactivity than a paired base
+- **AUROC** — area under the ROC curve treating reactivity as a classifier of unpaired bases
 
 This step only runs when `--eval_reference` is provided.
+
+ Enabled by `--rfeval_reference`. 
 
 ---
 

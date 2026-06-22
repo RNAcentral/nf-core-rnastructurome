@@ -156,126 +156,20 @@ Treated samples are usually paired with untreated by matching `cell_line + repli
 
 For DMS experiments, a few defaults change automatically. `--rfnorm_reactive_bases` is set to `AC` (or `ACGU` when `pH ≥ 8`). `--rfnorm_dynamic_window` defaults to `50` when `pH < 8`; it controls the size of the sliding window used to compute local normalisation factors along the transcript — a smaller window is better suited to DMS at physiological pH where reactivity can vary sharply over short stretches. `--rfnorm_nan` defaults to `100` rather than `1000`; it sets the minimum number of reads required at a position for a reactivity value to be reported — positions with fewer reads are set to NaN instead of reporting a potentially unreliable values. These can all be overridden explicitly if needed.
 
-`--rfnorm_mean_coverage` and `--rfnorm_median_coverage` set minimum coverage thresholds below which transcript positions are masked as NaN — useful for filtering out poorly-covered transcripts. `--rfnorm_chunk_size` (default `5000` on genome route, disabled on transcriptome route) splits the treated RC file into chunks of N transcripts and runs a separate rf-norm job per chunk in parallel, which can substantially reduce wall time for large genome-route experiments.
-
 For the full list of available options see the [rf-norm documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
 
-## rf-jackknife (optional)
+### rf-fold
 
-[`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/) calibrates rf-fold slope and intercept parameters against a set of reference structures. Enabled by `--jackknife_reference`. It runs between rf-norm and rf-fold, iterating over a slope/intercept grid and scoring each combination with the FMI (Fowlkes–Mallows Index). `rf-fold` is gated on jackknife completing for each group.
+`rf-fold` predicts RNA secondary structures from normalised reactivity profiles using ViennaRNA. The pipeline groups XMLs by `cell_line`, merging replicates, and folds them together. Dot-bracket output is the default; CT format can be enabled with `--rffold_ct`.
 
-Two E. coli rRNA calibration references are bundled under `assets/ecoli_rrna_calibration/`:
+After folding, the pipeline draws reactivity-coloured 2D structure diagrams using [R2DT](https://github.com/RNAcentral/R2DT) where a template exists (rRNA, snRNA, tRNA, and other well-characterised RNA families), falling back to ViennaRNA's `RNAplot` for everything else. Note that R2DT is only available when running with a container profile (`docker`, `singularity`, `apptainer`) — under `conda` or `mamba` it is not currently available, and all diagrams will fall back to ViennaRNA's `RNAplot` instead.
 
-- `ecoli_k12_rrna_reference_collab.db` — pseudoknots marked with `[]`; use with default `--rfjackknife_keep_pseudoknots true`
-- `ecoli_k12_rrna_reference_crw.db` — CRW structures; all pairs in `()` notation; `--rfjackknife_keep_pseudoknots` has no effect
+Some important parameters to consider are `--rffold_slope` (default `4.6`) and `--rffold_intercept` (default `-2.2`), which control how reactivity values are converted into folding constraints. These defaults were determined using this pipeline on E. coli total RNA SHAPE-MaP data from [Borovska et al. 2026](https://www.nature.com/articles/s41587-025-02739-0) and should serve as a good starting point for most experiments. You can use `rf-jackkife` with your own data to determine the optimal values for your dataset.
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--jackknife_reference` | — | Path to reference `.db` file — **required to enable** |
-| `--rfjackknife_pool_all` | `true` | Pool all groups into one jackknife run; optimal slope/intercept passed to rf-fold automatically. Set `false` to run per group (slope/intercept must then be set manually via `--rffold_slope`/`--rffold_intercept`) |
-| `--rfjackknife_slope` | `0,5` | Slope range (`min,max`) |
-| `--rfjackknife_intercept` | `-3,0` | Intercept range (`min,max`) |
-| `--rfjackknife_slope_step` | `0.2` | Slope grid increment |
-| `--rfjackknife_intercept_step` | `0.2` | Intercept grid increment |
-| `--rfjackknife_keep_pseudoknots` | `true` | Retain pseudoknotted base-pairs in reference (`-kp`) |
-| `--rfjackknife_keep_lonelypairs` | `true` | Retain lonely base-pairs (`-kl`) |
-| `--rfjackknife_mfmi` | `false` | Use modified FMI (`-m`) |
-| `--rfjackknife_relaxed` | `false` | Relaxed FMI criteria (Deigan et al. 2009) (`-x`) |
-| `--rfjackknife_img` | `false` | Generate FMI heatmap PDF (requires R) |
-| `--rfjackknife_rf_fold_params` | `'-md 600'` | Extra flags passed to rf-fold inside jackknife (`-rp`) |
-
-Output: `jackknife/<group>/` — FMI CSV per slope/intercept combination; optional heatmap PDF.
-
-For the full list of available options see the [rf-jackknife documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
-
-## rf-fold
-
-[`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/) predicts RNA secondary structures from normalised reactivity profiles. The pipeline groups XMLs by `cell_line` (merging replicates) and folds them together. Dot-bracket output is the default; CT format is optional.
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--rffold_slope` | `4.6` | Reactivity-to-constraint slope (`-sl`); auto-overridden by jackknife when `--rfjackknife_pool_all true` |
-| `--rffold_intercept` | `-2.2` | Reactivity-to-constraint intercept (`-in`); auto-overridden by jackknife |
-| `--rffold_window` | `true` | Enable windowed folding (`-w`) |
-| `--rffold_ct` | `false` | Write CT format alongside dot-bracket (`-ct`) |
-| `--rffold_unconstrained` | `false` | Fold without reactivity constraints (`-u`) |
-| `--rffold_vienna_no_lonely_pairs` | `false` | No-lonely-pairs mode (`-nlp`) |
-| `--rffold_vienna_constrained` | `false` | Hard constraints mode (`-hc`) |
-| `--rffold_vienna_max_bp_span` | — | Maximum base-pair span (`-md`) |
-| `--rffold_only_common` | `false` | Keep only structures common across replicates (`-oc`) |
-| `--rffold_fold_constraint_file` | — | External constraint file (`-c`) |
-| `--rffold_dotplot` | `true` | Generate dot-plot output (`-dp`) |
-| `--rffold_shannon_entropy` | `true` | Compute Shannon entropy (`-sh`); produces `fold/shannon_bw/` BigWigs |
-| `--rffold_vienna_rnaplot` | `RNAplot` | RNAplot layout engine (`-vrp`) |
+`--rffold_shannon_entropy` (default `true`) computes per-position Shannon entropy alongside the predicted structure, which gives a measure of folding confidence. `--rffold_only_common` keeps only transcripts covered in at least N XML experiments — when not set explicitly, the pipeline enables this automatically for fold groups with more than one replicate, setting N to the number of replicates in that group so only transcripts present in all replicates are retained. `--rffold_unconstrained` folds without using reactivity data at all, useful as a baseline comparison.
 
 For the full list of available options see the [rf-fold documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
 
-## rf-eval (optional)
-
-[`rf-eval`](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/) evaluates how well normalised reactivity profiles agree with a set of reference structures. Enabled by `--rfeval_reference`. It runs per `cell_line + replicate` group and reports three metrics per transcript:
-
-- **Unpaired Coefficient** — fraction of highly reactive bases that are unpaired
-- **DSCI** — probability that a randomly selected unpaired base has higher reactivity than a paired base
-- **AUROC** — area under the ROC curve treating reactivity as a classifier of unpaired bases
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--rfeval_reference` | — | Path to reference `.db` file — **required to enable** |
-| `--rfeval_reactivity_cutoff` | `0.7` | Reactivity threshold for unpaired classification (`-c`) |
-| `--rfeval_img` | `false` | Generate metric plots — ROC curves, histograms (requires R) |
-| `--rfeval_ignore_terminal` | `false` | Exclude terminal base-pairs from calculations (`-it`) |
-| `--rfeval_keep_pseudoknots` | `false` | Retain pseudoknotted base-pairs (`-kp`) |
-| `--rfeval_keep_lonelypairs` | `false` | Retain lonely base-pairs (`-kl`) |
-
-Output: `eval/<group>/` — per-transcript CSV with Unpaired Coefficient, DSCI, and AUROC; optional PDF plots.
-
-For the full list of available options see the [rf-eval documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
-
-## Visualisation
-
-### 2D structure diagrams
-
-After `rf-fold`, the pipeline draws reactivity-coloured 2D structure diagrams for each transcript. Nucleotides are coloured by normalised reactivity averaged across replicates.
-
-- **[R2DT](https://github.com/RNAcentral/R2DT)** — used when a matching template exists in the R2DT library (rRNA, snRNA, tRNA, etc.). Produces layouts comparable across organisms. Published to `fold/<group>/structures/r2dt/`.
-- **[ViennaRNA](https://www.tbi.univie.ac.at/RNA/)** — fallback for transcripts without an R2DT template. `RNAplot` draws an energy-minimised 2D diagram from the dot-bracket structure. Published to `fold/<group>/structures/viennarna/`.
-
-Transcripts drawn by R2DT are recorded in `r2dt_drawn_ids.txt` so ViennaRNA does not duplicate them.
-
-### Browser tracks
-
-After normalisation, `rf-wiggle` converts each normalised XML to per-transcript WIG tracks. These are merged across transcripts and, when multiple replicates share the same cell line, averaged position-by-position before genomic remapping and BigWig conversion via the GTF.
-
-Outputs:
-
-- `norm/merged_bw/<cell_line>_reactivity.bw` — genomic reactivity BigWig
-- `norm/transcript_bw/` — transcript-coordinate reactivity BigWigs
-- `fold/shannon_bw/<cell_line>_shannon.bw` — genomic Shannon entropy BigWig (when `--rffold_shannon_entropy` is enabled, which is the default)
-- `fold/transcript_shannon_bw/` — transcript-coordinate Shannon entropy BigWigs
-
-## RDAT export
-
-The pipeline produces [RDAT](https://rmdb.stanford.edu/tools/rdat_format/)-format files bundling normalised reactivity (from rf-norm XML) with the predicted structure (from rf-fold dot-bracket output). One `.rdat` file is written per transcript with both a reactivity profile and a predicted structure. Files are published under `fold/<group>/rdat/`.
-
-## Outputs at a glance
-
-Main output areas under `--outdir`:
-
-- `fastqc/`, `cutadapt/`, `star/` (or `bowtie*/` with `--transcriptome`), `samtools*/` — preprocessing and alignment
-- `count/` — count tables and plots
-- `norm/<group>/` — normalised XML, normalisation plots, and per-transcript wiggle tracks
-- `norm/merged_bw/` — per-cell-line genomic reactivity BigWigs
-- `norm/transcript_bw/` — per-cell-line transcript-coordinate reactivity BigWigs
-- `jackknife/<group>/` — FMI CSV and optional heatmap (only when `--jackknife_reference` is set)
-- `fold/<group>/` — secondary structures, fold reports, optional CT, optional dotplots, and SVG diagrams
-- `fold/merged_bp/` — merged base-pair files per cell line
-- `fold/transcript_merged_bp/` — transcript-coordinate merged base-pair files
-- `fold/shannon_bw/` — genomic Shannon entropy BigWigs
-- `fold/transcript_shannon_bw/` — transcript-coordinate Shannon entropy BigWigs
-- `eval/<group>/` — per-transcript evaluation metrics (only when `--rfeval_reference` is set)
-- `multiqc/` — aggregated QC report
-
-For full output details, see [output documentation](output.md).
 
 ## Running the pipeline
 
@@ -306,7 +200,7 @@ nextflow run nf-core/rnastructurome \
   --input samplesheet.csv \
   --outdir results \
   --transcriptome \
-  --jackknife_reference assets/ecoli_rrna_calibration/ecoli_k12_rrna_reference_collab.db \
+  --jackknife_reference ecoli_rrna_calibration/ecoli_k12_rrna_reference_collab.db \
   -profile docker
 ```
 
@@ -315,6 +209,34 @@ For repeated runs with the same parameters, use a params file:
 ```bash
 nextflow run nf-core/rnastructurome -profile docker -params-file params.yaml
 ```
+
+Example `params.yaml`:
+
+```yaml
+input: /path/to/samplesheet.csv
+outdir: results
+organism: Homo sapiens
+method: SHAPE
+principle: RT-stop
+
+# trim 2 nt from 5' end to remove sequence-context bias
+rfcount_trim_5prime: 2
+
+# use 2-8% normalisation instead of the default box-plot
+rfnorm_norm_method: 1
+```
+
+## Reproducibility
+
+Always specify the pipeline version when running on your data using `-r` (one hyphen):
+
+```bash
+nextflow run nf-core/rnastructurome -r 1.0.0 -profile docker --input samplesheet.csv --outdir results
+```
+
+This pins the exact version of the pipeline code and all software containers, so re-running with the same `-r` tag months later will produce identical results. The version is recorded in the MultiQC report and in the RDAT files so you always know what was used.
+
+For complete reproducibility, save your parameters to a `params.yaml` file (see [Running the pipeline](#running-the-pipeline)) and share it alongside your data. When doing so, avoid including cluster-specific paths or institutional profile names — use relative paths or published dataset identifiers instead so that others can reproduce the run in their own environment.
 
 ## Core Nextflow arguments
 

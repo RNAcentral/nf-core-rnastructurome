@@ -95,9 +95,14 @@ workflow BROWSER_TRACKS {
         file("${projectDir}/bin/remap_wig_to_genome.py", checkIfExists: true)
     )
 
+    def ch_reactivity_genome_non_empty = WIG_TO_GENOME_REACTIVITY.out.wig
+        .map { meta, wig -> [ meta.id.toString(), meta, wig ] }
+        .join(WIG_TO_GENOME_REACTIVITY.out.chrom_sizes.map { meta, sizes -> [ meta.id.toString(), sizes ] })
+        .filter { _id, _meta, wig, _sizes -> wig.size() > 0 }
+
     UCSC_WIGTOBIGWIG_REACTIVITY (
-        WIG_TO_GENOME_REACTIVITY.out.wig,
-        WIG_TO_GENOME_REACTIVITY.out.chrom_sizes.map { _meta, sizes -> sizes }
+        ch_reactivity_genome_non_empty.map { _id, meta, wig, _sizes -> [ meta, wig ] },
+        ch_reactivity_genome_non_empty.map { _id, _meta, _wig, sizes -> sizes }
     )
 
     //
@@ -163,9 +168,14 @@ workflow BROWSER_TRACKS {
         )
         ch_versions = ch_versions.mix(WIG_TO_GENOME_SHANNON.out.versions.first())
 
+        def ch_shannon_genome_non_empty = WIG_TO_GENOME_SHANNON.out.wig
+            .map { meta, wig -> [ meta.id.toString(), meta, wig ] }
+            .join(WIG_TO_GENOME_SHANNON.out.chrom_sizes.map { meta, sizes -> [ meta.id.toString(), sizes ] })
+            .filter { _id, _meta, wig, _sizes -> wig.size() > 0 }
+
         UCSC_WIGTOBIGWIG_SHANNON (
-            WIG_TO_GENOME_SHANNON.out.wig,
-            WIG_TO_GENOME_SHANNON.out.chrom_sizes.map { _meta, sizes -> sizes }
+            ch_shannon_genome_non_empty.map { _id, meta, wig, _sizes -> [ meta, wig ] },
+            ch_shannon_genome_non_empty.map { _id, _meta, _wig, sizes -> sizes }
         )
 
         // Transcript-coordinate Shannon BigWig — independent subscriptions from the genome path above.

@@ -244,76 +244,77 @@ These options are part of Nextflow itself and use a single hyphen. Pipeline para
 
 ### `-profile`
 
-Use this parameter to choose configuration profiles. Common profiles: `docker`, `singularity`, `apptainer`, `podman`, `conda`. Multiple profiles can be combined (later profiles override earlier ones):
+Use this parameter to choose a configuration profile. Profiles can give configuration presets for different compute environments or analyses.
+
+Several generic profiles are bundled with the pipeline which instruct the pipeline to use software packaged using different methods — see below. We highly recommend the use of Docker or Singularity containers for full pipeline reproducibility; when this is not possible, Conda is also supported.
+
+The pipeline also dynamically loads configurations from [nf-core/configs](https://github.com/nf-core/configs) at run time, making institutional cluster profiles available automatically. For more information and to check if your system is supported, please see the [nf-core/configs documentation](https://github.com/nf-core/configs#documentation).
+
+Multiple profiles can be combined; they are loaded in sequence so later profiles can overwrite earlier ones:
 
 ```bash
 -profile test,docker
 ```
 
-If `-profile` is not specified, the pipeline runs locally and expects all software on `PATH`.
+If `-profile` is not specified, the pipeline will run locally and expect all software to be installed and available on `PATH`. This is not recommended as it can lead to different results on different machines.
+
+| Profile | Description |
+|---|---|
+| `test` | Minimal test using the STAR genome-alignment route. Uses human mitochondrial chromosome (MT-RNR1) test data — no other parameters needed. |
+| `test_transcriptome` | Minimal test using the Bowtie2 transcriptome route. Uses a single-transcript FASTA (ENST00000389680 / MT-RNR1) to exercise the `--transcriptome` path — no other parameters needed. |
+| `docker` | Use [Docker](https://docs.docker.com/engine/installation/) containers. |
+| `singularity` | Use [Singularity](https://www.sylabs.io/guides/3.0/user-guide/) containers. |
+| `podman` | Use [Podman](https://podman.io/) containers. |
+| `shifter` | Use [Shifter](https://nersc.gitlab.io/development/shifter/how-to-use/) containers. |
+| `charliecloud` | Use [Charliecloud](https://hpc.github.io/charliecloud/) containers. |
+| `apptainer` | Use [Apptainer](https://apptainer.org/) containers. |
+| `wave` | Enable [Wave](https://seqera.io/wave/) containers. Use together with one of the above (requires Nextflow ≥ 24.03.0-edge). |
+| `conda` | Use [Conda](https://conda.io/miniconda.html). Please only use Conda as a last resort when containers are not possible. Note that R2DT structure diagrams are not available under conda/mamba — ViennaRNA RNAplot is used as fallback. |
+| `arm64` | Applies overrides supplying ARM-compatible containers and Conda environments. See [Running on Linux ARM architectures](#running-on-linux-arm-architectures). |
 
 ### `-resume`
 
-Resume from cached work where inputs and process configuration match prior runs:
+Specify this when restarting a pipeline. Nextflow will use cached results from any pipeline steps where the inputs are the same, continuing from where it got to previously. For input to be considered the same, not only the names must be identical but the files' contents as well. For more info about this parameter, see [this blog post](https://www.nextflow.io/blog/2019/demystifying-nextflow-resume.html).
 
-```bash
-nextflow run nf-core/rnastructurome -profile docker \
-  --input samplesheet.csv --outdir results -resume
-```
-
-Use `nextflow log` to list previous run names; resume a specific run with `-resume <run-name>`.
+You can also supply a run name to resume a specific run: `-resume [run-name]`. Use the `nextflow log` command to show previous run names.
 
 ### `-c`
 
-Load a Nextflow config file for process resources, executors, or module-specific `ext.args`. Do not use `-c` for pipeline parameters (`input`, `outdir`, `fasta`, etc.) — use CLI flags or `-params-file` for those.
+Specify the path to a specific config file for process resources, executors, or module-specific `ext.args`. See the [nf-core website documentation](https://nf-co.re/usage/configuration) for more information.
 
 ## Custom configuration
 
 ### Resource requests
 
-Processes that fail with retryable resource-related exit codes are automatically retried with increased resources. Override per-process resources with a custom config:
+Whilst the default requirements set within the pipeline will hopefully work for most people and with most input data, you may find that you want to customise the compute resources that the pipeline requests. Each step in the pipeline has a default set of requirements for number of CPUs, memory and time. For most pipeline steps, if the job exits with any of the error codes specified [here](https://github.com/nf-core/rnaseq/blob/4c27ef5610c87db00c3c5a3eed10b1d161abf575/conf/base.config#L18), it will automatically be resubmitted with a higher resource request (2× original, then 3× original). If it still fails after the third attempt then the pipeline execution is stopped.
 
-```groovy title="custom_resources.config"
-process {
-    withName: 'STAR_GENOMEGENERATE' {
-        cpus   = 16
-        memory = '120.GB'
-        time   = '24.h'
-    }
-}
-```
+Computationally intensive steps in this pipeline include STAR alignment, rf-count, rf-norm (especially in chunked genome mode), and rf-fold. These are labelled `process_high` or `process_medium` and will benefit most from tuning.
 
-### Custom tool arguments
-
-Some modules expose `ext.args` for advanced flags not covered by pipeline parameters:
-
-```groovy title="custom_args.config"
-process {
-    withName: 'STAR_ALIGN_RTSTOP' {
-        ext.args = '--outFilterMultimapNmax 20'
-    }
-}
-```
+To change the resource requests, please see the [max resources](https://nf-co.re/docs/running/configuration/nextflow-for-your-system#set-max-resources) and [customise process resources](https://nf-co.re/docs/running/configuration/nextflow-for-your-system#customize-process-resources) sections of the nf-core website.
 
 ### nf-core/configs
 
-For reusable institutional profiles, see [nf-core/configs](https://github.com/nf-core/configs) and the [nf-core configuration docs](https://nf-co.re/docs/usage/configuration).
+In most cases, you will only need to create a custom config as a one-off but if you and others within your organisation are likely to be running nf-core pipelines regularly and need to use the same settings regularly it may be a good idea to request that your custom config file is uploaded to the [nf-core/configs](https://github.com/nf-core/configs) git repository. Before you do this please can you test that the config file works with your pipeline of choice using the `-c` parameter. You can then create a pull request to the nf-core/configs repository with the addition of your config file, associated documentation file (see examples in [nf-core/configs/docs](https://github.com/nf-core/configs/tree/master/docs)), and amending [`nfcore_custom.config`](https://github.com/nf-core/configs/blob/master/nfcore_custom.config) to include your custom profile.
 
-## Updating and reproducibility
+See the [main Nextflow documentation](https://www.nextflow.io/docs/latest/config.html) for more information about creating your own configuration files.
 
-Update cached pipeline code:
+If you have any questions or issues please send us a message on [Slack](https://nf-co.re/join/slack) on the [`#configs` channel](https://nfcore.slack.com/channels/configs).
+
+### Running in the background
+
+Nextflow handles job submissions and supervises the running jobs. The Nextflow process must run until the pipeline is finished.
+
+The Nextflow `-bg` flag launches Nextflow in the background, detached from your terminal so that the workflow does not stop if you log out of your session. The logs are saved to a file.
+
+Alternatively, you can use `screen` / `tmux` or similar tool to create a detached session which you can log back into at a later time. Some HPC setups also allow you to run Nextflow within a cluster job submitted your job scheduler (from where it submits more jobs).
+
+### Nextflow memory requirements
+
+In some cases, the Nextflow Java virtual machine can start to request a large amount of memory. We recommend adding the following line to your environment to limit this (typically in `~/.bashrc` or `~/.bash_profile`):
 
 ```bash
-nextflow pull nf-core/rnastructurome
+NXF_OPTS='-Xms1g -Xmx4g'
 ```
-
-Pin a release for reproducibility:
-
-```bash
-nextflow run nf-core/rnastructurome -r <VERSION> ...
-```
-
-The release, parameters, software versions, and execution trace are recorded under `pipeline_info/`. Use Nextflow `-bg` or `screen`/`tmux` for long sessions. Cap JVM memory if needed: `NXF_OPTS='-Xms1g -Xmx4g'`.
 
 ## Troubleshooting
 
@@ -322,41 +323,3 @@ The release, parameters, software versions, and execution trace are recorded und
 1. Check `.nextflow.log` for the first error message.
 2. Check `pipeline_info/execution_trace_<timestamp>.txt` to identify which process failed and its exit status.
 3. Use `-resume` after fixing issues — all previously successful tasks will be cached and skipped.
-
-### Missing outputs
-
-- Confirm the process completed in the execution trace (`status = COMPLETED`).
-- For `rf-fold` problems, inspect `fold/<group>/rffold.log` and check that input XMLs from `rf-norm` are non-empty.
-
-### rf-jackknife: "0 imported" error
-
-If `rf-jackknife` exits with `Error: No reference structure passed checks`, the most common cause is a sequence mismatch between the reference `.db` file and the mapping FASTA. To diagnose:
-
-```bash
-python3 -c "
-import re
-with open('path/to/transcript.xml') as f:
-    c = f.read()
-m = re.search(r'<sequence>(.*?)</sequence>', c, re.DOTALL)
-print(m.group(1).strip().replace('\n','').replace('\t','').replace(' ',''))
-" > /tmp/xml_seq.txt
-
-sed -n '2p' path/to/reference.db > /tmp/db_seq.txt
-diff /tmp/xml_seq.txt /tmp/db_seq.txt
-```
-
-Fix: rebuild the reference DB using sequences from the same FASTA the pipeline maps to, retaining the original dot-bracket annotation.
-
-If any flag in `--rfjackknife_rf_fold_params` is unrecognised, jackknife exits with `Error: Invalid RF Fold parameters`. Note that `-x` (`--relaxed`) is a rf-jackknife flag — do not include it in `--rfjackknife_rf_fold_params`.
-
-### rf-jackknife: ID mismatch
-
-Transcript IDs in the `.db` file must match those in the XML files. RNA Framework derives IDs from the first whitespace-delimited token of each FASTA header — so `>16S_rRNA U00096.3:...` becomes `16S_rRNA`.
-
-### Strandedness inference failures
-
-If `RSeQC infer_experiment` is ambiguous for MaP samples on the genome route, supply `--rfcount_strandedness first|second|unstranded` to override.
-
-### Container issues
-
-If Singularity processes fail with locale or `TERM` errors, ensure `singularity.autoMounts = true` is set in your config.

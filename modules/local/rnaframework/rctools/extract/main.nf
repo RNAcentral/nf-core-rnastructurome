@@ -26,9 +26,13 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     mkdir -p ${outdir}
 
     # Build per-file RCI indexes so rf-rctools can do strand-aware extraction.
+    # set -e here so index failures surface rather than silently producing a
+    # successful cached task with no .rci output.
+    set -e
     for f in input/*.rc; do
         rf-rctools index "\${f}"
     done
+    set +e
 
     # rf-rctools extract requires the BASENAME (no extension) to activate strand-aware
     # extraction: it auto-discovers Sample.plus.rc + Sample.minus.rc and uses the GTF
@@ -47,7 +51,9 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
         ${args} \\
         input/\${rc_basename}
 
+    set -e
     rf-rctools index ${outdir}/${prefix}.rc
+    set +e
 
     printf '"%s":\\n    rnaframework: %s\\n' \\
         "${task.process}" \\

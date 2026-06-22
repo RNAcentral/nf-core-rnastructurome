@@ -28,6 +28,7 @@
 
 
 Pipeline steps:
+The pipeline supports two chemical probing chemistries and two readout principles. These drive automatic parameter selection throughout the pipeline and should be set per sample in the samplesheet or globally via `--method` and `--principle`. Both are case-insensitive.
 
 1. Merge re-sequenced FASTQ files (`cat/fastq`)
 2. Raw read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))

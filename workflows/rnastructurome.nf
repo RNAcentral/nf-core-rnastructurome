@@ -386,6 +386,7 @@ workflow RNASTRUCTUROME {
     mapped_bam       = ch_dedup_bam                            // channel: [ val(meta), path(bam) ]
     normalized_xml   = NORMALISE_REACTIVITIES.out.xml           // channel: [ val(meta), path(xml) ]
     jackknife_csv    = FOLD_STRUCTURES.out.jackknife_csv        // channel: [ val(meta), path(csv) ] — empty when --jackknife_reference not set
+    rfeval_csv       = FOLD_STRUCTURES.out.rfeval_csv           // channel: [ val(meta), path(csv) ] — empty when --rfeval_reference not set
     fold_structures  = FOLD_STRUCTURES.out.structures           // channel: [ val(meta), path(dir) ]
     fold_bp          = FOLD_STRUCTURES.out.bp_dotplot           // channel: [ val(meta), path(bp) ]
     merged_bp        = FOLD_STRUCTURES.out.bp                  // channel: [ val(meta), path(*_merged.bp) ]
@@ -439,6 +440,7 @@ def defaultPipelineConfig() {
         bowtie2_ma                        : 2,
         bowtie2_dovetail                  : false,
         jackknife_reference               : null,
+        rfeval_reference                  : null,
         rfjackknife_pool_all              : true,
         rfnorm_reactive_bases             : null,
         rfnorm_remap_reactivities         : false,

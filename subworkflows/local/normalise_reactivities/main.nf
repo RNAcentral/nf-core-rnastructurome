@@ -172,7 +172,7 @@ workflow NORMALISE_REACTIVITIES {
     def ch_plots
     def ch_rfnorm_log
 
-    if (pipeline_config.rfnorm_chunk_size) {
+    if (pipeline_config.rfnorm_chunk_size && !pipeline_config.transcriptome) {
         // Scatter: split the treated RC into transcript chunks; fan out a RFNORM job per chunk.
         // Only the first treated RC per group is split (groups with multiple treated samples are
         // uncommon; multi-treated support can be added if needed).

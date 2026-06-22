@@ -128,7 +128,9 @@
                     "description": "Fallback probing principle for rows missing `principle`.",
                     "enum": [
                         "RT-stop",
-                        "MaP"
+                        "MaP",
+                        "rt-stop",
+                        "map"
                     ]
                 },
                 "organism": {
@@ -203,6 +205,12 @@
                     "description": "Align against a transcript-level FASTA using Bowtie (RT-stop) / Bowtie2 (MaP). Default (false) downloads a genome FASTA and aligns with STAR.",
                     "default": false,
                     "fa_icon": "fas fa-sitemap"
+                },
+                "star_multimap_nmax": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 10,
+                    "description": "Maximum number of loci a read is allowed to map to in STAR (`--outFilterMultimapNmax`). Reads mapping to more loci than this are discarded. Increase when studying repetitive non-coding RNAs."
                 },
                 "bowtie_mapping_params": {
                     "type": "string",
@@ -496,10 +504,12 @@
                 "rfnorm_norm_method": {
                     "type": "integer",
                     "enum": [
+                        1,
                         2,
-                        3
+                        3,
+                        4
                     ],
-                    "description": "Override rf-norm normalization method (`-nm`)."
+                    "description": "Override rf-norm normalization method (`-nm`). 1=2-8%, 2=90% Winsorizing, 3=Box-plot, 4=Mitchell (MaP only)."
                 },
                 "rfnorm_raw": {
                     "type": "boolean",
@@ -623,6 +633,14 @@
                     "type": "string",
                     "description": "GTF attribute used as the output RC entry ID by rf-rctools (`-b`).",
                     "default": "transcript_id"
+                },
+                "rfeval_reference": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.db$",
+                    "description": "Path to a `.db` file of known RNA secondary structures. Enables rf-eval when provided.",
+                    "fa_icon": "far fa-file-code"
                 },
                 "rfeval_reactivity_cutoff": {
                     "type": "number",

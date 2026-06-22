@@ -5,6 +5,7 @@
 //
 
 include { RNAFRAMEWORK_RFJACKKNIFE                                     } from '../../../modules/local/rnaframework/jackknife/main'
+include { RNAFRAMEWORK_RFEVAL                                          } from '../../../modules/local/rnaframework/eval/main'
 include { RNAFRAMEWORK_RFFOLD                                          } from '../../../modules/local/rnaframework/fold/main'
 include { RNAFRAMEWORK_DOTPLOT2BP                                      } from '../../../modules/local/dotplot2bp/main'
 include { RNAFRAMEWORK_DOTPLOT2BP as RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT } from '../../../modules/local/dotplot2bp/main'
@@ -59,6 +60,7 @@ workflow FOLD_STRUCTURES {
     //
     def ch_fold_for_rffold = ch_fold_input
     def ch_jackknife_csv   = channel.empty()
+    def ch_rfeval_csv      = channel.empty()
 
     if (pipeline_config.jackknife_reference) {
         def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
@@ -126,6 +128,21 @@ workflow FOLD_STRUCTURES {
         }
     }
 
+    //
+    // Optional rf-eval — evaluate agreement between reactivity data and a reference structure set.
+    // Runs per rfnorm group (one XML set per cell_line+replicate) when --rfeval_reference is provided.
+    //
+    if (pipeline_config.rfeval_reference) {
+        def ch_rfeval_reference = channel.value(file(pipeline_config.rfeval_reference.toString(), checkIfExists: true))
+
+        RNAFRAMEWORK_RFEVAL (
+            ch_rfnorm_xml,
+            ch_rfeval_reference
+        )
+        ch_versions    = ch_versions.mix(RNAFRAMEWORK_RFEVAL.out.versions.first())
+        ch_rfeval_csv  = RNAFRAMEWORK_RFEVAL.out.csv
+    }
+
     RNAFRAMEWORK_RFFOLD (
         ch_fold_for_rffold
     )
@@ -181,7 +198,8 @@ workflow FOLD_STRUCTURES {
     structures    = RNAFRAMEWORK_RFFOLD.out.structures     // channel: [ val(meta), path(fold_dir) ]
     shannon_wig   = RNAFRAMEWORK_RFFOLD.out.shannon_wig    // channel: [ val(meta), path(wig) ]
     rffold_log    = RNAFRAMEWORK_RFFOLD.out.log            // channel: [ val(meta), path(log) ]
-    jackknife_csv = ch_jackknife_csv                       // channel: [ val(meta), path(csv) ] — empty when jackknife not configured
+    jackknife_csv = ch_jackknife_csv                       // channel: [ val(meta), path(csv) ] — empty when --jackknife_reference not set
+    rfeval_csv    = ch_rfeval_csv                          // channel: [ val(meta), path(csv) ] — empty when --rfeval_reference not set
     bp_dotplot    = RNAFRAMEWORK_DOTPLOT2BP.out.bp         // channel: [ val(meta), path(bp) ] — per-transcript, unmerged
     bp            = MERGE_BP.out.bp                        // channel: [ val(meta), path(bp) ] — merged per fold group
     bp_transcript = MERGE_BP_TRANSCRIPT.out.bp             // channel: [ val(meta), path(bp) ]

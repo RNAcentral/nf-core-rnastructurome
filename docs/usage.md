@@ -8,450 +8,272 @@
 
 Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files supplied with `-c` can be used for infrastructure settings such as resources, executors, containers, or module arguments, but should not be used for ordinary pipeline parameters.
 
-## Required inputs
-
-1. A samplesheet (`--input`) — see [Samplesheet input](#samplesheet-input) below.
-2. Either an `organism` column in the samplesheet (triggers automatic Ensembl/NCBI download) or explicit `--genome_fasta` / `--gtf` flags.
-3. A reference structure file (`--jackknife_reference`) — optional path to a `.db` file of known structures. When provided, `rf-jackknife` runs between `rf-norm` and `rf-fold` to calibrate slope/intercept parameters. When omitted, `rf-fold` runs directly using whatever slope/intercept params are configured.
-
-## Alignment routes
-
-### Default: genome alignment with STAR
-
-The pipeline downloads a soft-masked genome assembly (`dna_sm.toplevel.fa.gz`) from Ensembl and the corresponding GTF, then builds a STAR index and aligns with splice-junction awareness. This always fetches the current Ensembl release (e.g. GRCh38 for human, not the older GRCh37/hg19).
-
-For organisms not present in Ensembl (bacteria, viruses) the pipeline falls back to NCBI automatically using pre-configured accessions (see `conf/viral_genomes.config`, `conf/bacterial_genomes.config`) or an auto-search.
-
-After alignment, genome-level counts from `rf-count-genome` are converted to transcript-level RC files by `rf-rctools extract` using the GTF before passing to `rf-norm`.
-
-### Optional: transcriptome alignment with Bowtie
-
-Add `--transcriptome` to use the older route: Ensembl cDNA + ncRNA FASTA → sorted transcript FASTA → Bowtie (RT-stop) / Bowtie2 (MaP).
-
-```bash
-nextflow run main.nf -profile docker \
-  --input samplesheet.csv \
-  --transcriptome \
-  --outdir results
-```
-
-## Reference genome options
-
-The minimum reference inputs for the default genome route are a genome FASTA and a GTF annotation. The pipeline can either download these automatically from Ensembl/NCBI using the `organism` column, or use files you provide explicitly.
-
-### Explicit reference file specification
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--genome_fasta` | *(auto)* | Path to a local genome FASTA (skips Ensembl/NCBI download in STAR route). `--fasta` is accepted as a legacy alias. |
-| `--transcriptome_fasta` | *(auto)* | Path to a local transcript FASTA (skips download in `--transcriptome` route). `--fasta` is also accepted here. |
-| `--gtf` | *(auto)* | Path to a local GTF (skips Ensembl GTF download). |
-| `--transcriptome` | `false` | Use transcriptome alignment route (Bowtie/Bowtie2) instead of genome (STAR). |
-
-For example:
-
-```bash
-nextflow run nf-core/rnastructurome -profile docker \
-  --input samplesheet.csv \
-  --genome_fasta genome.fa.gz \
-  --gtf annotation.gtf.gz \
-  --outdir results
-```
-
-### Automatic reference resolution
-
-The pipeline resolves a `reference_key` from the per-sample `organism` column or the global `--organism` flag.
-
-- Latin binomials (`Homo sapiens`) are normalised to Ensembl format (`homo_sapiens`) automatically.
-- Values already in `genus_species` format are lower-cased and used as-is.
-- Shorthand values (`human`) must be resolved via `params.genomes` or `--ensembl_species_map`.
-
-### Genome FASTA (STAR route, default)
-
-1. `--genome_fasta` / `--fasta` if provided — used directly.
-2. `params.genomes[reference_key].genome_fasta` if configured.
-3. Ensembl — downloads `*.dna_sm.toplevel.fa.gz` for the species (tries main Ensembl, then EnsemblGenomes metazoa/fungi/plants/protists divisions).
-4. NCBI fallback — for bacteria and viruses not present in Ensembl, using accessions from `conf/bacterial_genomes.config` or `conf/viral_genomes.config`, or via auto-search.
-
-### Transcript FASTA (`--transcriptome` route)
-
-1. `--transcriptome_fasta` / `--fasta` if provided — used directly.
-2. `params.genomes[reference_key].transcript_fasta` (also `transcriptome` or `cdna`) if configured.
-3. Ensembl — downloads `cdna.all.fa.gz` and, when present, `ncrna.fa.gz`, then merges them.  If `ncrna.fa.gz` is absent the pipeline continues with cDNA only.
-4. NCBI fallback — as above.
-
-### GTF annotation (both routes)
-
-1. `--gtf` if provided — used directly.
-2. `params.genomes[reference_key].gtf` if configured.
-3. Ensembl — downloads the species GTF (prefers non-`abinitio` `.gtf.gz`).
-4. For NCBI references — a synthetic single-exon GTF is generated automatically from the NCBI FASTA by `ncbi_gtf.py`.
-
-Ensembl source can be tuned with:
-
-- `--ensembl_release` (`current` by default; `latest` is treated the same, and values such as `114` or `release-114` are also accepted)
-- `--ensembl_base_url` (default `https://ftp.ensembl.org/pub`)
-
-### Reference reuse
-
-When references are downloaded automatically, the sorted FASTA, GTF, and source URL provenance are published under `reference/`. Reuse these files in subsequent runs with `--genome_fasta` / `--transcriptome_fasta` and `--gtf` to avoid repeated downloads and to keep the reference version fixed.
-
 ## Samplesheet input
 
-Create a samplesheet with information about the samples you would like to analyse, then pass it with:
+The easiest way to run this pipeline is to create a full samplesheet that contains all of the information about each sample in a comma-separated file, including the header row shown below and pass it as `--input '[path to samplesheet file]'`:
 
-```bash
---input '[path to samplesheet file]'
-```
-
-The samplesheet must be comma-separated, include a header row, and contain at least:
-
-- `sample`
-- `fastq_1`
-- `cell_line`
-- `condition`
-- `replicate`
-
-`fastq_2` is optional (leave empty for single-end).
-
-### Multiple runs of the same sample
-
-Use the same `sample` value when the same biological sample has been sequenced more than once, for example across multiple lanes. The pipeline concatenates all FASTQs for that sample before downstream analysis.
-
-All rows for a repeated `sample` must have the same layout: either all single-end or all paired-end.
-
-```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2,cell_line,condition,replicate,organism,principle
-HEK293T_treated_r1,lane1_R1.fastq.gz,,HEK293T,treated,1,Homo sapiens,RT-stop
-HEK293T_treated_r1,lane2_R1.fastq.gz,,HEK293T,treated,1,Homo sapiens,RT-stop
-HEK293T_untreated_r1,lane1_untreated_R1.fastq.gz,,HEK293T,untreated,1,Homo sapiens,RT-stop
-```
-
-### Minimal samplesheet
-
-```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2,cell_line,condition,replicate,organism,principle
-HEK293T_treated_r1,/data/treated_r1.fastq.gz,,HEK293T,treated,1,Homo sapiens,RT-stop
-HEK293T_untreated_r1,/data/untreated_r1.fastq.gz,,HEK293T,untreated,1,Homo sapiens,RT-stop
-```
-
-### Full samplesheet
-
-The samplesheet can include optional per-sample metadata columns. A more complete example with both single-end and paired-end rows is shown below.
-
-```csv title="samplesheet.csv"
+```csv title="full_samplesheet.csv"
 sample,sample_id,fastq_1,fastq_2,method,principle,cell_line,condition,replicate,organism,pH,adapter_3p,adapter_5p,umi_pattern
 HEK293T_treated_r1,GSM000001,/data/treated_r1.fastq.gz,,SHAPE,RT-stop,HEK293T,treated,1,Homo sapiens,7.5,,,
 HEK293T_untreated_r1,GSM000002,/data/untreated_r1.fastq.gz,,SHAPE,RT-stop,HEK293T,untreated,1,Homo sapiens,7.5,,,
-HEK293T_map_r1,GSM000003,/data/map_r1_1.fastq.gz,/data/map_r1_2.fastq.gz,DMS,MaP,HEK293T,treated,1,Homo sapiens,8.0,AGATCGGAAGAGC,AGATCGGAAGAGC,NNNNNN
+```
+
+An [example samplesheet](../assets/samplesheet.csv) is provided.
+
+However, you can also provide a more minimal version if for example you don't need to specify some of the options, like in the example above you could decide to not provide the columns with information about the adapters or umi pattern if you are happy to use the default options. 
+You can also provide a very minimal samplesheet with just the information required about each invidivual sample and pass the uniform values across all samples as parameters. For example:
+
+```csv title="minimal_samplesheet.csv"
+sample,fastq_1,cell_line,condition,replicate
+HEK293T_treated_r1,/data/treated_r1.fastq.gz,HEK293T,treated,1
+HEK293T_untreated_r1,/data/untreated_r1.fastq.gz,HEK293T,untreated,1
+```
+then pass essential but uniform options like this:
+
+```bash 
+--input /path/to/samplesheet.csv --method SHAPE --principle RT-stop --organism Homo sapiens
 ```
 
 ### Column reference
 
-| Column      | Description                                                                                      |
-| ----------- | ------------------------------------------------------------------------------------------------ |
-| `sample`    | Sample identifier. Re-used IDs are concatenated before downstream analysis (multi-lane support). |
-| `fastq_1`   | Read 1 FASTQ path (`.fastq.gz` / `.fq.gz`).                                                      |
-| `fastq_2`   | Read 2 FASTQ path for paired-end data (optional).                                                |
-| `cell_line` | Group key used for control pairing in `rf-norm`.                                                 |
-| `condition` | One of `treated`, `untreated`, `denatured`.                                                      |
-| `replicate` | Replicate key used for control pairing in `rf-norm`.                                             |
+| Column        | Required | Description                                                                                           |
+| ------------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| `sample`      | yes      | Sample identifier. Re-use the same name to concatenate re-sequenced samples (multi-lane support).     |
+| `sample_id`   | no       | Unique identifier for an individual sequencing run.                                                   |
+| `fastq_1`     | yes      | Read 1 FASTQ path (`.fastq.gz` / `.fq.gz`).                                                           |
+| `fastq_2`     | no       | Read 2 FASTQ path for paired-end data.                                                                |
+| `cell_line`   | yes      | Group key used for control pairing in `rf-norm`.                                                      |
+| `condition`   | yes      | One of `treated`, `untreated`, `denatured`.                                                           |
+| `replicate`   | yes      | Replicate key used for control pairing in `rf-norm`.                                                  |
+| `method`      | no       | Probing chemistry: `SHAPE` or `DMS`. Controls chemistry-specific defaults. Falls back to `--method`.  |
+| `principle`   | no       | Readout principle: `rt-stop` or `map`. Controls alignment, rf-count, and rf-norm defaults. Falls back to `--principle`. |
+| `organism`    | no       | Used for automatic genome/transcriptome download from Ensembl/NCBI (e.g. `Homo sapiens`). Falls back to `--organism`. |
+| `pH`          | no       | DMS reaction pH. `pH >= 8.0` sets reactive bases to `ACGU`; otherwise defaults to `AC`.              |
+| `adapter_3p`  | no       | 3′ adapter sequence passed to Cutadapt.                                                               |
+| `adapter_5p`  | no       | 5′ adapter sequence passed to Cutadapt.                                                               |
+| `umi_pattern` | no       | UMI pattern passed to umi_tools. Supplying this enables UMI extraction before trimming.               |
 
-Optional per-sample columns supported by the pipeline include:
 
-- `sample_id` (external accession or display identifier; falls back to global `--sample_id` when set)
-- `method` (`SHAPE` or `DMS`; controls chemistry-specific defaults)
-- `organism` (used for automatic genome/transcriptome download from Ensembl/NCBI; e.g. `Homo sapiens`)
-- `principle` (`RT-stop` or `MaP`) — **required**; controls chemistry-specific alignment parameters, rf-count mutation counting, and rf-norm scoring/normalisation defaults
-- `pH` (used for DMS reactive-base defaults; `pH >= 8.0` treats all bases as potentially reactive)
-- `adapter_5p`
-- `adapter_3p`
-- `umi_pattern`
+## Other considerations and parameters
 
-An [example samplesheet](../assets/samplesheet.csv) is provided.
+### Using your own genome/transcriptome files
 
-## Condition pairing logic (`rf-norm`)
-
-Samples are grouped by identical `cell_line + replicate`.
-
-- `treated` can be analyzed alone.
-- `untreated` requires a matching `treated` sample.
-- `denatured` requires matching `treated` and `untreated` samples.
-
-Default `rf-norm` scoring/normalization is selected automatically based on probing principle and available controls:
-
-- RT-stop + untreated: Ding (`-sm 1`) + Box-plot (`-nm 3`)
-- RT-stop only: Rouskin (`-sm 2`) + 90% Winsorizing (`-nm 2`)
-- MaP + untreated (and optional denatured): Siegfried (`-sm 3`) + Box-plot (`-nm 3`)
-- MaP only: Zubradt (`-sm 4`) + Box-plot (`-nm 3`)
-
-Advanced override:
-
-- `--rfnorm_norm_method 2|3` forces the `rf-norm` normalisation mode while leaving scoring-method auto-selection unchanged.
-
-### Fuzzy untreated pairing
-
-By default, if a treated group has no exact `cell_line + replicate` untreated match, the pipeline falls back to any untreated sample that shares the same **cell_line base token** (the portion before the first underscore) at the same replicate. For example, `MDA-MB-231_MTX_treated_r1` will automatically pair with an `MDA-MB-231_untreated_r1` control even though the `cell_line` values differ (`MDA-MB-231_MTX` vs `MDA-MB-231`).
-
-The pipeline warns when a fallback is used:
-
-```
-[WARN] No exact untreated match for 'MDA-MB-231_MTX_r1' — falling back to 'MDA-MB-231_r1' (shared cell_line base token at same replicate).
-```
-
-If more than one untreated group matches the base token at the same replicate, the pipeline errors rather than choosing arbitrarily. To disable fuzzy matching entirely and require exact `cell_line + replicate` pairing, set:
+This pipeline expects an `organism` parameter to be passed either in the samplesheet or as a global parameter, which will trigger an automatic download of FASTA and GTF files from Ensembl. In the cases of bacteria and viruses where Ensembl does not have a reference genome/transcriptome, it will look this up in NCBI and download the files from there instead. However, you can pass your own files if preferred. For this you need to use the `--fasta` and `--gtf` flags. If these flags are used, the pipeline will prioritise them over the Ensembl download even when `organism` is passed. Example of usage:
 
 ```bash
---fuzzy_untreated_pairing false
+--input /path/to/samplesheet.csv --fasta /path/to/genome_or_transcriptome.fa.gz --gtf /path/to/annotation.gtf.gz
 ```
 
-When disabled, treated groups with no exact untreated match proceed without a negative control (scoring method 2 or 4 instead of 1 or 3).
+### Using genome versus transcriptome
 
-## Adapter trimming options
+By default the pipeline aligns to the genome with STAR and extracts transcript-level counts using the GTF. To align directly to the transcriptome instead, pass `--transcriptome` and the rest happens automatically. See the [Alignment routes](#alignment-routes) section for more detail on when each route is appropriate.
 
-The pipeline uses Cutadapt for quality and adapter trimming. Trimming defaults depend on the probing principle because RT-stop experiments encode signal at the read end.
+### Using optional modules
 
-| Principle | `--cutadapt_5quality` | `--cutadapt_3quality` | Notes                                         |
-| --------- | --------------------- | --------------------- | --------------------------------------------- |
-| `RT-stop` | forced to `0`         | default `20`          | 5' quality trimming is intentionally disabled |
-| `MaP`     | default `20`          | default `20`          | both are user-configurable                    |
+Two optional RNAframework modules are available:
 
-Adapter precedence:
+1. **rf-jackknife** — tunes folding parameters against reference RNA structures. Pass `--jackknife_reference` with a path to a `.db` file of known structures. When provided, rf-jackknife runs between rf-norm and rf-fold and calibrates the slope and intercept parameters passed to rf-fold.
+2. **rf-eval** — evaluates the agreement between your reactivity data and a set of reference RNA structures, computing metrics such as AUROC and DSCI that can be used as quality control. Pass `--rfeval_reference` with a path to a `.db` file of known structures to enable it.
 
-1. Per-sample (`adapter_5p`, `adapter_3p`)
-2. Global (`--cutadapt_adapter_5p`, `--cutadapt_adapter_3p`)
+## More details for key steps
 
-If no adapters are provided, the pipeline falls back to `AGATCGGAAGAGC` for both the 5' and 3' adapter. Set `--cutadapt_quality_only` to skip adapter trimming entirely and perform quality/length filtering only.
+### Adapter trimming
 
-## Unique Molecular Identifiers (UMI)
+Trimming is done with Cutadapt. Defaults differ by principle because RT-stop experiments encode signal at the read 3′ end and disabling 5′ quality trimming preserves those positions.
 
-Enable with `umi_pattern` (sample-level or global `--umi_pattern`).
+| Principle | `--cutadapt_5quality` | `--cutadapt_3quality` |
+|-----------|-----------------------|-----------------------|
+| `RT-stop` | forced to `0` | default `20` |
+| `MaP` | default `20` | default `20` |
 
-- Patterns containing only `N/C/X` use direct `umi_tools --bc-pattern` mode.
-- IUPAC patterns (for example with `D`) are converted automatically to regex mode.
+Adapter precedence: per-sample columns (`adapter_5p`, `adapter_3p`) → global flags (`--cutadapt_adapter_5p`, `--cutadapt_adapter_3p`) → fallback `AGATCGGAAGAGC`.
 
-UMI extraction runs before Cutadapt so that molecular tags are available during deduplication.
+Set `--cutadapt_quality_only` to skip adapter trimming and perform quality/length filtering only.
 
-### Duplicate handling
+### UMI handling (optional)
 
-- UMI-tagged samples use `umi_tools dedup`.
-- Non-UMI samples use `samtools markdup` by default.
+By default the pipeline uses SAMtools markdup for deduplicating reads but UMI-tagged samples can be run through this pipeline by enabling `umi_pattern` (per-sample column or `--umi_pattern` if the pattern is the same for all samples).
 
-## RNAframework modules
+- Patterns containing only `N/C/X` use `umi_tools --bc-pattern` mode directly.
+- Patterns that contain IUPAC (e.g. containing `D`) are converted to `--extract-method=regex` mode automatically. Each IUPAC character is expanded to a regex character class (`D` → `[AGT]`, `N` → `[ACGT]`, etc.) and the pattern is anchored to the read start as a named capture group. For example, `DNNN` becomes `^(?P<umi_1>[AGT][ACGT][ACGT][ACGT])`.
 
-### `rf-count`
+### Reference resolution
 
-- Plot generation is always enabled (`-g -R`).
-- FASTA is always passed from pipeline reference resolution.
-- MaP-specific mutation options are applied only for `principle=MaP`.
+The `organism` value (per-sample column or `--organism`) is used to resolve and download the reference automatically. Latin binomials (`Homo sapiens`) are preferred, but a small set of shorthands are also accepted: `human`, `mouse`, `rat`, and `yeast`.
 
-Key parameters:
+For organisms not in Ensembl, the pipeline falls back to NCBI using pre-configured RefSeq accessions. The following are already built-in: Influenza A, SARS-CoV-2, Dengue virus, Zika virus, HIV-1, Rotavirus A, and Escherichia coli (K-12 MG1655). For any other organism, the pipeline will attempt an NCBI auto-search.
 
-- `--rfcount_trim_5prime` (`-t5`)
-- `--rfcount_mask_file` (`--mask-file`)
-- `--rfcount_primary_only` (`--primary-only`)
-- `--rfcount_paired_only` (`--paired-only`)
-- `--rfcount_properly_paired` (`--properly-paired`)
-- `--rfcount_map_sort_by_read_name` (`--sort-by-read-name`, MaP)
-- `--rfcount_map_discard_shorter` (`--discard-shorter`, MaP)
-- `--rfcount_map_min_quality` (`--min-quality`, MaP)
-- `--rfcount_map_collapse_consecutive` (`--collapse-consecutive`, MaP)
-- `--rfcount_map_max_collapse_distance` (`--max-collapse-distance`, MaP)
+The pipeline always downloads the most recent available assembly - the current Ensembl release for eukaryotes, or the pinned RefSeq accession for NCBI organisms. To keep the reference version fixed across runs, run the pipeline once and then reuse the local files published under `reference/` by passing them with `--fasta` and `--gtf`.
 
-Paired-end default:
+Resolution order for each file type:
 
-- If neither paired filter is set, pipeline defaults to `--properly-paired`.
+| File | 1st | 2nd | 3rd | 4th |
+|------|-----|-----|-----|-----|
+| FASTA | `--fasta` | `params.genomes[key]` | Ensembl download | NCBI fallback |
+| GTF | `--gtf` | `params.genomes[key].gtf` | Ensembl download | Synthetic GTF (NCBI) |
 
-#### Genome route: strandedness
+### Alignment routes
 
-On the genome route, `rf-count-genome` requires a library strandedness value (`--library-strandedness`) to correctly assign reads to the plus or minus strand. Getting this wrong puts counts on the wrong strand and produces incorrect reactivity profiles.
+**Default: genome alignment with STAR**
 
-- **RT-stop**: always treated as second-strand (`second`) — this is fixed by experimental design and requires no user input.
-- **MaP**: strandedness is inferred automatically per sample using `RSeQC infer_experiment`. If inference is ambiguous (very small BAM, missing BED annotation), you can override it with `--rfcount_strandedness` (`first`, `second`, or `unstranded`).
+The pipeline downloads a soft-masked genome FASTA (`dna_sm.toplevel.fa.gz`) and GTF from Ensembl, builds a STAR index, and aligns with splice-junction awareness. Genome-coordinate counts from `rf-count-genome` are then converted to transcript-level RC files by `rf-rctools extract` using the GTF before passing to `rf-norm`. This is the recommended route for most experiments: STAR handles spliced reads correctly, the soft-masked genome reduces spurious multi-mappers from repetitive elements, and aligning to the genome avoids the need to choose between competing transcript isoforms. 
 
-#### Genome route: `rf-rctools extract`
+`--star_multimap_nmax` (default `10`) sets the maximum number of genome locations a read is allowed to map to — reads exceeding this are discarded. The default of 10 is appropriate for most protein-coding genes. If you are probing highly repetitive RNAs such as rRNA or snRNA you may want to increase this (e.g. `--star_multimap_nmax 50`), though be aware that allowing too many multimappers can introduce noise if reads are assigned ambiguously. Additional STAR flags can be passed via `ext.args` in a custom config.
 
-In the default STAR/genome route, `rf-count-genome` produces genome-coordinate `.rc` files. Before `rf-norm`, `rf-rctools extract` converts these to transcript-level RC files using the GTF. This step runs automatically and requires no user input.
+**Optional: transcriptome alignment with Bowtie**
 
-### `rf-norm`
+Add `--transcriptome` to align directly to a transcript FASTA instead of the genome. In this option, the pipeline downloads Ensembl cDNA + ncRNA FASTA files; for bacteria and viruses not in Ensembl it falls back to NCBI and builds a transcript FASTA from the genome assembly automatically. The aligner used depends on the probing principle: Bowtie for RT-stop and Bowtie2 for MaP. This route works well for bacteria and viruses where genome annotation is sparse or absent, or when you prefer to map directly to a curated set of transcripts.
 
-- Plot generation is always enabled (`--img -R`).
+`--bowtie_k` (default `1`) sets the maximum number of alignments to report per read — the equivalent of `--star_multimap_nmax` for the transcriptome route. Setting it to `1` means only uniquely mapping reads are kept. Increase it if you want to retain reads that map to multiple transcripts (e.g. paralogs or transcript isoforms), though the same caveats about ambiguous assignment apply. Use `--bowtie_all` instead to report all valid alignments which is useful if you want various isoforms to be reported. Additional flags can be passed via `ext.args` in a custom config.
 
-Key parameters:
+### rf-count
 
-- `--rfnorm_remap_reactivities`
-- `--rfnorm_reactive_bases`
-- `--rfnorm_norm_window`
-- `--rfnorm_window_offset`
-- `--rfnorm_dynamic_window`
-- `--rfnorm_norm_independent`
-- `--rfnorm_norm_factor`
-- `--rfnorm_norm_method`
-- `--rfnorm_raw`
-- `--rfnorm_pseudocount`
-- `--rfnorm_max_score`
-- `--rfnorm_ignore_lower_than_untreated`
-- `--rfnorm_max_untreated_mut`
-- `--rfnorm_max_mutation_rate`
-- `--rfnorm_mean_coverage`
-- `--rfnorm_median_coverage`
-- `--rfnorm_nan`
+`rf-count` (transcriptome route) or `rf-count-genome` (genome route) quantifies chemical probing signal from the aligned BAM files. What exactly is counted depends on the principle: for RT-stop experiments it tallies read 3′ ends that accumulate at modified bases; for MaP it measures per-position mutation rates. A per-transcript coverage and reactivity plot is generated for every sample.
 
-Notes:
+On the genome route, strandedness is handled automatically — RT-stop libraries are always treated as second-strand (this is fixed by experimental design), while for MaP the pipeline infers strandedness per sample using `RSeQC infer_experiment`. If inference is ambiguous you can override it with `--rfcount_strandedness first|second|unstranded`. After counting, `rf-rctools extract` automatically converts the genome-coordinate RC files to transcript-level RC files using the GTF before passing to `rf-norm`.
 
-- For `method=DMS`, pipeline defaults `--rfnorm_reactive_bases` to `AC`, or `ACGU` when `pH >= 8`. It defaults `--dynamic-window` to `50` only when `pH < 8`.
-- `--rfnorm_nan` defaults to `100` for DMS and `1000` for all other methods. Override with an explicit value to apply the same threshold regardless of method.
-- `R` must exist at `--rnaframework_r_path` in the active runtime environment. The default is `/usr/bin/R`.
+A few parameters worth knowing about:
 
-### `rf-wiggle`
+`--rfcount_trim_5prime` trims a fixed number of bases from the 5′ end of each read before counting. This is useful for RT-stop experiments where the first few bases after the adapter can carry sequence-context bias that inflates apparent stop rates.
 
-After normalization, `rf-wiggle` converts each normalized XML to per-transcript WIG tracks. These are merged across transcripts and, when multiple replicates share the same cell line, averaged position-by-position before genomic remapping and BigWig conversion via the GTF, producing a single `norm/merged_bw/<cell_line>_reactivity.bw`.
+`--rfcount_mask_file` accepts a BED file of regions to exclude from counting entirely — handy for masking rRNA or other highly-expressed contaminating transcripts that would otherwise dominate the output.
 
-### `rf-jackknife`
+`--rfcount_primary_only` restricts counting to primary alignments. If you have increased `--star_multimap_nmax` or `--bowtie_k` to allow multimappers, you may want to pair this with `--rfcount_primary_only` to avoid double-counting reads that aligned to multiple loci.
 
-[`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/) runs between `rf-norm` and `rf-fold` **only when `--jackknife_reference` is provided**. It iteratively folds a set of known reference structures across a grid of slope/intercept values and scores each combination with the FMI (Fowlkes–Mallows Index), allowing you to identify optimal normalization parameters.
+For the full list of available options see the [rf-count documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-count/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
 
-`rf-fold` only starts for a fold group after `rf-jackknife` has completed successfully for that group (when it is enabled).
+### rf-norm
 
-Required parameter:
+`rf-norm` normalises per-position counts into reactivity scores. Samples are grouped by `cell_line + replicate`, and treated samples are normalised against their matched controls within the same group. The scoring and normalisation method are selected automatically based on the probing principle and which conditions are present: RT-stop with an untreated control uses Ding scoring with box-plot normalisation; without an untreated control it falls back to Rouskin scoring with Winsorizing. MaP with an untreated control uses Siegfried scoring; without, Zubradt. 
 
-| Flag | Description |
-|------|-------------|
-| `--jackknife_reference` | Path to a reference `.db` structure file — **required to enable rf-jackknife** |
+You can override the normalisation method alone (without changing scoring) with `--rfnorm_norm_method`:
+- `1` is 2-8% normalisation (takes the top 10% of reactivities, discards the very highest 2%, and uses the mean of the remaining 8% as the scaling factor)
+- `2` is 90% Winsorizing (clips any value above the 95th or below the 5th percentile to those boundaries, then divides all values by the 95th percentile)
+- `3` is box-plot normalisation (removes outliers beyond 1.5× IQR then divides by the mean of the next top 10%), which is the default for most conditions
+- `4` is Mitchell normalisation (MaP only, uses the higher of the mean 90th–95th percentile reactivity or the 75th percentile of non-zero reactivities as the scaling factor)
 
-Optional tuning parameters:
+Treated samples are usually paired with untreated by matching `cell_line + replicate` exactly. However, in cases where the authors did not create an exact matching untreated sample for some specific treatments but have one for other samples in the same dataset, the pipeline falls back to an untreated sample sharing the same cell_line and replicate — for example, `MDA-MB-231_DMSO_treated_r1` will match exactly to `MDA-MB-231_DMSO_untreated_r1`, but `MDA-MB-231_MTX_treated_r1` will also pair with `MDA-MB-231_DMSO_untreated_r1` if no exact matching untreated sample exists. A warning is emitted when a fallback is used; if more than one candidate matches, the pipeline errors. Disable this behaviour with `--fuzzy_untreated_pairing false`, in which case unmatched groups proceed without a negative control.
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--rfjackknife_slope` | `0,5` | Slope range to test (`min,max`) |
-| `--rfjackknife_intercept` | `-3,0` | Intercept range to test (`min,max`) |
-| `--rfjackknife_slope_step` | `0.2` | Slope grid increment |
-| `--rfjackknife_intercept_step` | `0.2` | Intercept grid increment |
-| `--rfjackknife_keep_pseudoknots` | `true` | Retain pseudoknotted base-pairs (`[]` notation) in the reference structure before comparison (`-kp`). Enable when the reference `.db` file marks pseudoknots explicitly. Has no effect on references that use only `()` notation (e.g. CRW). |
-| `--rfjackknife_keep_lonelypairs` | `true` | Retain lonely base-pairs (1 bp helices) in the reference structure (`-kl`) |
-| `--rfjackknife_mfmi` | `false` | Use modified FMI instead of standard FMI (`-m`) |
-| `--rfjackknife_relaxed` | `false` | Use relaxed FMI criteria (Deigan et al. 2009) (`-x`) |
-| `--rfjackknife_img` | `false` | Generate FMI heatmap PDF (requires R) |
-| `--rfjackknife_rf_fold_params` | `'-md 600'` | Additional parameters passed to rf-fold inside jackknife (`-rp`) |
-| `--rfjackknife_pool_all` | `true` | Pool XMLs from all cell-line groups into a single jackknife run (output: `jackknife/all_groups/`). The optimal slope/intercept is automatically passed to `rf-fold` in the same run. Set to `false` to run one jackknife per group instead (slope/intercept must then be supplied manually via `--rffold_slope`/`--rffold_intercept`). |
+For DMS experiments, a few defaults change automatically. `--rfnorm_reactive_bases` is set to `AC` (or `ACGU` when `pH ≥ 8`). `--rfnorm_dynamic_window` defaults to `50` when `pH < 8`; it controls the size of the sliding window used to compute local normalisation factors along the transcript — a smaller window is better suited to DMS at physiological pH where reactivity can vary sharply over short stretches. `--rfnorm_nan` defaults to `100` rather than `1000`; it sets the minimum number of reads required at a position for a reactivity value to be reported — positions with fewer reads are set to NaN instead of reporting a potentially unreliable values. These can all be overridden explicitly if needed.
+
+`--rfnorm_mean_coverage` and `--rfnorm_median_coverage` set minimum coverage thresholds below which transcript positions are masked as NaN — useful for filtering out poorly-covered transcripts. `--rfnorm_chunk_size` (default `5000` on genome route, disabled on transcriptome route) splits the treated RC file into chunks of N transcripts and runs a separate rf-norm job per chunk in parallel, which can substantially reduce wall time for large genome-route experiments.
+
+For the full list of available options see the [rf-norm documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
+
+## rf-jackknife (optional)
+
+[`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/) calibrates rf-fold slope and intercept parameters against a set of reference structures. Enabled by `--jackknife_reference`. It runs between rf-norm and rf-fold, iterating over a slope/intercept grid and scoring each combination with the FMI (Fowlkes–Mallows Index). `rf-fold` is gated on jackknife completing for each group.
 
 Two E. coli rRNA calibration references are bundled under `assets/ecoli_rrna_calibration/`:
 
-- `ecoli_k12_rrna_reference_collab.db` — structures from the RNA Framework author's current reference set; pseudoknots marked with `[]`, use with default `--rfjackknife_keep_pseudoknots true`
-- `ecoli_k12_rrna_reference_crw.db` — structures from the Comparative RNA Website (CRW); all pairs in `()` notation, no pseudoknot distinction; `--rfjackknife_keep_pseudoknots` has no effect
+- `ecoli_k12_rrna_reference_collab.db` — pseudoknots marked with `[]`; use with default `--rfjackknife_keep_pseudoknots true`
+- `ecoli_k12_rrna_reference_crw.db` — CRW structures; all pairs in `()` notation; `--rfjackknife_keep_pseudoknots` has no effect
 
-Both use sequences extracted from `ecoli_k12_rrna.fa` (the same FASTA the calibration samples are mapped to) so no sequence mismatch errors occur.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--jackknife_reference` | — | Path to reference `.db` file — **required to enable** |
+| `--rfjackknife_pool_all` | `true` | Pool all groups into one jackknife run; optimal slope/intercept passed to rf-fold automatically. Set `false` to run per group (slope/intercept must then be set manually via `--rffold_slope`/`--rffold_intercept`) |
+| `--rfjackknife_slope` | `0,5` | Slope range (`min,max`) |
+| `--rfjackknife_intercept` | `-3,0` | Intercept range (`min,max`) |
+| `--rfjackknife_slope_step` | `0.2` | Slope grid increment |
+| `--rfjackknife_intercept_step` | `0.2` | Intercept grid increment |
+| `--rfjackknife_keep_pseudoknots` | `true` | Retain pseudoknotted base-pairs in reference (`-kp`) |
+| `--rfjackknife_keep_lonelypairs` | `true` | Retain lonely base-pairs (`-kl`) |
+| `--rfjackknife_mfmi` | `false` | Use modified FMI (`-m`) |
+| `--rfjackknife_relaxed` | `false` | Relaxed FMI criteria (Deigan et al. 2009) (`-x`) |
+| `--rfjackknife_img` | `false` | Generate FMI heatmap PDF (requires R) |
+| `--rfjackknife_rf_fold_params` | `'-md 600'` | Extra flags passed to rf-fold inside jackknife (`-rp`) |
 
-Output: `jackknife/<group>/` — CSV of FMI scores per slope/intercept combination; optional heatmap PDF.
+Output: `jackknife/<group>/` — FMI CSV per slope/intercept combination; optional heatmap PDF.
 
-### `rf-fold`
+For the full list of available options see the [rf-jackknife documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
 
-Default behavior:
+## rf-fold
 
-- Dot-bracket output is default (CT is optional).
-- Windowed folding is enabled by default (`-w`); disable with `--rffold_window false`.
-- Graphical fold reports are always enabled (`-g -R`).
-- RNAplot overlays are enabled via `-vrp` (default `RNAplot`).
-- Dotplot generation is controlled by `--rffold_dotplot` (default `true`).
+[`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/) predicts RNA secondary structures from normalised reactivity profiles. The pipeline groups XMLs by `cell_line` (merging replicates) and folds them together. Dot-bracket output is the default; CT format is optional.
 
-Supported pipeline options and mapped flags:
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--rffold_slope` | `4.6` | Reactivity-to-constraint slope (`-sl`); auto-overridden by jackknife when `--rfjackknife_pool_all true` |
+| `--rffold_intercept` | `-2.2` | Reactivity-to-constraint intercept (`-in`); auto-overridden by jackknife |
+| `--rffold_window` | `true` | Enable windowed folding (`-w`) |
+| `--rffold_ct` | `false` | Write CT format alongside dot-bracket (`-ct`) |
+| `--rffold_unconstrained` | `false` | Fold without reactivity constraints (`-u`) |
+| `--rffold_vienna_no_lonely_pairs` | `false` | No-lonely-pairs mode (`-nlp`) |
+| `--rffold_vienna_constrained` | `false` | Hard constraints mode (`-hc`) |
+| `--rffold_vienna_max_bp_span` | — | Maximum base-pair span (`-md`) |
+| `--rffold_only_common` | `false` | Keep only structures common across replicates (`-oc`) |
+| `--rffold_fold_constraint_file` | — | External constraint file (`-c`) |
+| `--rffold_dotplot` | `true` | Generate dot-plot output (`-dp`) |
+| `--rffold_shannon_entropy` | `true` | Compute Shannon entropy (`-sh`); produces `fold/shannon_bw/` BigWigs |
+| `--rffold_vienna_rnaplot` | `RNAplot` | RNAplot layout engine (`-vrp`) |
 
-- `--rffold_ct` -> `-ct`
-- `--rffold_window` -> `-w`
-- `--rffold_unconstrained` -> `-i`
-- `--rffold_vienna_no_lonely_pairs` -> `-nlp`
-- `--rffold_vienna_constrained` -> `-hc`
-- `--rffold_vienna_max_bp_span` -> `-md`
-- `--rffold_only_common` -> `-oc`
-- `--rffold_fold_constraint_file` -> `-c`
-- `--rffold_dotplot` -> `-dp`
-- `--rffold_shannon_entropy` -> `-sh`
-- `--rffold_vienna_rnaplot` -> `-vrp`
-- `--rffold_slope` -> `-sl` (slope for reactivity-to-constraint conversion; default `4.6`; overridden automatically when `--rfjackknife_pool_all` is used)
-- `--rffold_intercept` -> `-in` (intercept for reactivity-to-constraint conversion; default `-2.2`; overridden automatically when `--rfjackknife_pool_all` is used)
+For the full list of available options see the [rf-fold documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
 
-Replicate handling:
+## rf-eval (optional)
 
-- The pipeline groups normalized XMLs by `cell_line` and folds them together, so replicates are folded as a combined set.
-- Single-XML groups run as standard one-sample `rf-fold`.
-
-BigWig outputs from `rf-fold`:
-
-- Shannon entropy BigWig (`fold/shannon_bw/<cell_line>_shannon.bw`) is produced when `--rffold_shannon_entropy` is enabled (default: `true`). Per-transcript WIG files from `rf-fold` are merged across all transcripts, remapped through the GTF to genomic coordinates, and converted to BigWig format.
-
-### RNAframework runtime settings
-
-- `--rnaframework_container`: RNAframework image for local modules when using container-based profiles
-- `--rnaframework_r_path`: `R` binary used by RNAframework plotting (default: `/usr/bin/R`)
-
-## 2D structure visualisation
-
-After `rf-fold`, the pipeline draws coloured 2D structure diagrams for every transcript that passes coverage filters.
-
-### R2DT (template-matched diagrams)
-
-[R2DT](https://github.com/RNAcentral/R2DT) draws structures using a curated library of templates derived from known RNA families (rRNA, snRNA, tRNA, etc.). When a template exists for a transcript, R2DT produces a layout that is directly comparable across organisms and studies.
-
-- Diagrams are generated for all transcripts in the fold output for which R2DT finds a matching template.
-- Nucleotides are coloured by normalised SHAPE/DMS reactivity averaged across replicates.
-- Transcripts drawn by R2DT are recorded in `r2dt_drawn_ids.txt` so ViennaRNA does not duplicate them.
-
-### ViennaRNA (fallback diagrams)
-
-For transcripts without an R2DT template, the pipeline uses [`ViennaRNA`](https://www.tbi.univie.ac.at/RNA/) RNAplot to draw an energy-minimised 2D diagram from the dot-bracket structure produced by `rf-fold`.
-
-- All transcripts not covered by R2DT receive a ViennaRNA diagram.
-- Nucleotides are coloured with the same reactivity scale as R2DT diagrams.
-
-R2DT diagrams are published to `fold/<group>/structures/r2dt/`; ViennaRNA fallback diagrams are published to `fold/<group>/structures/viennarna/`.
-
-## Optional analysis modules
-
-These modules are not run automatically. They are invoked by passing the appropriate flag and require user-supplied reference data.
-
-### rf-eval — benchmark reactivities against known structures
-
-[`rf-eval`](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/) evaluates how well the pipeline's normalised reactivity profiles agree with a set of experimentally validated or published secondary structures. It reports three metrics per transcript:
+[`rf-eval`](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/) evaluates how well normalised reactivity profiles agree with a set of reference structures. Enabled by `--rfeval_reference`. It runs per `cell_line + replicate` group and reports three metrics per transcript:
 
 - **Unpaired Coefficient** — fraction of highly reactive bases that are unpaired
 - **DSCI** — probability that a randomly selected unpaired base has higher reactivity than a paired base
 - **AUROC** — area under the ROC curve treating reactivity as a classifier of unpaired bases
 
-Key parameters:
-
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--rfeval_reactivity_cutoff` | `0.7` | Reactivity threshold for unpaired classification |
-| `--rfeval_img` | `false` | Generate metric plots — distributions, ROC curves, histograms (requires R) |
-| `--rfeval_ignore_terminal` | `false` | Exclude terminal base pairs from calculations |
+| `--rfeval_reference` | — | Path to reference `.db` file — **required to enable** |
+| `--rfeval_reactivity_cutoff` | `0.7` | Reactivity threshold for unpaired classification (`-c`) |
+| `--rfeval_img` | `false` | Generate metric plots — ROC curves, histograms (requires R) |
+| `--rfeval_ignore_terminal` | `false` | Exclude terminal base-pairs from calculations (`-it`) |
+| `--rfeval_keep_pseudoknots` | `false` | Retain pseudoknotted base-pairs (`-kp`) |
+| `--rfeval_keep_lonelypairs` | `false` | Retain lonely base-pairs (`-kl`) |
 
-Output: `eval/<group>/` — CSV with per-transcript Unpaired Coefficient, DSCI, and AUROC; optional PDF plots.
+Output: `eval/<group>/` — per-transcript CSV with Unpaired Coefficient, DSCI, and AUROC; optional PDF plots.
+
+For the full list of available options see the [rf-eval documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
+
+## Visualisation
+
+### 2D structure diagrams
+
+After `rf-fold`, the pipeline draws reactivity-coloured 2D structure diagrams for each transcript. Nucleotides are coloured by normalised reactivity averaged across replicates.
+
+- **[R2DT](https://github.com/RNAcentral/R2DT)** — used when a matching template exists in the R2DT library (rRNA, snRNA, tRNA, etc.). Produces layouts comparable across organisms. Published to `fold/<group>/structures/r2dt/`.
+- **[ViennaRNA](https://www.tbi.univie.ac.at/RNA/)** — fallback for transcripts without an R2DT template. `RNAplot` draws an energy-minimised 2D diagram from the dot-bracket structure. Published to `fold/<group>/structures/viennarna/`.
+
+Transcripts drawn by R2DT are recorded in `r2dt_drawn_ids.txt` so ViennaRNA does not duplicate them.
+
+### Browser tracks
+
+After normalisation, `rf-wiggle` converts each normalised XML to per-transcript WIG tracks. These are merged across transcripts and, when multiple replicates share the same cell line, averaged position-by-position before genomic remapping and BigWig conversion via the GTF.
+
+Outputs:
+
+- `norm/merged_bw/<cell_line>_reactivity.bw` — genomic reactivity BigWig
+- `norm/transcript_bw/` — transcript-coordinate reactivity BigWigs
+- `fold/shannon_bw/<cell_line>_shannon.bw` — genomic Shannon entropy BigWig (when `--rffold_shannon_entropy` is enabled, which is the default)
+- `fold/transcript_shannon_bw/` — transcript-coordinate Shannon entropy BigWigs
 
 ## RDAT export
 
-The pipeline produces [RDAT](https://rmdb.stanford.edu/tools/rdat_format/)-format files that bundle per-transcript reactivity profiles (from the normalised XML) with the predicted secondary structure (from `rf-fold` dot-bracket output). RDAT is a community standard for depositing structure probing data in the RNA Mapping Database (RMDB).
-
-- One `.rdat` file is written per transcript that has both a normalised reactivity profile and a predicted structure.
-- Files are published under `fold/<group>/rdat/`.
-- Use `--rnaframework_container` to point to the RNAFramework container image if running without a network connection to pull images automatically.
+The pipeline produces [RDAT](https://rmdb.stanford.edu/tools/rdat_format/)-format files bundling normalised reactivity (from rf-norm XML) with the predicted structure (from rf-fold dot-bracket output). One `.rdat` file is written per transcript with both a reactivity profile and a predicted structure. Files are published under `fold/<group>/rdat/`.
 
 ## Outputs at a glance
 
 Main output areas under `--outdir`:
 
 - `fastqc/`, `cutadapt/`, `star/` (or `bowtie*/` with `--transcriptome`), `samtools*/` — preprocessing and alignment
-- `count/` — count tables and always-on plots
-- `norm/<group>/` — normalized XML, normalization plots, and per-transcript wiggle tracks
-- `norm/merged_bw/` — per-cell-line genomic reactivity BigWigs (`<cell_line>_reactivity.bw`); reactivity values are averaged across replicates before genomic remapping and conversion when multiple replicates are available
+- `count/` — count tables and plots
+- `norm/<group>/` — normalised XML, normalisation plots, and per-transcript wiggle tracks
+- `norm/merged_bw/` — per-cell-line genomic reactivity BigWigs
 - `norm/transcript_bw/` — per-cell-line transcript-coordinate reactivity BigWigs
 - `jackknife/<group>/` — FMI CSV and optional heatmap (only when `--jackknife_reference` is set)
-- `fold/<group>/` — inferred secondary structures (dot-bracket by default), fold reports, optional CT, optional dotplots, and `structures/r2dt/` or `structures/viennarna/` SVG diagrams
-- `fold/merged_bp/` — merged base-pair files per cell line (produced from dotplots when `--rffold_dotplot` is enabled)
+- `fold/<group>/` — secondary structures, fold reports, optional CT, optional dotplots, and SVG diagrams
+- `fold/merged_bp/` — merged base-pair files per cell line
 - `fold/transcript_merged_bp/` — transcript-coordinate merged base-pair files
-- `fold/shannon_bw/` — per-cell-line genomic Shannon entropy BigWigs (`<cell_line>_shannon.bw`; produced when `--rffold_shannon_entropy` is enabled, which is the default)
+- `fold/shannon_bw/` — genomic Shannon entropy BigWigs
 - `fold/transcript_shannon_bw/` — transcript-coordinate Shannon entropy BigWigs
-- `eval/<group>/` — per-transcript evaluation metrics CSV and optional plots (when rf-eval is enabled)
-- `multiqc/` — final aggregated QC report
+- `eval/<group>/` — per-transcript evaluation metrics (only when `--rfeval_reference` is set)
+- `multiqc/` — aggregated QC report
 
 For full output details, see [output documentation](output.md).
 
@@ -461,42 +283,34 @@ Typical usage (genome route, auto-downloads reference from Ensembl):
 
 ```bash
 nextflow run nf-core/rnastructurome \
-  --input ./samplesheet.csv \
-  --outdir ./results \
+  --input samplesheet.csv \
+  --outdir results \
   -profile docker
 ```
 
-With local genome files:
+With local reference files:
 
 ```bash
 nextflow run nf-core/rnastructurome \
-  --input ./samplesheet.csv \
-  --outdir ./results \
-  --jackknife_reference ./known_structures.db \
-  --genome_fasta ./genome.fa.gz \
-  --gtf ./annotation.gtf.gz \
+  --input samplesheet.csv \
+  --outdir results \
+  --fasta genome.fa.gz \
+  --gtf annotation.gtf.gz \
   -profile docker
 ```
 
-Transcriptome route (Bowtie/Bowtie2):
+Transcriptome route with jackknife calibration:
 
 ```bash
 nextflow run nf-core/rnastructurome \
-  --input ./samplesheet.csv \
-  --outdir ./results \
+  --input samplesheet.csv \
+  --outdir results \
   --transcriptome \
+  --jackknife_reference assets/ecoli_rrna_calibration/ecoli_k12_rrna_reference_collab.db \
   -profile docker
 ```
 
-The pipeline creates:
-
-```bash
-work                # Nextflow working directory
-<OUTDIR>            # Published results
-.nextflow.log       # Nextflow run log
-```
-
-If you repeatedly use the same parameters, put them in a params file and run with `-params-file`:
+For repeated runs with the same parameters, use a params file:
 
 ```bash
 nextflow run nf-core/rnastructurome -profile docker -params-file params.yaml
@@ -508,72 +322,34 @@ These options are part of Nextflow itself and use a single hyphen. Pipeline para
 
 ### `-profile`
 
-Use this parameter to choose configuration profiles for software packaging and execution backends.
-
-Common software profiles include:
-
-- `docker`
-- `singularity`
-- `apptainer`
-- `podman`
-- `conda`
-
-Cluster or institution-specific profiles can also be loaded, either from this repository or from `nf-core/configs`.
-
-Multiple profiles can be combined:
+Use this parameter to choose configuration profiles. Common profiles: `docker`, `singularity`, `apptainer`, `podman`, `conda`. Multiple profiles can be combined (later profiles override earlier ones):
 
 ```bash
 -profile test,docker
 ```
 
-Order matters: later profiles override earlier ones. If `-profile` is not specified, the pipeline runs locally and expects all software to be available on `PATH`, which is not recommended for reproducible analyses.
+If `-profile` is not specified, the pipeline runs locally and expects all software on `PATH`.
 
 ### `-resume`
 
-Resume from cached work where inputs and process configuration match prior runs.
+Resume from cached work where inputs and process configuration match prior runs:
 
 ```bash
 nextflow run nf-core/rnastructurome -profile docker \
-  --input samplesheet.csv \
-  --outdir results \
-  -resume
+  --input samplesheet.csv --outdir results -resume
 ```
 
-You can also resume a specific run name: `-resume <run-name>`. Use `nextflow log` to list previous run names.
+Use `nextflow log` to list previous run names; resume a specific run with `-resume <run-name>`.
 
 ### `-c`
 
-Use `-c` to load a Nextflow config file for process resources, executors, containers, publish behaviour, or module-specific `ext.args`.
-
-Do not use `-c` for routine pipeline parameters such as `input`, `outdir`, `genome_fasta`, or `gtf`; use CLI flags or `-params-file` for those.
-
-## Updating the pipeline
-
-Update cached pipeline code:
-
-```bash
-nextflow pull nf-core/rnastructurome
-```
-
-When running from a local checkout, update the checkout with Git instead.
-
-## Reproducibility
-
-Pin a release for reproducibility:
-
-```bash
-nextflow run nf-core/rnastructurome -r <VERSION> ...
-```
-
-The release, parameters, software versions, and execution trace are recorded under `pipeline_info/`. For published or shared analyses, keep the `params_<timestamp>.json`, trace file, MultiQC report, and exact samplesheet alongside the final outputs.
+Load a Nextflow config file for process resources, executors, or module-specific `ext.args`. Do not use `-c` for pipeline parameters (`input`, `outdir`, `fasta`, etc.) — use CLI flags or `-params-file` for those.
 
 ## Custom configuration
 
 ### Resource requests
 
-Default CPU, memory, and time requests are defined in the pipeline config. Processes that fail with retryable resource-related exit codes are automatically retried with increased resources.
-
-Use a custom Nextflow config for local resource tuning:
+Processes that fail with retryable resource-related exit codes are automatically retried with increased resources. Override per-process resources with a custom config:
 
 ```groovy title="custom_resources.config"
 process {
@@ -585,27 +361,9 @@ process {
 }
 ```
 
-Run with:
-
-```bash
-nextflow run nf-core/rnastructurome -profile docker -c custom_resources.config ...
-```
-
-### Custom containers
-
-Container and conda environments are defined per process. Override them only when you need a patched or site-specific image, and keep overrides scoped to the affected process.
-
-```groovy title="custom_container.config"
-process {
-    withName: 'RNAFRAMEWORK_RFCOUNT_GENOME' {
-        container = 'docker.io/dincarnato/rnaframework:2.9.6'
-    }
-}
-```
-
 ### Custom tool arguments
 
-Some modules expose `ext.args` for advanced tool flags that are not regular pipeline parameters. Use this sparingly and scope it to the specific process.
+Some modules expose `ext.args` for advanced flags not covered by pipeline parameters:
 
 ```groovy title="custom_args.config"
 process {
@@ -617,54 +375,42 @@ process {
 
 ### nf-core/configs
 
-The pipeline can load institutional profiles from `nf-core/configs`. If your organisation needs a reusable shared profile, test it locally with `-c` first, then consider contributing it to `nf-core/configs`.
+For reusable institutional profiles, see [nf-core/configs](https://github.com/nf-core/configs) and the [nf-core configuration docs](https://nf-co.re/docs/usage/configuration).
 
-For more details, see:
+## Updating and reproducibility
 
-- [nf-core configuration docs](https://nf-co.re/docs/usage/configuration)
-- [nf-core/configs](https://github.com/nf-core/configs)
-- [Nextflow config docs](https://www.nextflow.io/docs/latest/config.html)
-
-## Running in the background
-
-Use Nextflow `-bg`, or run inside `screen`/`tmux` for long sessions.
-
-## Nextflow memory requirements
-
-If needed, cap Nextflow JVM memory:
+Update cached pipeline code:
 
 ```bash
-NXF_OPTS='-Xms1g -Xmx4g'
+nextflow pull nf-core/rnastructurome
 ```
+
+Pin a release for reproducibility:
+
+```bash
+nextflow run nf-core/rnastructurome -r <VERSION> ...
+```
+
+The release, parameters, software versions, and execution trace are recorded under `pipeline_info/`. Use Nextflow `-bg` or `screen`/`tmux` for long sessions. Cap JVM memory if needed: `NXF_OPTS='-Xms1g -Xmx4g'`.
 
 ## Troubleshooting
 
 ### General debugging steps
 
-1. Check `.nextflow.log` for the first error message — Nextflow prints the root cause before cascading failures.
+1. Check `.nextflow.log` for the first error message.
 2. Check `pipeline_info/execution_trace_<timestamp>.txt` to identify which process failed and its exit status.
 3. Use `-resume` after fixing issues — all previously successful tasks will be cached and skipped.
 
 ### Missing outputs
 
-If expected output files are absent:
-
-- Confirm the process completed successfully in the execution trace (`status = COMPLETED`).
-- For processes that ran in a cluster scratch directory (`scratch = true` in your profile), intermediate inputs are not persisted to the work directory — only declared outputs are copied back.
-- For `rf-fold` problems, inspect `fold/<group>/rffold.log` and check that the input XMLs from `rf-norm` are non-empty.
+- Confirm the process completed in the execution trace (`status = COMPLETED`).
+- For `rf-fold` problems, inspect `fold/<group>/rffold.log` and check that input XMLs from `rf-norm` are non-empty.
 
 ### rf-jackknife: "0 imported" error
 
-If `rf-jackknife` exits with `Error: No reference structure passed checks`, the import step failed. Common causes:
-
-**Sequence mismatch between reference DB and mapping reference**
-
-The reference `.db` file supplied via `--jackknife_reference` contains sequences that must match the sequences in the genome/transcriptome FASTA used for mapping. If the reference DB was built from a different genome assembly or annotation source (e.g. CRW vs. Ensembl), the per-nucleotide sequence comparison will fail even when the transcript IDs match.
-
-To diagnose, extract the sequence from a failed sample's XML and diff it against the corresponding entry in the `.db` file:
+If `rf-jackknife` exits with `Error: No reference structure passed checks`, the most common cause is a sequence mismatch between the reference `.db` file and the mapping FASTA. To diagnose:
 
 ```bash
-# Get the sequence from a failed rf-norm XML
 python3 -c "
 import re
 with open('path/to/transcript.xml') as f:
@@ -673,36 +419,22 @@ m = re.search(r'<sequence>(.*?)</sequence>', c, re.DOTALL)
 print(m.group(1).strip().replace('\n','').replace('\t','').replace(' ',''))
 " > /tmp/xml_seq.txt
 
-# Get the sequence from the reference DB (e.g. line 2 for the first entry)
 sed -n '2p' path/to/reference.db > /tmp/db_seq.txt
-
 diff /tmp/xml_seq.txt /tmp/db_seq.txt
 ```
 
-The fix is to rebuild the reference DB using sequences extracted from the same FASTA the pipeline maps to, while retaining the original dot-bracket structure annotation (valid as long as sequence lengths are identical).
+Fix: rebuild the reference DB using sequences from the same FASTA the pipeline maps to, retaining the original dot-bracket annotation.
 
-**Invalid rf-fold parameters passed via `--rfjackknife_rf_fold_params`**
+If any flag in `--rfjackknife_rf_fold_params` is unrecognised, jackknife exits with `Error: Invalid RF Fold parameters`. Note that `-x` (`--relaxed`) is a rf-jackknife flag — do not include it in `--rfjackknife_rf_fold_params`.
 
-rf-jackknife validates the rf-fold parameters before starting. If any flag is unrecognised by the version of RNA Framework in the container, you will see `Error: Invalid RF Fold parameters`. Check which flags are supported by running:
+### rf-jackknife: ID mismatch
 
-```bash
-singularity exec <container.img> rf-fold --help 2>&1 | grep -E "^\s+\-"
-```
+Transcript IDs in the `.db` file must match those in the XML files. RNA Framework derives IDs from the first whitespace-delimited token of each FASTA header — so `>16S_rRNA U00096.3:...` becomes `16S_rRNA`.
 
-Note that `-x` (`--relaxed`) is a **rf-jackknife** flag, not an rf-fold flag — it should not be included in `--rfjackknife_rf_fold_params`.
+### Strandedness inference failures
 
-### rf-jackknife: ID mismatch warning
+If `RSeQC infer_experiment` is ambiguous for MaP samples on the genome route, supply `--rfcount_strandedness first|second|unstranded` to override.
 
-If the transcript IDs in your reference `.db` file do not match the IDs in the XML files, no structures will be imported. RNA Framework derives transcript IDs from the first whitespace-delimited token of each FASTA header — so `>16S_rRNA U00096.3:...` becomes `16S_rRNA`. Ensure the entries in your `.db` file use the same short IDs.
+### Container issues
 
-### Strandedness inference failures (genome route)
-
-On the genome route, the pipeline runs `RSeQC infer_experiment` to detect strandedness for MaP samples. If the BAM is very small or the BED annotation is missing, inference can be ambiguous. Supply `--rfcount_strandedness` explicitly to set the fallback value used by `rf-count-genome`:
-
-```bash
---rfcount_strandedness first   # or second, unstranded
-```
-
-### Container / singularity issues
-
-If running with Singularity and processes fail with locale or `TERM` errors, ensure `singularity.autoMounts = true` is set in your config. The pipeline exports `TERM` inside each task script to work around missing terminal environment variables inside containers.
+If Singularity processes fail with locale or `TERM` errors, ensure `singularity.autoMounts = true` is set in your config.

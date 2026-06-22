@@ -9,14 +9,16 @@ include { RNAFRAMEWORK_RFRCTOOLS_SPLIT } from '../../../modules/local/rnaframewo
 include {
     cellLineBaseToken
     resolveRfNormNormMethod
+    resolveReferenceKey
 } from '../../../workflows/rnastructurome_functions.nf'
 
 workflow NORMALISE_REACTIVITIES {
 
     take:
-    ch_rfcount_rc   // channel: [ val(meta), path(rc) ]
-    ch_rfcount_rci  // channel: [ val(meta), path(rci) ]
-    pipeline_config // map
+    ch_rfcount_rc        // channel: [ val(meta), path(rc) ]
+    ch_rfcount_rci       // channel: [ val(meta), path(rci) ]
+    ch_reference_gtf_map // value:   map of reference_key -> [meta, gtf]
+    pipeline_config      // map
 
     main:
     ch_versions = channel.empty()
@@ -179,8 +181,22 @@ workflow NORMALISE_REACTIVITIES {
         // Pass both treated and untreated to SPLIT so matching chunks are extracted from both.
         // Transcript names in the chunk RC files must match between treated and untreated
         // for rf-norm to pair them correctly.
-        def ch_norm_branched = ch_norm_input.multiMap { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ->
-            for_split:    [ gmeta, treated_rcs instanceof List ? treated_rcs[0] : treated_rcs, untreated_rc ?: [], rci_files ?: [] ]
+        //
+        // Resolve the GTF for each group up front: SPLIT derives per-transcript lengths from it
+        // (rf-rctools stats does not report lengths) to build the 4-column extraction BEDs.
+        def ch_norm_input_with_gtf = ch_norm_input
+            .combine(ch_reference_gtf_map)
+            .map { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, gtf_map ->
+                def reference_key = resolveReferenceKey(gmeta, pipeline_config.organism)
+                def gtf_tuple     = gtf_map[reference_key]
+                if (!gtf_tuple) {
+                    error("No GTF resolved for reference '${reference_key}' (group '${gmeta.id}') — required to chunk RC files for rf-norm.")
+                }
+                [ gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, gtf_tuple[1] ]
+            }
+
+        def ch_norm_branched = ch_norm_input_with_gtf.multiMap { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, gtf ->
+            for_split:    [ gmeta, treated_rcs instanceof List ? treated_rcs[0] : treated_rcs, untreated_rc ?: [], gtf ]
             for_controls: [ gmeta.id.toString(), denatured_rc, rci_files ]
         }
 

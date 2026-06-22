@@ -159,6 +159,7 @@ workflow RNASTRUCTUROME {
     NORMALISE_REACTIVITIES (
         ch_rfcount_rc,
         ch_rfcount_rci,
+        ch_reference_gtf_map,
         pipeline_config
     )
     ch_versions = ch_versions.mix(NORMALISE_REACTIVITIES.out.versions)

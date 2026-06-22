@@ -6,7 +6,7 @@ process RNAFRAMEWORK_RFRCTOOLS_SPLIT {
     container params.rnaframework_container
 
     input:
-    tuple val(meta), path(treated_rc), path(untreated_rc), path(rci)
+    tuple val(meta), path(treated_rc), path(untreated_rc), path(gtf)
 
     output:
     tuple val(meta), path("chunks/treated/${prefix}_chunk_*.rc"), emit: treated_chunks
@@ -15,47 +15,69 @@ process RNAFRAMEWORK_RFRCTOOLS_SPLIT {
 
     script:
     def chunk_size    = task.ext.chunk_size ?: 5000
+    def gtf_feature   = task.ext.gtf_feature ?: 'exon'
+    def gtf_attribute = task.ext.gtf_attribute ?: 'transcript_id'
     prefix            = task.ext.prefix ?: "${meta.id}"
     """
     export TERM="\${TERM:-xterm}"
 
-    # The .rci sidecar is staged alongside treated_rc by the channel (path(rci) input).
-    # rf-rctools stats auto-discovers it; no explicit index call needed here.
-    rf-rctools stats ${treated_rc} > rc_stats.txt
+    # Build the RCI index locally. rf-rctools index writes <file>.rci into the (writable)
+    # work dir even when the RC is a staged symlink, and rf-rctools extract needs it.
+    set -e
+    rf-rctools index ${treated_rc}
+    if [[ -n "${untreated_rc}" && -f "${untreated_rc}" ]]; then
+        rf-rctools index ${untreated_rc}
+    fi
+    set +e
 
+    # Derive per-transcript IDs and lengths from the GTF (spliced length = sum of exon
+    # lengths per transcript). The RC was built by rf-rctools extract from this same GTF,
+    # so these transcripts and lengths match the RC exactly. rf-rctools stats does NOT
+    # report transcript lengths, so the GTF is the authoritative source.
     python3 << 'PYEOF'
-import os, sys
+import os, re, sys
 
 chunk_size = ${chunk_size}
-entries = []  # list of (tx_id, length)
+feature    = "${gtf_feature}"
+attribute  = "${gtf_attribute}"
 
-with open('rc_stats.txt') as f:
+attr_re = re.compile(r'${gtf_attribute}\\s+"([^"]+)"')
+
+# transcript_id -> spliced length; dict preserves first-seen order (py3.7+).
+lengths = {}
+with open("${gtf}") as f:
     for line in f:
-        line = line.rstrip('\\n')
         if not line or line.startswith('#'):
             continue
-        cols = line.split('\\t') if '\\t' in line else line.split()
-        if len(cols) < 2:
+        cols = line.rstrip('\\n').split('\\t')
+        if len(cols) < 9 or cols[2] != feature:
             continue
-        tx_id = cols[0]
+        m = attr_re.search(cols[8])
+        if not m:
+            continue
+        tx_id = m.group(1)
         try:
-            length = int(cols[1])
-            if length > 0:
-                entries.append((tx_id, length))
+            start = int(cols[3])
+            end   = int(cols[4])
         except ValueError:
-            continue  # skip header rows with non-numeric length column
+            continue
+        lengths[tx_id] = lengths.get(tx_id, 0) + (end - start + 1)
 
+entries = [(tx_id, length) for tx_id, length in lengths.items() if length > 0]
 if not entries:
-    sys.exit("ERROR: could not parse transcript IDs and lengths from rf-rctools stats output. "
-             "Check rc_stats.txt in the work directory.")
+    sys.exit("ERROR: no transcript lengths parsed from GTF '${gtf}' "
+             "(feature='%s', attribute='%s')." % (feature, attribute))
 
+# 4-column BED: chrom=transcript_id, 0, length, name=transcript_id.
+# The name column makes rf-rctools extract preserve the clean transcript ID instead of
+# renaming the region to '<id>_0-<end>', which would break treated/untreated pairing.
 os.makedirs('chunk_beds', exist_ok=True)
 for chunk_idx in range(0, len(entries), chunk_size):
     chunk = entries[chunk_idx:chunk_idx + chunk_size]
     idx   = chunk_idx // chunk_size
-    with open(f'chunk_beds/chunk_{idx:04d}.bed', 'w') as f:
+    with open(f'chunk_beds/chunk_{idx:04d}.bed', 'w') as bed:
         for tx_id, length in chunk:
-            f.write(f'{tx_id}\\t0\\t{length}\\n')
+            bed.write(f'{tx_id}\\t0\\t{length}\\t{tx_id}\\n')
 PYEOF
 
     mkdir -p chunks/treated chunks/untreated

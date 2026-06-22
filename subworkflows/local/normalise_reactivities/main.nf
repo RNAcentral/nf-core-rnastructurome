@@ -176,25 +176,38 @@ workflow NORMALISE_REACTIVITIES {
         // Scatter: split the treated RC into transcript chunks; fan out a RFNORM job per chunk.
         // Only the first treated RC per group is split (groups with multiple treated samples are
         // uncommon; multi-treated support can be added if needed).
+        // Pass both treated and untreated to SPLIT so matching chunks are extracted from both.
+        // Transcript names in the chunk RC files must match between treated and untreated
+        // for rf-norm to pair them correctly.
         def ch_norm_branched = ch_norm_input.multiMap { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ->
-            for_split:    [ gmeta, treated_rcs instanceof List ? treated_rcs[0] : treated_rcs ]
-            for_controls: [ gmeta.id.toString(), untreated_rc, denatured_rc, rci_files ]
+            for_split:    [ gmeta, treated_rcs instanceof List ? treated_rcs[0] : treated_rcs, untreated_rc ?: [], rci_files ?: [] ]
+            for_controls: [ gmeta.id.toString(), denatured_rc, rci_files ]
         }
 
         RNAFRAMEWORK_RFRCTOOLS_SPLIT(ch_norm_branched.for_split)
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFRCTOOLS_SPLIT.out.versions.first())
 
-        // Flatten chunk RC files into individual items, tag each with (group_id, chunk_id).
-        def ch_chunked_inputs = RNAFRAMEWORK_RFRCTOOLS_SPLIT.out.chunks
+        // Flatten treated chunk RC files; pair each with its matching untreated chunk by chunk index.
+        def ch_treated_transposed = RNAFRAMEWORK_RFRCTOOLS_SPLIT.out.treated_chunks
             .transpose()
             .map { gmeta, chunk_rc ->
                 def chunk_id    = (chunk_rc.name =~ /_chunk_(\d+)\.rc$/)[0][1]
                 def chunk_gmeta = gmeta + [id: "${gmeta.id}_chunk_${chunk_id}".toString()]
-                [ gmeta.id.toString(), chunk_gmeta, chunk_rc ]
+                [ gmeta.id.toString(), chunk_id, chunk_gmeta, chunk_rc ]
             }
+
+        def ch_untreated_transposed = RNAFRAMEWORK_RFRCTOOLS_SPLIT.out.untreated_chunks
+            .transpose()
+            .map { gmeta, chunk_rc ->
+                def chunk_id = (chunk_rc.name =~ /_chunk_(\d+)_untreated\.rc$/)[0][1]
+                [ gmeta.id.toString(), chunk_id, chunk_rc ]
+            }
+
+        def ch_chunked_inputs = ch_treated_transposed
+            .join(ch_untreated_transposed, by: [0, 1], remainder: true)
             .combine(ch_norm_branched.for_controls, by: 0)
-            .map { _group_key, chunk_gmeta, chunk_rc, untreated_rc, denatured_rc, rci_files ->
-                [ chunk_gmeta, [chunk_rc], untreated_rc ?: [], denatured_rc ?: [], rci_files ?: [] ]
+            .map { _group_key, _chunk_id, chunk_gmeta, treated_chunk, untreated_chunk, denatured_rc, rci_files ->
+                [ chunk_gmeta, [treated_chunk], untreated_chunk ? [untreated_chunk] : [], denatured_rc ?: [], rci_files ?: [] ]
             }
 
         RNAFRAMEWORK_RFNORM(ch_chunked_inputs)

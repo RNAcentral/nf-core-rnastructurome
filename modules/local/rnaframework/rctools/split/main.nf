@@ -6,21 +6,21 @@ process RNAFRAMEWORK_RFRCTOOLS_SPLIT {
     container params.rnaframework_container
 
     input:
-    tuple val(meta), path(rc)
+    tuple val(meta), path(treated_rc), path(untreated_rc), path(rci)
 
     output:
-    tuple val(meta), path("chunks/${prefix}_chunk_*.rc"), emit: chunks
-    path "versions.yml",                                  emit: versions
+    tuple val(meta), path("chunks/treated/${prefix}_chunk_*.rc"), emit: treated_chunks
+    tuple val(meta), path("chunks/untreated/${prefix}_chunk_*.rc"), optional: true, emit: untreated_chunks
+    path "versions.yml",                                            emit: versions
 
     script:
-    def chunk_size = task.ext.chunk_size ?: 5000
-    prefix         = task.ext.prefix ?: "${meta.id}"
+    def chunk_size    = task.ext.chunk_size ?: 5000
+    prefix            = task.ext.prefix ?: "${meta.id}"
     """
     export TERM="\${TERM:-xterm}"
 
     # Get transcript IDs and lengths via per-transcript statistics.
-    # rf-rctools stats outputs one row per transcript; first column = ID, second = length.
-    rf-rctools stats ${rc} > rc_stats.txt
+    rf-rctools stats ${treated_rc} > rc_stats.txt
 
     python3 << 'PYEOF'
 import os, sys
@@ -57,15 +57,24 @@ for chunk_idx in range(0, len(entries), chunk_size):
             f.write(f'{tx_id}\\t0\\t{length}\\n')
 PYEOF
 
-    mkdir -p chunks
+    mkdir -p chunks/treated chunks/untreated
     for bed in \$(ls chunk_beds/chunk_*.bed | sort); do
         chunk_name=\$(basename "\${bed}" .bed)
         rf-rctools extract \\
             -a "\${bed}" \\
-            -o "chunks/${prefix}_\${chunk_name}.rc" \\
+            -o "chunks/treated/${prefix}_\${chunk_name}.rc" \\
             -ow \\
-            ${rc}
-        rf-rctools index "chunks/${prefix}_\${chunk_name}.rc"
+            ${treated_rc}
+        rf-rctools index "chunks/treated/${prefix}_\${chunk_name}.rc"
+
+        if [[ -n "${untreated_rc}" && -f "${untreated_rc}" ]]; then
+            rf-rctools extract \\
+                -a "\${bed}" \\
+                -o "chunks/untreated/${prefix}_\${chunk_name}_untreated.rc" \\
+                -ow \\
+                ${untreated_rc}
+            rf-rctools index "chunks/untreated/${prefix}_\${chunk_name}_untreated.rc"
+        fi
     done
 
     printf '"%s":\\n    rnaframework: %s\\n' \\
@@ -78,8 +87,8 @@ PYEOF
     def chunk_size = task.ext.chunk_size ?: 5000
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p chunks
-    touch chunks/${prefix}_chunk_0000.rc
+    mkdir -p chunks/treated chunks/untreated
+    touch chunks/treated/${prefix}_chunk_0000.rc
 
     printf '"%s":\\n    rnaframework: %s\\n' \\
         "${task.process}" \\

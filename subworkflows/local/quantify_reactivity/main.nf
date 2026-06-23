@@ -75,31 +75,40 @@ workflow QUANTIFY_REACTIVITY {
             fasta: entry[1]
         }
         RNAFRAMEWORK_RFCOUNT_GENOME(ch_rg_split.bam, ch_rg_split.fasta)
-        ch_rfcount_summary = RNAFRAMEWORK_RFCOUNT_GENOME.out.summary
         ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT_GENOME.out.plots
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT_GENOME.out.versions)
 
         // rf-rctools extract: genome RC → transcript-level RC using reference GTF.
         // The module generates per-file .rci indexes itself (rf-rctools index) and calls
         // rf-rctools extract with the BASENAME so strand-aware extraction is activated.
-        def ch_rctools_inputs = RNAFRAMEWORK_RFCOUNT_GENOME.out.rc
+        // It also rewrites the rf-count-genome summary's 'covered' (a genome reference count)
+        // with the covered-transcript count, so pair the RC with its summary (same task, strict
+        // join — both always emit) and pass it through.
+        def ch_rc_with_summary = RNAFRAMEWORK_RFCOUNT_GENOME.out.rc
+            .map { meta, rc -> [ meta.id.toString(), meta, rc ] }
+            .join(RNAFRAMEWORK_RFCOUNT_GENOME.out.summary.map { meta, summary -> [ meta.id.toString(), summary ] })
+            .map { _id, meta, rc, summary -> [ meta, rc, summary ] }
+
+        def ch_rctools_inputs = ch_rc_with_summary
             .combine(ch_reference_gtf_map)
             .map { combined ->
                 def meta    = combined[0]
                 def rc      = combined[1]
-                def gtf_map = combined[2]
+                def summary = combined[2]
+                def gtf_map = combined[3]
                 def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
                 def gtf_t   = gtf_map[ref_key]
                 if (!gtf_t) error("No GTF resolved for reference '${ref_key}' for rf-rctools extract.")
-                [ [meta, rc, []], gtf_t ]
+                [ [meta, rc, [], summary], gtf_t ]
             }
         def ch_rct_split = ch_rctools_inputs.multiMap { entry ->
             rc:  entry[0]
             gtf: entry[1]
         }
         RNAFRAMEWORK_RFRCTOOLS_EXTRACT(ch_rct_split.rc, ch_rct_split.gtf)
-        ch_rfcount_rc  = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rc
-        ch_rfcount_rci = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rci
+        ch_rfcount_rc      = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rc
+        ch_rfcount_rci     = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rci
+        ch_rfcount_summary = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.summary
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.versions)
     } else {
         def ch_rfcount_inputs = ch_markdup_bam_bai

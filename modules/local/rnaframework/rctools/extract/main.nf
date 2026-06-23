@@ -6,12 +6,13 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     container params.rnaframework_container
 
     input:
-    tuple val(meta), path(rc, stageAs: "input/*"), path(rci, stageAs: "input/*")
+    tuple val(meta), path(rc, stageAs: "input/*"), path(rci, stageAs: "input/*"), path(summary)
     tuple val(meta_ref), path(gtf)
 
     output:
     tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc"),                       emit: rc
     tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc.rci"), optional: true,   emit: rci
+    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rfcount_genome_summary.tsv"), optional: true, emit: summary
     path "versions.yml",                                                                    emit: versions
 
     when:
@@ -121,6 +122,18 @@ PYEOF
         set +e
     fi
 
+    # Rewrite the rf-count-genome summary's 'covered' column (a genome reference/contig count) with the
+    # number of transcripts in the emitted RC, so the published metric reflects covered transcripts
+    # rather than genome locations. Genome route only — this module is not used for --transcriptome,
+    # where rf-count's summary already reports covered transcripts.
+    if [[ -s covered_ids.txt ]]; then
+        _covered=\$(wc -l < covered_ids.txt | tr -d ' ')
+    else
+        _covered=\$(rf-rctools view ${outdir}/${prefix}.rc 2>/dev/null | awk 'NR % 4 == 1 { c++ } END { print c + 0 }')
+    fi
+    awk -v cov="\${_covered}" 'BEGIN { FS = OFS = "\\t" } NR == 1 { print; next } { \$2 = cov; print }' \\
+        ${summary} > ${outdir}/${prefix}.rfcount_genome_summary.tsv
+
     printf '"%s":\\n    rnaframework: %s\\n' \\
         "${task.process}" \\
         "\$(rf-rctools 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
@@ -134,6 +147,7 @@ PYEOF
     mkdir -p ${outdir}
     touch ${outdir}/${prefix}.rc
     touch ${outdir}/${prefix}.rc.rci
+    cp ${summary} ${outdir}/${prefix}.rfcount_genome_summary.tsv 2>/dev/null || touch ${outdir}/${prefix}.rfcount_genome_summary.tsv
 
     printf '"%s":\\n    rnaframework: %s\\n' \\
         "${task.process}" \\

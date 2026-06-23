@@ -36,13 +36,20 @@ process RNAFRAMEWORK_RFFOLD {
     export TERM="\${TERM:-xterm}"
     ${perlEnvCleanup}
 
+    abs_path() {
+        perl -MCwd=abs_path -e 'print abs_path(shift)' "\$1"
+    }
+
     # Rebuild one experiment directory per replicate so rf-fold folds replicates together via
     # majority voting (rf-fold experiment1/ experiment2/ ...). The XMLs were staged one-per-dir as
     # input*/ in replicate-grouped order; fold_replicate_sizes says how many consecutive input dirs
     # belong to each replicate. Without this, a single merged dir makes rf-fold see only 1 sample
     # and the -oc (only-common) consensus parameter is rejected.
     sizes=(${meta.fold_replicate_sizes.join(' ')})
-    mapfile -t _input_dirs < <(ls -d input*/ 2>/dev/null | sort -V)
+    _input_dirs=()
+    while IFS= read -r d; do
+        _input_dirs+=( "\${d}" )
+    done < <(ls -d input*/ 2>/dev/null | sort -t t -k2,2n)
     if [[ \${#_input_dirs[@]} -ne ${meta.fold_replicate_sizes.sum()} ]]; then
         echo "[RNAFRAMEWORK_RFFOLD] staged input dir count (\${#_input_dirs[@]}) != expected (${meta.fold_replicate_sizes.sum()})." >&2
         exit 1
@@ -53,7 +60,7 @@ process RNAFRAMEWORK_RFFOLD {
         mkdir -p "\${expdir}"
         for ((j = 0; j < sizes[k]; j++)); do
             for x in "\${_input_dirs[idx]}"*.xml; do
-                [[ -e "\${x}" ]] && ln -sf "\$(readlink -f "\${x}")" "\${expdir}/\$(basename "\${x}")"
+                [[ -e "\${x}" ]] && ln -sf "\$(abs_path "\${x}")" "\${expdir}/\$(basename "\${x}")"
             done
             idx=\$((idx + 1))
         done
@@ -77,7 +84,7 @@ process RNAFRAMEWORK_RFFOLD {
         fi
     done
     while read -r _b; do
-        [[ -n "\${_b}" ]] && ln -sf "\$(readlink -f "experiment1/\${_b}")" "expected_xml/\${_b}"
+        [[ -n "\${_b}" ]] && ln -sf "\$(abs_path "experiment1/\${_b}")" "expected_xml/\${_b}"
     done < "\${_intersect}"
     rm -f "\${_intersect}" "\${_this}"
 

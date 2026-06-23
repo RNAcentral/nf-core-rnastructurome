@@ -429,6 +429,11 @@
                     "description": "Use only primary alignments in rf-count (`--primary-only`).",
                     "default": false
                 },
+                "rfcount_discard_clipped_reads": {
+                    "type": "boolean",
+                    "description": "Discard reads with excessive 5' or 3' end clipping in rf-count / rf-count-genome (`--discard-clipped-reads`).",
+                    "default": false
+                },
                 "rfcount_paired_only": {
                     "type": "boolean",
                     "description": "For paired-end samples, use only reads with both mates mapped (`--paired-only`).",
@@ -555,6 +560,12 @@
                 },
                 "rfnorm_nan": {
                     "description": "Positions with read coverage below this threshold are reported as NaN (`--nan`). Set to 0 to disable NaN masking."
+                },
+                "rfnorm_prefilter_min_coverage": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Genome route only: after rf-rctools extract, keep transcripts with at least one position at this coverage or higher before rf-norm. Set to 0 to keep the full annotation RC.",
+                    "default": 1
                 },
                 "rfnorm_img": {
                     "type": "boolean",

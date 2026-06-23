@@ -20,8 +20,8 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
 
     script:
     def args          = task.ext.args ?: ''
-    def gtf_feature   = task.ext.gtf_feature ?: 'exon'
-    def gtf_attribute = task.ext.gtf_attribute ?: 'transcript_id'
+    def feature_name  = task.ext.gtf_feature ?: 'exon'
+    def attr_name     = task.ext.gtf_attribute ?: 'transcript_id'
     def min_coverage  = task.ext.min_coverage != null ? task.ext.min_coverage : 1
     prefix        = task.ext.prefix ?: "${meta.id}"
     def outdir    = "${prefix}_rctools_extract"
@@ -68,10 +68,13 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     if [[ ${min_coverage} -gt 0 ]]; then
         set -e
         rf-rctools view ${outdir}/${prefix}.rc 2>/dev/null | awk -v mc=${min_coverage} '
-            NR % 4 == 1 { id = \$0; next }
-            NR % 4 == 0 {
+            NF == 0 { line = 0; next }
+            { line++ }
+            line == 1 { id = \$0; next }
+            line == 4 {
                 n = split(\$0, cov, ",")
                 for (i = 1; i <= n; i++) if (cov[i] + 0 >= mc) { print id; break }
+                line = 0
             }
         ' > covered_ids.txt
 
@@ -83,18 +86,21 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
         # Real per-transcript lengths from the GTF (spliced length = sum of exon lengths). These match
         # the RC exactly because it was built from this same GTF. 4-column BED (id 0 length id) keeps
         # the clean transcript ID instead of renaming the region to <id>_0-<end>.
-        python3 << 'PYEOF'
+        python3 - "${gtf}" "${feature_name}" "${attr_name}" << 'PYEOF'
 import re, sys
-attr_re = re.compile(r'${gtf_attribute}\\s+"([^"]+)"')
+
+gtf_path, feature_name, attr_name = sys.argv[1:4]
+attr_re = re.compile(r'%s\\s+"([^"]+)"' % re.escape(attr_name))
+
 with open("covered_ids.txt") as fh:
     covered = {line.strip() for line in fh if line.strip()}
 lengths = {}
-with open("${gtf}") as fh:
+with open(gtf_path) as fh:
     for line in fh:
         if not line or line.startswith('#'):
             continue
         cols = line.rstrip('\\n').split('\\t')
-        if len(cols) < 9 or cols[2] != "${gtf_feature}":
+        if len(cols) < 9 or cols[2] != feature_name:
             continue
         m = attr_re.search(cols[8])
         if not m or m.group(1) not in covered:
@@ -111,7 +117,7 @@ with open("covered.bed", "w") as out:
 PYEOF
 
         if [[ ! -s covered.bed ]]; then
-            echo "ERROR: covered transcripts did not match any GTF ${gtf_attribute} for ${prefix}." >&2
+            echo "ERROR: covered transcripts did not match any GTF ${attr_name} for ${prefix}." >&2
             exit 1
         fi
 
@@ -129,7 +135,7 @@ PYEOF
     if [[ -s covered_ids.txt ]]; then
         _covered=\$(wc -l < covered_ids.txt | tr -d ' ')
     else
-        _covered=\$(rf-rctools view ${outdir}/${prefix}.rc 2>/dev/null | awk 'NR % 4 == 1 { c++ } END { print c + 0 }')
+        _covered=\$(rf-rctools view ${outdir}/${prefix}.rc 2>/dev/null | awk 'NF == 0 { line = 0; next } { line++ } line == 1 { c++ } line == 4 { line = 0 } END { print c + 0 }')
     fi
     awk -v cov="\${_covered}" 'BEGIN { FS = OFS = "\\t" } NR == 1 { print; next } { \$2 = cov; print }' \\
         ${summary} > ${outdir}/${prefix}.rfcount_genome_summary.tsv

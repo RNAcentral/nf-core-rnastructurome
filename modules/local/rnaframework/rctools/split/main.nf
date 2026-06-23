@@ -15,8 +15,8 @@ process RNAFRAMEWORK_RFRCTOOLS_SPLIT {
 
     script:
     def chunk_size    = task.ext.chunk_size ?: 5000
-    def gtf_feature   = task.ext.gtf_feature ?: 'exon'
-    def gtf_attribute = task.ext.gtf_attribute ?: 'transcript_id'
+    def feature_name  = task.ext.gtf_feature ?: 'exon'
+    def attr_name     = task.ext.gtf_attribute ?: 'transcript_id'
     def min_coverage  = task.ext.min_coverage != null ? task.ext.min_coverage : 1
     prefix            = task.ext.prefix ?: "${meta.id}"
     """
@@ -37,10 +37,13 @@ process RNAFRAMEWORK_RFRCTOOLS_SPLIT {
     # is the ground truth (rf-rctools stats does not report usable per-transcript coverage).
     # A transcript is kept if any base has coverage >= min_coverage. min_coverage=0 keeps all.
     rf-rctools view ${treated_rc} 2>/dev/null | awk -v mc=${min_coverage} '
-        NR % 4 == 1 { id = \$0; next }
-        NR % 4 == 0 {
+        NF == 0 { line = 0; next }
+        { line++ }
+        line == 1 { id = \$0; next }
+        line == 4 {
             n = split(\$0, cov, ",")
             for (i = 1; i <= n; i++) if (cov[i] + 0 >= mc) { print id; break }
+            line = 0
         }
     ' > covered_ids.txt
 
@@ -53,21 +56,20 @@ process RNAFRAMEWORK_RFRCTOOLS_SPLIT {
     # transcript). The RC was built by rf-rctools extract from this same GTF, so these lengths
     # match the RC exactly. rf-rctools stats does NOT report transcript lengths, so the GTF is
     # the authoritative source. Restrict to the covered transcripts identified above.
-    python3 << 'PYEOF'
+    python3 - "${gtf}" "${feature_name}" "${attr_name}" "${chunk_size}" << 'PYEOF'
 import os, re, sys
 
-chunk_size = ${chunk_size}
-feature    = "${gtf_feature}"
-attribute  = "${gtf_attribute}"
+gtf_path, feature, attribute, chunk_size = sys.argv[1:5]
+chunk_size = int(chunk_size)
 
-attr_re = re.compile(r'${gtf_attribute}\\s+"([^"]+)"')
+attr_re = re.compile(r'%s\\s+"([^"]+)"' % re.escape(attribute))
 
 with open("covered_ids.txt") as f:
     covered = {line.strip() for line in f if line.strip()}
 
 # transcript_id -> spliced length; dict preserves first-seen order (py3.7+).
 lengths = {}
-with open("${gtf}") as f:
+with open(gtf_path) as f:
     for line in f:
         if not line or line.startswith('#'):
             continue
@@ -89,9 +91,9 @@ with open("${gtf}") as f:
 
 entries = [(tx_id, length) for tx_id, length in lengths.items() if length > 0]
 if not entries:
-    sys.exit("ERROR: no covered transcript lengths parsed from GTF '${gtf}' "
+    sys.exit("ERROR: no covered transcript lengths parsed from GTF '%s' "
              "(feature='%s', attribute='%s'). Covered IDs may not match GTF %s values."
-             % (feature, attribute, attribute))
+             % (gtf_path, feature, attribute, attribute))
 
 # 4-column BED: chrom=transcript_id, 0, length, name=transcript_id.
 # The name column makes rf-rctools extract preserve the clean transcript ID instead of

@@ -37,6 +37,15 @@ process RNAFRAMEWORK_RFNORM {
         mv "\${rfnorm_log_tmp}" ${prefix}_norm/rfnorm.log
     fi
 
+    if [[ -d "${prefix}_norm/plots" ]]; then
+        find "${prefix}_norm/plots" -maxdepth 1 -type f -name '*.pdf' | while IFS= read -r plot; do
+            transcript_id="\$(basename "\${plot}" .pdf)"
+            if [[ ! -f "${prefix}_norm/\${transcript_id}.xml" ]]; then
+                rm -f "\${plot}"
+            fi
+        done
+    fi
+
     printf '"%s":\n    rnaframework: %s\n' \\
         "${task.process}" \\
         "\$(rf-norm 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 || echo "unknown")" \\
@@ -47,7 +56,9 @@ process RNAFRAMEWORK_RFNORM {
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     mkdir -p ${prefix}_norm
+    mkdir -p ${prefix}_norm/plots
     touch ${prefix}_norm/${prefix}.xml
+    touch ${prefix}_norm/plots/${prefix}.pdf
     touch ${prefix}_norm/rfnorm.log
 
     printf '"%s":\n    rnaframework: %s\n' \\

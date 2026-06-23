@@ -37,19 +37,27 @@ workflow FOLD_STRUCTURES {
         }
         .groupTuple()
         .map { fold_group, entries ->
-            def metas      = entries.collect { entry -> entry[0] }
-            def xmls       = entries.collect { entry -> entry[1] }.flatten()
-            def base       = metas[0]
-            def replicates = metas.collect { meta -> (meta.replicate ?: 'na').toString() }.unique().sort()
-            def sampleIds  = metas.collect { meta -> (meta.id ?: 'na').toString() }.unique().sort()
+            // Each entry is one rfnorm group (= one replicate) for this cell_line. rf-fold folds
+            // replicates together via majority voting, taking one experiment DIRECTORY per replicate
+            // (rf-fold exp1/ exp2/ ...), not a single merged dir. Sort by replicate for determinism,
+            // then concatenate XMLs grouped by replicate so the module can rebuild per-replicate dirs
+            // from the per-file input*/ staging using the aligned fold_replicate_sizes counts.
+            def sortedEntries  = entries.sort { entry -> (entry[0].replicate ?: 'na').toString() }
+            def base           = sortedEntries[0][0]
+            def perRepXmls     = sortedEntries.collect { entry -> [ entry[1] ].flatten() }
+            def orderedXmls    = perRepXmls.flatten()
+            def replicateSizes = perRepXmls.collect { repXmls -> repXmls.size() }
+            def replicates     = sortedEntries.collect { entry -> (entry[0].replicate ?: 'na').toString() }
+            def sampleIds      = sortedEntries.collect { entry -> (entry[0].id ?: 'na').toString() }
             def foldMeta   = base + [
-                id              : fold_group,
-                fold_group      : fold_group,
-                fold_replicates : replicates.join(','),
-                fold_source_ids : sampleIds.join(','),
-                fold_xml_count  : xmls.size()
+                id                    : fold_group,
+                fold_group            : fold_group,
+                fold_replicates       : replicates.join(','),
+                fold_source_ids       : sampleIds.join(','),
+                fold_experiment_count : sortedEntries.size(),   // replicate experiments; drives rf-fold -oc
+                fold_replicate_sizes  : replicateSizes          // XMLs per replicate, aligned to orderedXmls
             ]
-            [ foldMeta, xmls ]
+            [ foldMeta, orderedXmls ]
         }
 
     //

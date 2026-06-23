@@ -36,7 +36,50 @@ process RNAFRAMEWORK_RFFOLD {
     export TERM="\${TERM:-xterm}"
     ${perlEnvCleanup}
 
-    rffold_dedup_xml.sh
+    # Rebuild one experiment directory per replicate so rf-fold folds replicates together via
+    # majority voting (rf-fold experiment1/ experiment2/ ...). The XMLs were staged one-per-dir as
+    # input*/ in replicate-grouped order; fold_replicate_sizes says how many consecutive input dirs
+    # belong to each replicate. Without this, a single merged dir makes rf-fold see only 1 sample
+    # and the -oc (only-common) consensus parameter is rejected.
+    sizes=(${meta.fold_replicate_sizes.join(' ')})
+    mapfile -t _input_dirs < <(ls -d input*/ 2>/dev/null | sort -V)
+    if [[ \${#_input_dirs[@]} -ne ${meta.fold_replicate_sizes.sum()} ]]; then
+        echo "[RNAFRAMEWORK_RFFOLD] staged input dir count (\${#_input_dirs[@]}) != expected (${meta.fold_replicate_sizes.sum()})." >&2
+        exit 1
+    fi
+    idx=0
+    for k in "\${!sizes[@]}"; do
+        expdir="experiment\$((k + 1))"
+        mkdir -p "\${expdir}"
+        for ((j = 0; j < sizes[k]; j++)); do
+            for x in "\${_input_dirs[idx]}"*.xml; do
+                [[ -e "\${x}" ]] && ln -sf "\$(readlink -f "\${x}")" "\${expdir}/\$(basename "\${x}")"
+            done
+            idx=\$((idx + 1))
+        done
+    done
+
+    # Expected transcripts for the missing-check = those rf-fold will attempt = present in ALL
+    # replicate experiments (matches default -oc = replicate count). Building the intersection here
+    # stops the check from flagging transcripts that -oc intentionally skips (present in only some
+    # replicates). For a single-replicate group this is just that experiment's transcript set.
+    mkdir -p expected_xml
+    _intersect=\$(mktemp)
+    _this=\$(mktemp)
+    _first=1
+    for d in experiment*/; do
+        ls "\${d}"*.xml 2>/dev/null | sed 's#.*/##' | sort -u >| "\${_this}"
+        if [[ \${_first} -eq 1 ]]; then
+            cp "\${_this}" "\${_intersect}"
+            _first=0
+        else
+            comm -12 "\${_intersect}" "\${_this}" >| "\${_intersect}.new" && mv "\${_intersect}.new" "\${_intersect}"
+        fi
+    done
+    while read -r _b; do
+        [[ -n "\${_b}" ]] && ln -sf "\$(readlink -f "experiment1/\${_b}")" "expected_xml/\${_b}"
+    done < "\${_intersect}"
+    rm -f "\${_intersect}" "\${_this}"
 
     log_tmp=\$(mktemp "${prefix}_fold.XXXXXX.log")
     printf 'slope=%s intercept=%s\n' "${slope_log}" "${intercept_log}" >> "\${log_tmp}"
@@ -46,7 +89,7 @@ process RNAFRAMEWORK_RFFOLD {
         -o ${prefix}_fold \\
         -ow \\
         ${args} \\
-        unique_xml/ 2>&1 | tee -a "\${log_tmp}"
+        experiment*/ 2>&1 | tee -a "\${log_tmp}"
 
     mkdir -p ${prefix}_fold
     mv "\${log_tmp}" ${prefix}_fold/rffold.log
@@ -69,7 +112,7 @@ process RNAFRAMEWORK_RFFOLD {
         exit 1
     fi
 
-    rffold_check_missing.sh ${prefix}_fold unique_xml
+    rffold_check_missing.sh ${prefix}_fold expected_xml
 
     mv ${prefix}_fold/structures ${prefix}_fold/dotbracket
     [[ -d ${prefix}_fold/plots/structures ]] && mv ${prefix}_fold/plots/structures ${prefix}_fold/structures

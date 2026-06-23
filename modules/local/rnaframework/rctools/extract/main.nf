@@ -18,7 +18,10 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     task.ext.when == null || task.ext.when
 
     script:
-    def args      = task.ext.args ?: ''
+    def args          = task.ext.args ?: ''
+    def gtf_feature   = task.ext.gtf_feature ?: 'exon'
+    def gtf_attribute = task.ext.gtf_attribute ?: 'transcript_id'
+    def min_coverage  = task.ext.min_coverage != null ? task.ext.min_coverage : 1
     prefix        = task.ext.prefix ?: "${meta.id}"
     def outdir    = "${prefix}_rctools_extract"
     """
@@ -54,6 +57,69 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     set -e
     rf-rctools index ${outdir}/${prefix}.rc
     set +e
+
+    # Coverage filter: the genome route extracts EVERY GTF transcript, the vast majority with zero
+    # coverage. Filter the RC down to transcripts with real coverage so the emitted (and published)
+    # RC is transcriptome-sized — rf-norm can then run on it whole, using its own -p threading,
+    # instead of needing to be split into chunks. The view 'coverage' track (4th line per transcript)
+    # is the ground truth (rf-rctools stats does not report usable per-transcript coverage).
+    # min_coverage=0 disables the filter and keeps the full annotation RC.
+    if [[ ${min_coverage} -gt 0 ]]; then
+        set -e
+        rf-rctools view ${outdir}/${prefix}.rc 2>/dev/null | awk -v mc=${min_coverage} '
+            NR % 4 == 1 { id = \$0; next }
+            NR % 4 == 0 {
+                n = split(\$0, cov, ",")
+                for (i = 1; i <= n; i++) if (cov[i] + 0 >= mc) { print id; break }
+            }
+        ' > covered_ids.txt
+
+        if [[ ! -s covered_ids.txt ]]; then
+            echo "ERROR: no covered transcripts in ${outdir}/${prefix}.rc (min_coverage=${min_coverage})." >&2
+            exit 1
+        fi
+
+        # Real per-transcript lengths from the GTF (spliced length = sum of exon lengths). These match
+        # the RC exactly because it was built from this same GTF. 4-column BED (id 0 length id) keeps
+        # the clean transcript ID instead of renaming the region to <id>_0-<end>.
+        python3 << 'PYEOF'
+import re, sys
+attr_re = re.compile(r'${gtf_attribute}\\s+"([^"]+)"')
+with open("covered_ids.txt") as fh:
+    covered = {line.strip() for line in fh if line.strip()}
+lengths = {}
+with open("${gtf}") as fh:
+    for line in fh:
+        if not line or line.startswith('#'):
+            continue
+        cols = line.rstrip('\\n').split('\\t')
+        if len(cols) < 9 or cols[2] != "${gtf_feature}":
+            continue
+        m = attr_re.search(cols[8])
+        if not m or m.group(1) not in covered:
+            continue
+        try:
+            start = int(cols[3]); end = int(cols[4])
+        except ValueError:
+            continue
+        lengths[m.group(1)] = lengths.get(m.group(1), 0) + (end - start + 1)
+with open("covered.bed", "w") as out:
+    for tx_id, length in lengths.items():
+        if length > 0:
+            out.write(f"{tx_id}\\t0\\t{length}\\t{tx_id}\\n")
+PYEOF
+
+        if [[ ! -s covered.bed ]]; then
+            echo "ERROR: covered transcripts did not match any GTF ${gtf_attribute} for ${prefix}." >&2
+            exit 1
+        fi
+
+        rf-rctools extract -a covered.bed -o ${outdir}/${prefix}.filtered.rc -ow ${outdir}/${prefix}.rc
+        rf-rctools index ${outdir}/${prefix}.filtered.rc
+        mv ${outdir}/${prefix}.filtered.rc     ${outdir}/${prefix}.rc
+        mv ${outdir}/${prefix}.filtered.rc.rci ${outdir}/${prefix}.rc.rci
+        set +e
+    fi
 
     printf '"%s":\\n    rnaframework: %s\\n' \\
         "${task.process}" \\

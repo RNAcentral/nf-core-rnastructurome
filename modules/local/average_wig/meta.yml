@@ -14,7 +14,7 @@ tools:
 input:
   - - meta:
         type: map
-        description: Groovy Map containing group metadata (e.g. cell_line, condition)
+        description: Groovy Map containing group metadata (e.g. sample_group, condition)
     - wigs:
         type: file
         description: One or more per-replicate WIG reactivity files

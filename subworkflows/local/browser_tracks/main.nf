@@ -44,17 +44,17 @@ workflow BROWSER_TRACKS {
     )
 
     //
-    // Group per-replicate merged WIGs by cell_line.
+    // Group per-replicate merged WIGs by sample_group.
     // Single replicate: bypass AVERAGE_WIG, keep meta.id = "HEK293T_1" → HEK293T_1_reactivity.bw
-    // Multiple replicates: run AVERAGE_WIG, set meta.id = cell_line   → HEK293T_reactivity.bw
+    // Multiple replicates: run AVERAGE_WIG, set meta.id = sample_group   → HEK293T_reactivity.bw
     //
     def ch_reactivity_grouped = MERGE_WIG.out.merged_wig
-        .map { meta, wig -> [ meta.cell_line.toString(), meta, wig ] }
+        .map { meta, wig -> [ meta.sample_group.toString(), meta, wig ] }
         .groupTuple(by: 0)
-        .map { cell_line, metas, wigs ->
+        .map { sample_group, metas, wigs ->
             def base_meta = wigs.size() == 1
                 ? metas[0]
-                : metas[0] + [ id: cell_line ]
+                : metas[0] + [ id: sample_group ]
             [ base_meta, wigs.flatten() ]
         }
 

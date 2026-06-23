@@ -1,5 +1,5 @@
 //
-// FOLD_STRUCTURES — group rfnorm XML files by cell_line, optionally run rf-jackknife for
+// FOLD_STRUCTURES — group rfnorm XML files by sample_group, optionally run rf-jackknife for
 // slope/intercept calibration, run rf-fold to predict secondary structures, then convert
 // dot-plot outputs to .bp arc files (genome- and transcript-coordinate) and merge them.
 //
@@ -24,20 +24,20 @@ workflow FOLD_STRUCTURES {
     ch_versions = channel.empty()
 
     //
-    // Group rfnorm XMLs by cell_line so biological replicates are folded together.
+    // Group rfnorm XMLs by sample_group so biological replicates are folded together.
     // The group key intentionally excludes replicate.
     //
     def ch_fold_input = ch_rfnorm_xml
         .map { meta, xml ->
-            if (!meta.cell_line) {
-                error("Missing cell_line for sample '${meta.id}'. rf-fold replicate grouping requires cell_line.")
+            if (!meta.sample_group) {
+                error("Missing sample_group for sample '${meta.id}'. rf-fold replicate grouping requires sample_group.")
             }
-            def fold_group = meta.cell_line.toString()
+            def fold_group = meta.sample_group.toString()
             [ fold_group, [ meta, xml ] ]
         }
         .groupTuple()
         .map { fold_group, entries ->
-            // Each entry is one rfnorm group (= one replicate) for this cell_line. rf-fold folds
+            // Each entry is one rfnorm group (= one replicate) for this sample_group. rf-fold folds
             // replicates together via majority voting, taking one experiment DIRECTORY per replicate
             // (rf-fold exp1/ exp2/ ...), not a single merged dir. Sort by replicate for determinism,
             // then concatenate XMLs grouped by replicate so the module can rebuild per-replicate dirs
@@ -73,7 +73,7 @@ workflow FOLD_STRUCTURES {
     if (pipeline_config.jackknife_reference) {
         def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
 
-        // Jackknife runs per rfnorm group (cell_line + replicate), not per fold group.
+        // Jackknife runs per rfnorm group (sample_group + replicate), not per fold group.
         // Fold groups flatten XMLs from multiple replicates which produce identically-named
         // files (e.g. 16S_rRNA.xml); using input*/* staging gives each file its own
         // numbered directory so rf-jackknife receives them as separate experiment dirs.
@@ -123,14 +123,14 @@ workflow FOLD_STRUCTURES {
                     [ meta + [ jackknife_slope: slope, jackknife_intercept: intercept ], xmls ]
                 }
         } else {
-            // Gate each fold group on all jackknife jobs for that cell_line completing.
+            // Gate each fold group on all jackknife jobs for that sample_group completing.
             ch_fold_for_rffold = ch_fold_input
                 .map { meta, xmls -> [ meta.id.toString(), meta, xmls ] }
                 .join(
                     RNAFRAMEWORK_RFJACKKNIFE.out.csv
-                        .map { meta, _csv -> [ meta.cell_line.toString(), 'done' ] }
+                        .map { meta, _csv -> [ meta.sample_group.toString(), 'done' ] }
                         .groupTuple()
-                        .map { cell_line, _dones -> [ cell_line, 'done' ] }
+                        .map { sample_group, _dones -> [ sample_group, 'done' ] }
                 )
                 .map { _id, meta, xmls, _done -> [ meta, xmls ] }
         }
@@ -138,7 +138,7 @@ workflow FOLD_STRUCTURES {
 
     //
     // Optional rf-eval — evaluate agreement between reactivity data and a reference structure set.
-    // Runs per rfnorm group (one XML set per cell_line+replicate) when --rfeval_reference is provided.
+    // Runs per rfnorm group (one XML set per sample_group+replicate) when --rfeval_reference is provided.
     //
     if (pipeline_config.rfeval_reference) {
         def ch_rfeval_reference = channel.value(file(pipeline_config.rfeval_reference.toString(), checkIfExists: true))
@@ -202,7 +202,7 @@ workflow FOLD_STRUCTURES {
     ch_versions = ch_versions.mix(MERGE_BP_TRANSCRIPT.out.versions.first())
 
     emit:
-    fold_input    = ch_fold_input                          // channel: [ val(meta), list(path(xml)) ] — grouped by cell_line
+    fold_input    = ch_fold_input                          // channel: [ val(meta), list(path(xml)) ] — grouped by sample_group
     structures    = RNAFRAMEWORK_RFFOLD.out.structures     // channel: [ val(meta), path(fold_dir) ]
     shannon_wig   = RNAFRAMEWORK_RFFOLD.out.shannon_wig    // channel: [ val(meta), path(wig) ]
     rffold_log    = RNAFRAMEWORK_RFFOLD.out.log            // channel: [ val(meta), path(log) ]

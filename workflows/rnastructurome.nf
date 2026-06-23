@@ -165,7 +165,7 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(NORMALISE_REACTIVITIES.out.versions)
 
     //
-    // SUBWORKFLOW: FOLD_STRUCTURES — group by cell_line, optional jackknife, rf-fold, dotplot→bp
+    // SUBWORKFLOW: FOLD_STRUCTURES — group by sample_group, optional jackknife, rf-fold, dotplot→bp
     //
     FOLD_STRUCTURES (
         NORMALISE_REACTIVITIES.out.xml,
@@ -266,7 +266,7 @@ workflow RNASTRUCTUROME {
     ch_multiqc_files = ch_multiqc_files.mix(NORMALISE_REACTIVITIES.out.plots.collect { plot_file -> plot_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(FOLD_STRUCTURES.out.structures.collect { fold_dir -> fold_dir[1] })
 
-    // RF-norm summary table: one row per normalisation group (cell_line + replicate).
+    // RF-norm summary table: one row per normalisation group (sample_group + replicate).
     // Join RF-count covered transcript counts per group (max across treated replicates).
     def ch_rfcount_covered_by_group = NORMALISE_REACTIVITIES.out.norm_groups
         .filter  { _group, condition, _meta, _rc, _rci -> condition == 'treated' }
@@ -289,7 +289,7 @@ workflow RNASTRUCTUROME {
         ch_rfnorm_stats_mqc.collectFile(name: 'rfnorm_stats_mqc.yaml', sort: true)
     )
 
-    // RF-fold summary table: one row per fold group (cell_line; may span replicates).
+    // RF-fold summary table: one row per fold group (sample_group; may span replicates).
     def ch_rffold_stats_mqc = FOLD_STRUCTURES.out.rffold_log
         .map { meta, log -> [ meta.id.toString(), parseRffoldLog(log) ] }
         .collect()

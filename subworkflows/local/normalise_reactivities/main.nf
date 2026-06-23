@@ -1,5 +1,5 @@
 //
-// NORMALISE_REACTIVITIES — group RC files by cell_line/replicate/condition, pair treated
+// NORMALISE_REACTIVITIES — group RC files by sample_group/replicate/condition, pair treated
 // with untreated controls (exact match, or fuzzy base-token fallback when enabled), then
 // run rf-norm to produce per-base reactivity XML files.
 //
@@ -7,7 +7,7 @@
 include { RNAFRAMEWORK_RFNORM        } from '../../../modules/local/rnaframework/norm/main'
 include { RNAFRAMEWORK_RFRCTOOLS_SPLIT } from '../../../modules/local/rnaframework/rctools/split/main'
 include {
-    cellLineBaseToken
+    sampleGroupBaseToken
     resolveRfNormNormMethod
     resolveReferenceKey
 } from '../../../workflows/rnastructurome_functions.nf'
@@ -33,13 +33,13 @@ workflow NORMALISE_REACTIVITIES {
         )
         .map { _sample_id, meta, rc, rci -> [ meta, rc, rci ?: [] ] }
 
-    // Key every sample by its normalisation group (cell_line_replicate) and condition.
+    // Key every sample by its normalisation group (sample_group_replicate) and condition.
     def ch_rc_by_group = ch_rc_with_rci
         .map { meta, rc, rci ->
-            if (!meta.cell_line || !meta.replicate) {
-                error("Missing cell_line or replicate for sample '${meta.id}'. rf-norm requires both columns to pair samples safely.")
+            if (!meta.sample_group || !meta.replicate) {
+                error("Missing sample_group or replicate for sample '${meta.id}'. rf-norm requires both columns to pair samples safely.")
             }
-            def group     = "${meta.cell_line}_${meta.replicate}".toString()
+            def group     = "${meta.sample_group}_${meta.replicate}".toString()
             def condition = (meta.condition ?: 'treated').toLowerCase()
             [ group, condition, meta, rc, rci ]
         }
@@ -76,21 +76,21 @@ workflow NORMALISE_REACTIVITIES {
                 def offending = entries
                     .findAll { entry -> entry.condition == 'untreated' }
                     .collect { entry -> "${entry.meta.id} (${entry.condition})" }.sort().join(', ')
-                error("rf-norm requires a treated sample for cell_line/replicate group '${group}'. Invalid samples: ${offending}")
+                error("rf-norm requires a treated sample for sample_group/replicate group '${group}'. Invalid samples: ${offending}")
             }
             if (conditions.contains('denatured') && !conditions.contains('treated')) {
                 def offending = entries
                     .findAll { entry -> entry.condition == 'denatured' }
                     .collect { entry -> "${entry.meta.id} (${entry.condition})" }.sort().join(', ')
-                error("rf-norm requires a treated sample for denatured controls in cell_line/replicate group '${group}'. Invalid samples: ${offending}")
+                error("rf-norm requires a treated sample for denatured controls in sample_group/replicate group '${group}'. Invalid samples: ${offending}")
             }
             // Always use the treated sample's meta so principle drives scoring-method selection correctly.
             [ group, entries.find { entry -> entry.condition == 'treated' }.meta ]
         }
 
     // Fuzzy untreated pairing fallback (enabled by default; disable with --fuzzy_untreated_pairing false).
-    // When a treated group has no exact cell_line+replicate untreated match, the pipeline
-    // falls back to an untreated sample sharing the same cell_line base token (the portion
+    // When a treated group has no exact sample_group+replicate untreated match, the pipeline
+    // falls back to an untreated sample sharing the same sample_group base token (the portion
     // before the first underscore, e.g. "MDA-MB-231" from "MDA-MB-231_MTX") at the same
     // replicate.  The fallback errors if ambiguous; otherwise it warns and proceeds.
     // When disabled, unmatched treated groups proceed without an untreated control
@@ -101,7 +101,7 @@ workflow NORMALISE_REACTIVITIES {
         def ch_untreated_for_lookup = ch_rc_by_group
             .filter  { _group, condition, _meta, _rc, _rci -> condition == 'untreated' }
             .map     { group, _condition, meta, rc, _rci ->
-                [ cellLineBaseToken(meta.cell_line.toString()), meta.replicate.toString(), group, rc ]
+                [ sampleGroupBaseToken(meta.sample_group.toString()), meta.replicate.toString(), group, rc ]
             }
 
         // Treated groups with no direct untreated match — candidates for fuzzy lookup.
@@ -110,7 +110,7 @@ workflow NORMALISE_REACTIVITIES {
             .join(ch_untreated, remainder: true)
             .filter { _group, _treated_rcs, _base_meta, untreated_rc -> !untreated_rc }
             .map    { group, _treated_rcs, base_meta, _untreated_rc ->
-                [ cellLineBaseToken(base_meta.cell_line.toString()), base_meta.replicate.toString(), group ]
+                [ sampleGroupBaseToken(base_meta.sample_group.toString()), base_meta.replicate.toString(), group ]
             }
 
         // Cross-product treated-without-untreated × available untreated, filter on base+rep match,
@@ -129,16 +129,16 @@ workflow NORMALISE_REACTIVITIES {
             .map { group, candidates ->
                 if (candidates.size() > 1) {
                     def candidateGroups = candidates.collect { c -> c.untreated_group }.sort().join(', ')
-                    error("Ambiguous untreated fallback for '${group}': multiple untreated groups share the same cell_line base and replicate: ${candidateGroups}. Use --fuzzy_untreated_pairing false to disable fuzzy matching.")
+                    error("Ambiguous untreated fallback for '${group}': multiple untreated groups share the same sample_group base and replicate: ${candidateGroups}. Use --fuzzy_untreated_pairing false to disable fuzzy matching.")
                 }
-                log.warn "No exact untreated match for '${group}' — falling back to '${candidates[0].untreated_group}' (shared cell_line base token at same replicate). Set --fuzzy_untreated_pairing false to require exact matches."
+                log.warn "No exact untreated match for '${group}' — falling back to '${candidates[0].untreated_group}' (shared sample_group base token at same replicate). Set --fuzzy_untreated_pairing false to require exact matches."
                 [ group, candidates[0].rc ]
             }
 
         // Resolved untreated: direct exact match OR fuzzy fallback.
         ch_resolved_untreated = ch_untreated.mix(ch_fallback_untreated)
     } else {
-        // Strict mode: only exact cell_line+replicate matches are used.
+        // Strict mode: only exact sample_group+replicate matches are used.
         // Groups with no exact untreated match proceed without a negative control.
         ch_resolved_untreated = ch_untreated
     }
@@ -153,7 +153,7 @@ workflow NORMALISE_REACTIVITIES {
             def hasDenatured  = denatured_rc ? true : false
             // Deferred from ch_group_meta: checked here so fuzzy pairing can supply the untreated first.
             if (hasDenatured && !hasUntreated) {
-                error("rf-norm requires an untreated sample for denatured controls in group '${group}'. No untreated was available (neither an exact cell_line+replicate match nor a fuzzy base-token fallback). Add an untreated sample or set --fuzzy_untreated_pairing false.")
+                error("rf-norm requires an untreated sample for denatured controls in group '${group}'. No untreated was available (neither an exact sample_group+replicate match nor a fuzzy base-token fallback). Add an untreated sample or set --fuzzy_untreated_pairing false.")
             }
             def principle     = (base_meta.principle ?: '').toLowerCase()
             def scoringMethod = principle == 'map'

@@ -60,12 +60,12 @@ First, prepare a samplesheet with your input data:
 `samplesheet.csv`:
 
 ```csv
-sample,fastq_1,fastq_2,cell_line,condition,replicate
+sample,fastq_1,fastq_2,sample_group,condition,replicate
 HEK293T_treated_rep1,HEK293T_treated_rep1.fastq.gz,,HEK293T,treated,1
 HEK293T_untreated_rep1,HEK293T_untreated_rep1.fastq.gz,,HEK293T,untreated,1
 ```
 
-Each row is one sample. `fastq_2` is optional (leave empty for single-end). `cell_line`, `condition`, and `replicate` are used to pair treated/untreated/denatured controls for `rf-norm`.
+Each row is one sample. `fastq_2` is optional (leave empty for single-end). `sample_group`, `condition`, and `replicate` are used to pair treated/untreated/denatured controls for `rf-norm`.
 
 Supported `condition` values: `treated`, `untreated`, `denatured`.
 

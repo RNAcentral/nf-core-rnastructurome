@@ -54,13 +54,13 @@
 
   > Kent WJ, Zweig AS, Barber G, Hinrichs AS, Karolchik D. BigWig and BigBed: enabling browsing of large distributed datasets. Bioinformatics. 2010 Sep 1;26(17):2204-7. doi: 10.1093/bioinformatics/btq351. PubMed PMID: 20639541; PubMed Central PMCID: PMC2922891.
 
-- [R2DT](https://pubmed.ncbi.nlm.nih.gov/34556868/)
+- [R2DT](https://pubmed.ncbi.nlm.nih.gov/34108470/)
 
-  > Sweeney BA, Petrov AI, Ribas CE, Finn RD, Bateman A, Szymanski M, et al. R2DT is a framework for predicting and visualising RNA secondary structure using templates. Nat Commun. 2021 Sep 23;12(1):3494. doi: 10.1038/s41467-021-23555-5. PubMed PMID: 34556868; PubMed Central PMCID: PMC8461225.
+  > Sweeney BA, Hoksza D, Nawrocki EP, Ribas CE, Madeira F, Cannone JJ, et al. R2DT is a framework for predicting and visualising RNA secondary structure using templates. Nat Commun. 2021 Jun 9;12(1):3494. doi: 10.1038/s41467-021-23555-5. PubMed PMID: 34108470; PubMed Central PMCID: PMC8190129.
 
-- [ViennaRNA](https://pubmed.ncbi.nlm.nih.gov/21300348/)
+- [ViennaRNA](https://pubmed.ncbi.nlm.nih.gov/22115189/)
 
-  > Lorenz R, Bernhart SH, Höner zu Siederdissen C, Tafer H, Flamm C, Stadler PF, Hofacker IL. ViennaRNA Package 2.0. Algorithms Mol Biol. 2011 Nov 26;6:26. doi: 10.1186/1748-7188-6-26. PubMed PMID: 21300348; PubMed Central PMCID: PMC3319429.
+  > Lorenz R, Bernhart SH, Höner zu Siederdissen C, Tafer H, Flamm C, Stadler PF, Hofacker IL. ViennaRNA Package 2.0. Algorithms Mol Biol. 2011 Nov 26;6:26. doi: 10.1186/1748-7188-6-26. PubMed PMID: 22115189; PubMed Central PMCID: PMC3319429.
 
 - [MultiQC](https://pubmed.ncbi.nlm.nih.gov/27312411/)
 

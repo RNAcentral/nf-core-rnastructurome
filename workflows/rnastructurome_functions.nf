@@ -441,9 +441,9 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
 // Returns the base cell-line identifier: the portion before the first underscore.
 // e.g. "MDA-MB-231_MTX" → "MDA-MB-231", "HEK293T_v2" → "HEK293T", "HEK293T" → "HEK293T".
 // Used by fuzzy untreated-pairing so that an untreated sample can cover a treated sample
-// whose cell_line shares the same root but has a drug/condition suffix.
-def cellLineBaseToken(String cell_line) {
-    cell_line.tokenize('_')[0]
+// whose sample_group shares the same root but has a drug/condition suffix.
+def sampleGroupBaseToken(String sample_group) {
+    sample_group.tokenize('_')[0]
 }
 
 def resolveRfNormNormMethod(pipeline_config, scoringMethod) {

@@ -30,7 +30,7 @@ tools:
 input:
   - - meta:
         type: map
-        description: Groovy Map containing group metadata (e.g. cell_line,
+        description: Groovy Map containing group metadata (e.g. sample_group,
           condition)
     - fold_dir:
         type: directory

@@ -26,8 +26,8 @@ workflow VISUALISE_STRUCTURES {
     if (params.r2dt) {
         def ch_r2dt_xml = ch_rfnorm_xml
             .map { meta, xml ->
-                def fold_group = meta.cell_line?.toString()
-                if (!fold_group) error("Missing cell_line for '${meta.id}' — required for R2DT grouping.")
+                def fold_group = meta.sample_group?.toString()
+                if (!fold_group) error("Missing sample_group for '${meta.id}' — required for R2DT grouping.")
                 [ fold_group, xml instanceof List ? xml : [xml] ]
             }
             .groupTuple()

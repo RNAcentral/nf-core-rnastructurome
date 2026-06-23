@@ -13,7 +13,7 @@ Please provide pipeline parameters via the CLI or Nextflow `-params-file` option
 The easiest way to run this pipeline is to create a full samplesheet that contains all of the information about each sample in a comma-separated file, including the header row shown below and pass it as `--input '[path to samplesheet file]'`:
 
 ```csv title="full_samplesheet.csv"
-sample,sample_id,fastq_1,fastq_2,method,principle,cell_line,condition,replicate,organism,pH,adapter_3p,adapter_5p,umi_pattern
+sample,sample_id,fastq_1,fastq_2,method,principle,sample_group,condition,replicate,organism,pH,adapter_3p,adapter_5p,umi_pattern
 HEK293T_treated_r1,GSM000001,/data/treated_r1.fastq.gz,,SHAPE,RT-stop,HEK293T,treated,1,Homo sapiens,7.5,,,
 HEK293T_untreated_r1,GSM000002,/data/untreated_r1.fastq.gz,,SHAPE,RT-stop,HEK293T,untreated,1,Homo sapiens,7.5,,,
 ```
@@ -24,7 +24,7 @@ However, you can also provide a more minimal version if for example you don't ne
 You can also provide a very minimal samplesheet with just the information required about each invidivual sample and pass the uniform values across all samples as parameters. For example:
 
 ```csv title="minimal_samplesheet.csv"
-sample,fastq_1,cell_line,condition,replicate
+sample,fastq_1,sample_group,condition,replicate
 HEK293T_treated_r1,/data/treated_r1.fastq.gz,HEK293T,treated,1
 HEK293T_untreated_r1,/data/untreated_r1.fastq.gz,HEK293T,untreated,1
 ```
@@ -42,7 +42,7 @@ then pass essential but uniform options like this:
 | `sample_id`   | no       | Unique identifier for an individual sequencing run.                                                   |
 | `fastq_1`     | yes      | Read 1 FASTQ path (`.fastq.gz` / `.fq.gz`).                                                           |
 | `fastq_2`     | no       | Read 2 FASTQ path for paired-end data.                                                                |
-| `cell_line`   | yes      | Group key used for control pairing in `rf-norm`.                                                      |
+| `sample_group` | yes      | Group key used for control pairing in `rf-norm`.                                                      |
 | `condition`   | yes      | One of `treated`, `untreated`, `denatured`.                                                           |
 | `replicate`   | yes      | Replicate key used for control pairing in `rf-norm`.                                                  |
 | `method`      | no       | Probing chemistry: `SHAPE` or `DMS`. Controls chemistry-specific defaults. Falls back to `--method`.  |
@@ -144,7 +144,7 @@ For the full list of available options see the [rf-count documentation](https://
 
 ### rf-norm
 
-`rf-norm` normalises per-position counts into reactivity scores. Samples are grouped by `cell_line + replicate`, and treated samples are normalised against their matched controls within the same group. The scoring and normalisation method are selected automatically based on the probing principle and which conditions are present: RT-stop with an untreated control uses Ding scoring with box-plot normalisation; without an untreated control it falls back to Rouskin scoring with Winsorizing. MaP with an untreated control uses Siegfried scoring; without, Zubradt. 
+`rf-norm` normalises per-position counts into reactivity scores. Samples are grouped by `sample_group + replicate`, and treated samples are normalised against their matched controls within the same group. The scoring and normalisation method are selected automatically based on the probing principle and which conditions are present: RT-stop with an untreated control uses Ding scoring with box-plot normalisation; without an untreated control it falls back to Rouskin scoring with Winsorizing. MaP with an untreated control uses Siegfried scoring; without, Zubradt. 
 
 You can override the normalisation method alone (without changing scoring) with `--rfnorm_norm_method`:
 - `1` is 2-8% normalisation (takes the top 10% of reactivities, discards the very highest 2%, and uses the mean of the remaining 8% as the scaling factor)
@@ -152,7 +152,7 @@ You can override the normalisation method alone (without changing scoring) with 
 - `3` is box-plot normalisation (removes outliers beyond 1.5× IQR then divides by the mean of the next top 10%), which is the default for most conditions
 - `4` is Mitchell normalisation (MaP only, uses the higher of the mean 90th–95th percentile reactivity or the 75th percentile of non-zero reactivities as the scaling factor)
 
-Treated samples are usually paired with untreated by matching `cell_line + replicate` exactly. However, in cases where the authors did not create an exact matching untreated sample for some specific treatments but have one for other samples in the same dataset, the pipeline falls back to an untreated sample sharing the same cell_line and replicate — for example, `MDA-MB-231_DMSO_treated_r1` will match exactly to `MDA-MB-231_DMSO_untreated_r1`, but `MDA-MB-231_MTX_treated_r1` will also pair with `MDA-MB-231_DMSO_untreated_r1` if no exact matching untreated sample exists. A warning is emitted when a fallback is used; if more than one candidate matches, the pipeline errors. Disable this behaviour with `--fuzzy_untreated_pairing false`, in which case unmatched groups proceed without a negative control.
+Treated samples are usually paired with untreated by matching `sample_group + replicate` exactly. However, in cases where the authors did not create an exact matching untreated sample for some specific treatments but have one for other samples in the same dataset, the pipeline falls back to an untreated sample sharing the same sample_group and replicate — for example, `MDA-MB-231_DMSO_treated_r1` will match exactly to `MDA-MB-231_DMSO_untreated_r1`, but `MDA-MB-231_MTX_treated_r1` will also pair with `MDA-MB-231_DMSO_untreated_r1` if no exact matching untreated sample exists. A warning is emitted when a fallback is used; if more than one candidate matches, the pipeline errors. Disable this behaviour with `--fuzzy_untreated_pairing false`, in which case unmatched groups proceed without a negative control.
 
 For DMS experiments, a few defaults change automatically. `--rfnorm_reactive_bases` is set to `AC` (or `ACGU` when `pH ≥ 8`). `--rfnorm_dynamic_window` defaults to `50` when `pH < 8`; it controls the size of the sliding window used to compute local normalisation factors along the transcript — a smaller window is better suited to DMS at physiological pH where reactivity can vary sharply over short stretches. `--rfnorm_nan` defaults to `100` rather than `1000`; it sets the minimum number of reads required at a position for a reactivity value to be reported — positions with fewer reads are set to NaN instead of reporting a potentially unreliable values. These can all be overridden explicitly if needed.
 
@@ -160,7 +160,7 @@ For the full list of available options see the [rf-norm documentation](https://r
 
 ### rf-fold
 
-`rf-fold` predicts RNA secondary structures from normalised reactivity profiles using ViennaRNA. The pipeline groups XMLs by `cell_line`, merging replicates, and folds them together. Dot-bracket output is the default; CT format can be enabled with `--rffold_ct`.
+`rf-fold` predicts RNA secondary structures from normalised reactivity profiles using ViennaRNA. The pipeline groups XMLs by `sample_group`, merging replicates, and folds them together. Dot-bracket output is the default; CT format can be enabled with `--rffold_ct`.
 
 After folding, the pipeline draws reactivity-coloured 2D structure diagrams using [R2DT](https://github.com/RNAcentral/R2DT) where a template exists (rRNA, snRNA, tRNA, and other well-characterised RNA families), falling back to ViennaRNA's `RNAplot` for everything else. Note that R2DT is only available when running with a container profile (`docker`, `singularity`, `apptainer`) — under `conda` or `mamba` it is not currently available, and all diagrams will fall back to ViennaRNA's `RNAplot` instead.
 

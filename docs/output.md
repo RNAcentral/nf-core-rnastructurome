@@ -98,13 +98,13 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
   - `plots/<transcript>.pdf`: Per-transcript normalisation plots.
   - `wiggle/<transcript>.wig`: Per-transcript reactivity wiggle tracks produced by `rf-wiggle`.
 - `norm/genome_bw/`
-  - `<cell_line>_reactivity_genome.bw`: Genomic-coordinate reactivity BigWig. When multiple replicates are present the per-replicate transcript-level tracks are averaged position-by-position, remapped to genomic coordinates using the GTF, and converted to BigWig format.
+  - `<sample_group>_reactivity_genome.bw`: Genomic-coordinate reactivity BigWig. When multiple replicates are present the per-replicate transcript-level tracks are averaged position-by-position, remapped to genomic coordinates using the GTF, and converted to BigWig format.
 - `norm/transcript_bw/`
-  - `<cell_line>_reactivity_transcript.bw`: Transcript-coordinate reactivity BigWig. Same averaged reactivity data as `genome_bw/` but in transcript coordinates, suitable for visualisation alongside transcript-level annotations.
+  - `<sample_group>_reactivity_transcript.bw`: Transcript-coordinate reactivity BigWig. Same averaged reactivity data as `genome_bw/` but in transcript coordinates, suitable for visualisation alongside transcript-level annotations.
 
 </details>
 
-[`rf-norm`](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/) normalises raw RT-stop or MaP counts into per-nucleotide reactivity scores. Output is grouped by `cell_line` + `replicate` (e.g. `HEK293T_1`). The XML files are the primary output passed to downstream structure-prediction steps. Per-transcript reactivity plots are available as PDFs; the BigWigs provide reactivity tracks (averaged across replicates where applicable) in both genomic and transcript coordinates for genome browser visualisation.
+[`rf-norm`](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/) normalises raw RT-stop or MaP counts into per-nucleotide reactivity scores. Output is grouped by `sample_group` + `replicate` (e.g. `HEK293T_1`). The XML files are the primary output passed to downstream structure-prediction steps. Per-transcript reactivity plots are available as PDFs; the BigWigs provide reactivity tracks (averaged across replicates where applicable) in both genomic and transcript coordinates for genome browser visualisation.
 
 ### rf-fold
 
@@ -120,17 +120,17 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
   - `rffold.log`: Raw `rf-fold` console output.
   - `conversion_warnings.log`: Warnings from dot-plot to base-pair conversion, if any.
 - `fold/genome_bp/`
-  - `<cell_line>_genome.bp`: Base-pair arcs merged into a single file per cell line in genome coordinates, suitable for arc diagram visualisation in a genome browser such as IGV.
+  - `<sample_group>_genome.bp`: Base-pair arcs merged into a single file per cell line in genome coordinates, suitable for arc diagram visualisation in a genome browser such as IGV.
 - `fold/transcript_bp/`
-  - `<cell_line>_transcript.bp`: Same base-pair arcs in transcript coordinates (transcript ID as chromosome, 1-based transcript positions). Suitable for visualisation against a transcript-level reference in IGV.
+  - `<sample_group>_transcript.bp`: Same base-pair arcs in transcript coordinates (transcript ID as chromosome, 1-based transcript positions). Suitable for visualisation against a transcript-level reference in IGV.
 - `fold/shannon_genome_bw/`
-  - `<cell_line>_shannon_genome.bw`: Genomic-coordinate per-position Shannon entropy BigWig across the transcript ensemble for a cell line.
+  - `<sample_group>_shannon_genome.bw`: Genomic-coordinate per-position Shannon entropy BigWig across the transcript ensemble for a cell line.
 - `fold/shannon_transcript_bw/`
-  - `<cell_line>_shannon_transcript.bw`: Transcript-coordinate Shannon entropy BigWig, equivalent to `shannon_genome_bw/` but in transcript coordinates.
+  - `<sample_group>_shannon_transcript.bw`: Transcript-coordinate Shannon entropy BigWig, equivalent to `shannon_genome_bw/` but in transcript coordinates.
 
 </details>
 
-[`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/) predicts RNA secondary structures from normalised reactivity profiles. Replicates for the same cell line are combined and folded together using ViennaRNA RNAfold in a windowed manner, which improves accuracy for long transcripts by folding overlapping sequence windows and merging the results. Key outputs per transcript include 2D structure diagrams, [RDAT] (https://rmdb.stanford.edu/deposit/specs/) files summarising the predicted structure and reactivity values, and per-transcript summary PDF plots. Genome-wide Shannon entropy profiles and base-pair arcs are additionally provided as BigWig and `.bp` tracks for visualisation in a genome browser, in both genome and transcript coordinates.
+[`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/) predicts RNA secondary structures from normalised reactivity profiles. Replicates for the same sample group are combined and folded together using ViennaRNA RNAfold in a windowed manner, which improves accuracy for long transcripts by folding overlapping sequence windows and merging the results. Key outputs per transcript include 2D structure diagrams, [RDAT] (https://rmdb.stanford.edu/deposit/specs/) files summarising the predicted structure and reactivity values, and per-transcript summary PDF plots. Genome-wide Shannon entropy profiles and base-pair arcs are additionally provided as BigWig and `.bp` tracks for visualisation in a genome browser, in both genome and transcript coordinates.
 
 - **[R2DT](https://github.com/RNAcentral/R2DT)** — used when a matching template exists in the R2DT library (rRNA, snRNA, tRNA, etc.). Produces layouts comparable across organisms. Published to `fold/<group>/structures/r2dt/`.
 - **[ViennaRNA](https://www.tbi.univie.ac.at/RNA/)** — fallback for transcripts without an R2DT template. `RNAplot` draws an energy-minimised 2D diagram from the dot-bracket structure. Published to `fold/<group>/structures/viennarna/`.

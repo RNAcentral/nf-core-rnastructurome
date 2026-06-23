@@ -23,7 +23,7 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample`, `fastq_1`, `cell_line`, `condition`, and `replicate` columns, with optional `fastq_2` for paired-end data. `sample_id`, `method`, `principle`, `organism`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
+                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample`, `fastq_1`, `sample_group`, `condition`, and `replicate` columns, with optional `fastq_2` for paired-end data. `sample_id`, `method`, `principle`, `organism`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {
@@ -144,7 +144,7 @@
                 "fuzzy_untreated_pairing": {
                     "type": "boolean",
                     "default": true,
-                    "description": "When true (default), a treated group with no exact `cell_line`+`replicate` untreated match falls back to the untreated sample sharing the same cell_line base token (portion before the first `_`) at the same replicate — e.g. `MDA-MB-231_untreated_r1` can serve as control for `MDA-MB-231_MTX_treated_r1`. Set false to require exact matches; unmatched treated groups then proceed without an untreated control (scoring method 2 or 4)."
+                    "description": "When true (default), a treated group with no exact `sample_group`+`replicate` untreated match falls back to the untreated sample sharing the same sample_group base token (portion before the first `_`) at the same replicate — e.g. `MDA-MB-231_untreated_r1` can serve as control for `MDA-MB-231_MTX_treated_r1`. Set false to require exact matches; unmatched treated groups then proceed without an untreated control (scoring method 2 or 4)."
                 }
             }
         },
@@ -622,7 +622,7 @@
                 },
                 "rfjackknife_pool_all": {
                     "type": "boolean",
-                    "description": "Pool XMLs from all cell-line groups into a single rf-jackknife run (output: `jackknife/all_groups/`) instead of running one jackknife per group. Default: true."
+                    "description": "Pool XMLs from all sample groups into a single rf-jackknife run (output: `jackknife/all_groups/`) instead of running one jackknife per group. Default: true."
                 },
                 "rfrctools_gtf_feature": {
                     "type": "string",

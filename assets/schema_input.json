@@ -65,15 +65,15 @@
                 "type": "string",
                 "enum": ["treated", "untreated", "denatured"],
                 "meta": ["condition"],
-                "description": "Sample condition for rf-norm grouping (treated / untreated / denatured). Samples are normalised only against rows with the same cell_line and replicate. Untreated requires a matching treated sample; denatured requires matching treated and untreated samples.",
+                "description": "Sample condition for rf-norm grouping (treated / untreated / denatured). Samples are normalised only against rows with the same sample_group and replicate. Untreated requires a matching treated sample; denatured requires matching treated and untreated samples.",
                 "help_text": "TODO (rnacentral-probing-metadata-main): merge_metadata.py must be updated to populate this column from the YAML 'conditions' field. Until then, samples without a condition are treated as 'treated'."
             },
-            "cell_line": {
+            "sample_group": {
                 "type": "string",
                 "pattern": "^\\S+$",
-                "meta": ["cell_line"],
-                "description": "Cell-line identifier used by rf-norm pairing. Only samples with the same cell_line and replicate are normalised together.",
-                "help_text": "Populate this column for all rf-norm inputs. rf-norm will error if cell_line is missing."
+                "meta": ["sample_group"],
+                "description": "sample_group identifier used by rf-norm pairing. Only samples with the same sample_group and replicate are normalised together.",
+                "help_text": "Populate this column for all rf-norm inputs. rf-norm will error if sample_group is missing."
             },
             "replicate": {
                 "anyOf": [
@@ -86,17 +86,17 @@
                     }
                 ],
                 "meta": ["replicate"],
-                "description": "Replicate identifier used by rf-norm pairing. Only samples with the same cell_line and replicate are normalised together.",
+                "description": "Replicate identifier used by rf-norm pairing. Only samples with the same sample_group and replicate are normalised together.",
                 "help_text": "Populate this column for all rf-norm inputs. rf-norm will error if replicate is missing. Use a stable value such as rep1, rep2, or 1. Matching is exact after Nextflow converts the value to text."
             },
             "group": {
                 "type": "string",
                 "pattern": "^\\S+$",
                 "meta": ["group"],
-                "description": "Deprecated legacy rf-norm grouping key. rf-norm now requires explicit cell_line and replicate columns instead.",
+                "description": "Deprecated legacy rf-norm grouping key. rf-norm now requires explicit sample_group and replicate columns instead.",
                 "help_text": "Retained only for input compatibility while upstream metadata generators are updated. It is not used by rf-norm."
             }
         },
-        "required": ["sample", "fastq_1", "cell_line", "condition", "replicate"]
+        "required": ["sample", "fastq_1", "sample_group", "condition", "replicate"]
     }
 }

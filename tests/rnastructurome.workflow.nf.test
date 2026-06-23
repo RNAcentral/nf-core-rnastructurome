@@ -19,11 +19,11 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'rtstop_sample', sample_id:'rtstop_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'rtstop_line', replicate:'rep1', condition:'treated' ],
+                        [ id:'rtstop_sample', sample_id:'rtstop_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'rtstop_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'map_sample', sample_id:'map_sample', principle:'MaP', organism:'Mus musculus', single_end:true, cell_line:'map_line', replicate:'rep1', condition:'treated' ],
+                        [ id:'map_sample', sample_id:'map_sample', principle:'MaP', organism:'Mus musculus', single_end:true, sample_group:'map_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
@@ -57,7 +57,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'reseq_rtstop', sample_id:'reseq_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:false, cell_line:'reseq_line', replicate:'rep1', condition:'treated' ],
+                        [ id:'reseq_rtstop', sample_id:'reseq_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:false, sample_group:'reseq_line', replicate:'rep1', condition:'treated' ],
                         [
                             file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true),
                             file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true),
@@ -93,7 +93,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'organism_sample', sample_id:'organism_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'organism_line', replicate:'rep1', condition:'treated' ],
+                        [ id:'organism_sample', sample_id:'organism_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'organism_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
@@ -154,11 +154,11 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'rtstop_manual', sample_id:'rtstop_manual', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'rtstop_manual_line', replicate:'rep1', condition:'treated' ],
+                        [ id:'rtstop_manual', sample_id:'rtstop_manual', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'rtstop_manual_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'map_manual', sample_id:'map_manual', principle:'MaP', organism:'Mus musculus', single_end:true, cell_line:'map_manual_line', replicate:'rep1', condition:'treated' ],
+                        [ id:'map_manual', sample_id:'map_manual', principle:'MaP', organism:'Mus musculus', single_end:true, sample_group:'map_manual_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
@@ -195,7 +195,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'map_rfcount', sample_id:'map_rfcount', principle:'MaP', organism:'Homo sapiens', single_end:true, cell_line:'map_rfcount_line', replicate:'rep1', condition:'treated' ],
+                        [ id:'map_rfcount', sample_id:'map_rfcount', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'map_rfcount_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
@@ -212,7 +212,7 @@ nextflow_workflow {
         }
     }
 
-    test("Groups rf-norm inputs by matching cell_line and replicate") {
+    test("Groups rf-norm inputs by matching sample_group and replicate") {
 
         options "-stub"
 
@@ -224,19 +224,19 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'untreated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'hek_treated_rep2', sample_id:'hek_treated_rep2', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep2', condition:'treated' ],
+                        [ id:'hek_treated_rep2', sample_id:'hek_treated_rep2', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep2', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'hek_untreated_rep2', sample_id:'hek_untreated_rep2', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep2', condition:'untreated' ],
+                        [ id:'hek_untreated_rep2', sample_id:'hek_untreated_rep2', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep2', condition:'untreated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
@@ -268,7 +268,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'hek_treated_only', sample_id:'hek_treated_only', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ id:'hek_treated_only', sample_id:'hek_treated_only', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
@@ -298,11 +298,11 @@ nextflow_workflow {
                 params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
                 input[0] = Channel.of(
                     [
-                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'untreated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
@@ -336,7 +336,7 @@ nextflow_workflow {
                 params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
                 input[0] = Channel.of(
                     [
-                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
@@ -369,19 +369,19 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'map_treated_rep1', sample_id:'map_treated_rep1', principle:'MaP', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ id:'map_treated_rep1', sample_id:'map_treated_rep1', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'map_untreated_rep1', sample_id:'map_untreated_rep1', principle:'MaP', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ id:'map_untreated_rep1', sample_id:'map_untreated_rep1', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'untreated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'map_denatured_rep1', sample_id:'map_denatured_rep1', principle:'MaP', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'denatured' ],
+                        [ id:'map_denatured_rep1', sample_id:'map_denatured_rep1', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'denatured' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ],
                     [
-                        [ id:'map_treated_rep2', sample_id:'map_treated_rep2', principle:'MaP', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep2', condition:'treated' ],
+                        [ id:'map_treated_rep2', sample_id:'map_treated_rep2', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep2', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
@@ -404,7 +404,7 @@ nextflow_workflow {
         }
     }
 
-    test("Fails rf-norm grouping when cell_line or replicate is missing") {
+    test("Fails rf-norm grouping when sample_group or replicate is missing") {
 
         options "-stub"
 
@@ -428,7 +428,7 @@ nextflow_workflow {
         then {
             assertAll(
                 { assert !workflow.success },
-                { assert workflow.errorMessage.contains("Missing cell_line or replicate") }
+                { assert workflow.errorMessage.contains("Missing sample_group or replicate") }
             )
         }
     }
@@ -445,7 +445,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'untreated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
@@ -475,7 +475,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'hek_denatured_rep1', sample_id:'hek_denatured_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'hek293T', replicate:'rep1', condition:'denatured' ],
+                        [ id:'hek_denatured_rep1', sample_id:'hek_denatured_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'denatured' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )

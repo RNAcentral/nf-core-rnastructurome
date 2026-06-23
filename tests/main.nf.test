@@ -21,7 +21,7 @@ nextflow_workflow {
 
                 input[0] = Channel.of(
                     [
-                        [ id:'main_rtstop', sample_id:'main_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:true, cell_line:'main_line', replicate:'rep1', condition:'treated' ],
+                        [ id:'main_rtstop', sample_id:'main_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'main_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )

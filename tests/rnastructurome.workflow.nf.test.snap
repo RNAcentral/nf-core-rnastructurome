@@ -9,7 +9,7 @@
                         "principle": "MaP",
                         "organism": "Mus musculus",
                         "single_end": true,
-                        "cell_line": "map_line",
+                        "sample_group": "map_line",
                         "replicate": "rep1",
                         "condition": "treated"
                     },
@@ -22,7 +22,7 @@
                         "principle": "RT-stop",
                         "organism": "Homo sapiens",
                         "single_end": true,
-                        "cell_line": "rtstop_line",
+                        "sample_group": "rtstop_line",
                         "replicate": "rep1",
                         "condition": "treated"
                     },

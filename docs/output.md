@@ -120,11 +120,11 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
   - `rffold.log`: Raw `rf-fold` console output.
   - `conversion_warnings.log`: Warnings from dot-plot to base-pair conversion, if any.
 - `fold/genome_bp/`
-  - `<sample_group>_genome.bp`: Base-pair arcs merged into a single file per cell line in genome coordinates, suitable for arc diagram visualisation in a genome browser such as IGV.
+  - `<sample_group>_genome.bp`: Base-pair arcs merged into a single file per sample group in genome coordinates, suitable for arc diagram visualisation in a genome browser such as IGV.
 - `fold/transcript_bp/`
   - `<sample_group>_transcript.bp`: Same base-pair arcs in transcript coordinates (transcript ID as chromosome, 1-based transcript positions). Suitable for visualisation against a transcript-level reference in IGV.
 - `fold/shannon_genome_bw/`
-  - `<sample_group>_shannon_genome.bw`: Genomic-coordinate per-position Shannon entropy BigWig across the transcript ensemble for a cell line.
+  - `<sample_group>_shannon_genome.bw`: Genomic-coordinate per-position Shannon entropy BigWig across the transcript ensemble for a sample group.
 - `fold/shannon_transcript_bw/`
   - `<sample_group>_shannon_transcript.bw`: Transcript-coordinate Shannon entropy BigWig, equivalent to `shannon_genome_bw/` but in transcript coordinates.
 

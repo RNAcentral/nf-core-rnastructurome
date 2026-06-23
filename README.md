@@ -71,7 +71,7 @@ Supported `condition` values: `treated`, `untreated`, `denatured`.
 
 If you omit `--fasta` and `--gtf`, add an `organism` column to your samplesheet (e.g. `Homo sapiens`) and the pipeline will download the reference from Ensembl automatically.
 
-The pipeline handles reference resolution automatically: supply a transcript FASTA and GTF directly, configure them via `params.genomes`, or let the pipeline download them from Ensembl by organism name. Samples are grouped by cell line and replicate so that treated, untreated, and denatured controls are paired correctly for normalisation.
+The pipeline handles reference resolution automatically: supply a transcript FASTA and GTF directly, configure them via `params.genomes`, or let the pipeline download them from Ensembl by organism name. Samples are grouped by `sample_group` and replicate so that treated, untreated, and denatured controls are paired correctly for normalisation.
 
 Now run the pipeline:
 

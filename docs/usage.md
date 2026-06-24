@@ -128,7 +128,9 @@ Add `--transcriptome` to align directly to a transcript FASTA instead of the gen
 
 ### rf-count
 
-`rf-count` (transcriptome route) or `rf-count-genome` (genome route) quantifies chemical probing signal from the aligned BAM files. What exactly is counted depends on the principle: for RT-stop experiments it tallies read 3′ ends that accumulate at modified bases; for MaP it measures per-position mutation rates. A per-transcript coverage and reactivity plot is generated for every sample.
+`rf-count` (transcriptome route) or `rf-count-genome` (genome route) quantifies chemical probing signal from the aligned BAM files. What exactly is counted depends on the principle: for RT-stop experiments it tallies read 3′ ends that accumulate at modified bases; for MaP it measures per-position mutation rates.
+
+Per-transcript coverage plots are disabled by default (`--rfcount_img false`) because they are slow to generate at transcriptome scale. Enable with `--rfcount_img true` if you want them.
 
 On the genome route, strandedness is handled automatically — RT-stop libraries are always treated as second-strand (this is fixed by experimental design), while for MaP the pipeline infers strandedness per sample using `RSeQC infer_experiment`. If inference is ambiguous you can override it with `--rfcount_strandedness first|second|unstranded`. After counting, `rf-rctools extract` automatically converts the genome-coordinate RC files to transcript-level RC files using the GTF before passing to `rf-norm`.
 
@@ -156,6 +158,8 @@ Treated samples are usually paired with untreated by matching `sample_group + re
 
 For DMS experiments, a few defaults change automatically. `--rfnorm_reactive_bases` is set to `AC` (or `ACGU` when `pH ≥ 8`). `--rfnorm_dynamic_window` defaults to `50` when `pH < 8`; it controls the size of the sliding window used to compute local normalisation factors along the transcript — a smaller window is better suited to DMS at physiological pH where reactivity can vary sharply over short stretches. `--rfnorm_nan` defaults to `100` rather than `1000`; it sets the minimum number of reads required at a position for a reactivity value to be reported — positions with fewer reads are set to NaN instead of reporting a potentially unreliable values. These can all be overridden explicitly if needed.
 
+Per-transcript reactivity plots are disabled by default (`--rfnorm_img false`) because generating them via R for thousands of transcripts is the main source of rf-norm runtime on large datasets. Enable with `--rfnorm_img true` if you want them.
+
 For the full list of available options see the [rf-norm documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
 
 ### rf-fold
@@ -168,8 +172,12 @@ Some important parameters to consider are `--rffold_slope` (default `4.6`) and `
 
 `--rffold_shannon_entropy` (default `true`) computes per-position Shannon entropy alongside the predicted structure, which gives a measure of folding confidence. `--rffold_only_common` keeps only transcripts covered in at least N XML experiments — when not set explicitly, the pipeline enables this automatically for fold groups with more than one replicate, setting N to the number of replicates in that group so only transcripts present in all replicates are retained. `--rffold_unconstrained` folds without using reactivity data at all, useful as a baseline comparison.
 
+ViennaRNA `RNAplot` structure diagrams from rf-fold are disabled by default (`--rffold_img false`). Enable with `--rffold_img true` to generate them. Note that R2DT template-based diagrams (see above) are independent of this flag and are always attempted when running with a container profile.
+
 For the full list of available options see the [rf-fold documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
 
+### rf-jackknife
+This module can be run for an individual sample or by pooling the samples together to get a consensus slope/intercept.
 
 ## Running the pipeline
 

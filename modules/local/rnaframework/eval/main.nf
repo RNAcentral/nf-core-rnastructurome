@@ -33,6 +33,13 @@ process RNAFRAMEWORK_RFEVAL {
         -r xml_input*/ \\
         ${args} 2>&1 | tee "\${log_tmp}"
 
+    # Strip ANSI/CR progress noise; drop [+] status and | progress-bar lines
+    perl -pe 's/\\r/\\n/g; s/\\e\\[[0-9;]*[A-Za-z]//g' "\${log_tmp}" \\
+        | grep -vE '^\\[+\\]|^\\|' \\
+        | cat -s \\
+        > "\${log_tmp}.clean"
+    mv "\${log_tmp}.clean" "\${log_tmp}"
+
     mkdir -p ${prefix}_rfeval
     mv "\${log_tmp}" ${prefix}_rfeval/rfeval.log
 

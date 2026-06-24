@@ -572,9 +572,9 @@
                     "description": "Deprecated: rf-norm plot generation (`--img`) is always enabled.",
                     "default": true
                 },
-                "vienna_structures": {
+                "rffold_img": {
                     "type": "boolean",
-                    "description": "Generate ViennaRNA RNAplot structure diagrams via rf-fold (`-g`). Disabled by default; use `--r2dt` for template-based diagrams instead.",
+                    "description": "Generate ViennaRNA RNAplot structure diagrams via rf-fold (`-g`). Disabled by default; slow on large transcriptomes. Use `--r2dt` for template-based diagrams instead.",
                     "default": false
                 },
                 "jackknife_reference": {

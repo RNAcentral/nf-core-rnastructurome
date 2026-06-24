@@ -33,6 +33,13 @@ process RNAFRAMEWORK_RFJACKKNIFE {
         ${args} \\
         input*/ 2>&1 | tee "\${log_tmp}"
 
+    # Strip CR-based progress animation and ANSI escape codes; keep only results
+    perl -pe 's/\\r/\\n/g; s/\\e\\[[0-9;]*[A-Za-z]//g' "\${log_tmp}" \\
+        | grep -v 'Jackknifing folding parameters' \\
+        | cat -s \\
+        > "\${log_tmp}.clean"
+    mv "\${log_tmp}.clean" "\${log_tmp}"
+
     mkdir -p ${prefix}_jackknife
     mv "\${log_tmp}" ${prefix}_jackknife/rfjackknife.log
 

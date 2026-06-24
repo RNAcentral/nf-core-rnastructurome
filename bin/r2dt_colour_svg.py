@@ -342,6 +342,13 @@ def colour_svg(svg_path: Path, reactivities: list, out_path: Path) -> int:
 
     _append_legend(tree.getroot())
 
+    root = tree.getroot()
+    bg = ET.Element(f'{{{_SVG_NS}}}rect')
+    bg.set('width', '100%')
+    bg.set('height', '100%')
+    bg.set('fill', 'white')
+    root.insert(0, bg)
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tree.write(str(out_path), xml_declaration=True, encoding='unicode')
     return sum(1 for _, colour in pending if colour != '#B1B3B6')

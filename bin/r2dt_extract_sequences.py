@@ -34,30 +34,48 @@ def main():
     # If R2DT is updated and adds longer templates, raise this value accordingly.
     _max_len = 3500
 
-    extracted = []
-    skipped   = 0
-    hdr = None
-    seq = []
+    # Build FASTA index keyed by both the full ID and the version-stripped base ID.
+    # This lets genome-route fold IDs (from GTF, e.g. ENST00000389680) match FASTA
+    # entries that carry a version suffix (e.g. ENST00000389680.2), and vice versa.
+    import re as _re
+    _ver_re = _re.compile(r'^(.+)\.\d+$')
 
-    def flush(h, s):
-        nonlocal skipped
-        if h and h in ids:
-            joined = ''.join(s)
-            if len(joined) <= _max_len:
-                extracted.append((h, joined))
-            else:
-                skipped += 1
+    fasta_index: dict = {}  # id -> (display_id, sequence)
+    hdr = None
+    seq: list = []
+
+    def _index(h, s):
+        if not h:
+            return
+        joined = ''.join(s)
+        fasta_index[h] = (h, joined)
+        m = _ver_re.match(h)
+        if m:
+            base = m.group(1)
+            fasta_index.setdefault(base, (h, joined))
 
     with open(args.fasta, encoding='utf-8') as fh:
         for line in fh:
             line = line.rstrip()
             if line.startswith('>'):
-                flush(hdr, seq)
+                _index(hdr, seq)
                 hdr = line[1:].split()[0]
                 seq = []
             else:
                 seq.append(line)
-    flush(hdr, seq)
+    _index(hdr, seq)
+
+    extracted = []
+    skipped   = 0
+    for fold_id in ids:
+        entry = fasta_index.get(fold_id)
+        if entry is None:
+            continue
+        display_id, joined = entry
+        if len(joined) <= _max_len:
+            extracted.append((display_id, joined))
+        else:
+            skipped += 1
 
     with open(args.out, 'w', encoding='utf-8') as fh:
         for h, s in extracted:

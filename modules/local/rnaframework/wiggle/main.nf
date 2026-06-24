@@ -1,6 +1,6 @@
 process RNAFRAMEWORK_RFWIGGLE {
     tag "$meta.id"
-    label 'process_medium'
+    label 'process_single'
 
     conda "${moduleDir}/../fold/environment.yml"
     container params.rnaframework_container

@@ -1,6 +1,6 @@
 process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     tag "$meta.id"
-    label 'process_medium'
+    label 'process_single'
 
     conda "${moduleDir}/environment.yml"
     container params.rnaframework_container

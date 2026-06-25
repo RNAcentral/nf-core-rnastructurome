@@ -28,7 +28,7 @@ process ENSEMBL_GTF {
         --source-urls "ensembl_source_url.txt" \
         --not-found-file "${meta.id}.not_found"
 
-    gzip -dc "${meta.id}.annotation.gtf.gz" > "${meta.id}.annotation.gtf"
+    [[ -f "${meta.id}.annotation.gtf.gz" ]] && gzip -dc "${meta.id}.annotation.gtf.gz" > "${meta.id}.annotation.gtf" || true
 
     printf '%s\n' \
         '"${task.process}":' \

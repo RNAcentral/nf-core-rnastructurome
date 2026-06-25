@@ -270,7 +270,7 @@ If `-profile` is not specified, the pipeline will run locally and expect all sof
 |---|---|
 | `test` | Minimal test using the STAR genome-alignment route. Uses human mitochondrial chromosome (MT-RNR1) test data — no other parameters needed. |
 | `test_transcriptome` | Minimal test using the Bowtie2 transcriptome route. Uses a single-transcript FASTA (ENST00000389680 / MT-RNR1) to exercise the `--transcriptome` path — no other parameters needed. |
-| `test_prokaryote` | Prokaryote transcriptome-route test using E. coli 16S rRNA DMS-MaP data and a 16S reference structure for jackknife calibration — no other parameters needed. |
+| `test_prokaryote` | Prokaryote transcriptome-route test using E. coli 16S rRNA DMS-MaP data and a 16S reference structure for jackknife calibration — no other parameters needed. Significantly faster with `conda` than with container profiles since it includes rf-jackknife. |
 | `docker` | Use [Docker](https://docs.docker.com/engine/installation/) containers. |
 | `singularity` | Use [Singularity](https://www.sylabs.io/guides/3.0/user-guide/) containers. |
 | `podman` | Use [Podman](https://podman.io/) containers. |

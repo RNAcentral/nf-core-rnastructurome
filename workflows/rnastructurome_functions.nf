@@ -183,6 +183,53 @@ def filterSummaryParams(summaryParams) {
         'workDir'
     ] as Set
 
+    // Hide aligner-specific params for aligners not in use
+    def aligner = params.aligner?.toString()?.toLowerCase() ?: 'star'
+    if (aligner != 'bowtie') {
+        hiddenKeys.addAll(summaryParams.values()
+            .findAll { it instanceof Map }
+            .collectMany { it.keySet() as List }
+            .findAll { it.startsWith('bowtie_') })
+    }
+    if (aligner != 'bowtie2') {
+        hiddenKeys.addAll(summaryParams.values()
+            .findAll { it instanceof Map }
+            .collectMany { it.keySet() as List }
+            .findAll { it.startsWith('bowtie2_') })
+    }
+    if (!aligner.startsWith('star') || params.transcriptome) {
+        hiddenKeys.addAll(['star_map_sjdb_overhang', 'star_multimap_nmax'])
+    }
+
+    // Hide genome-route-specific params for transcriptome runs, and vice versa
+    if (params.transcriptome) {
+        hiddenKeys.addAll(summaryParams.values()
+            .findAll { it instanceof Map }
+            .collectMany { it.keySet() as List }
+            .findAll { it.startsWith('rfcount_genome_') })
+    } else {
+        hiddenKeys.addAll(summaryParams.values()
+            .findAll { it instanceof Map }
+            .collectMany { it.keySet() as List }
+            .findAll { it.startsWith('rfcount_map_') })
+    }
+
+    // Hide jackknife params when jackknife is not configured
+    if (!params.jackknife_reference) {
+        hiddenKeys.addAll(summaryParams.values()
+            .findAll { it instanceof Map }
+            .collectMany { it.keySet() as List }
+            .findAll { it.startsWith('rfjackknife_') || it == 'jackknife_reference' })
+    }
+
+    // Hide rfeval params when rfeval is not configured
+    if (!params.rfeval_reference) {
+        hiddenKeys.addAll(summaryParams.values()
+            .findAll { it instanceof Map }
+            .collectMany { it.keySet() as List }
+            .findAll { it.startsWith('rfeval_') || it == 'rfeval_reference' })
+    }
+
     summaryParams.collectEntries { sectionName, sectionParams ->
         if (!(sectionParams instanceof Map)) {
             return [(sectionName): sectionParams]

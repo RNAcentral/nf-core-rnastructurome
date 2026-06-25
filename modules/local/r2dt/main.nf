@@ -1,6 +1,7 @@
 process R2DT {
     tag "$meta.id"
-    label 'process_medium'
+    label 'process_single'
+    label 'process_long'
 
     container 'docker.io/rnacentral/r2dt:latest'
 

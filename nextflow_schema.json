@@ -640,6 +640,11 @@
                     "type": "boolean",
                     "description": "Pool XMLs from all sample groups into a single rf-jackknife run (output: `jackknife/all_groups/`) instead of running one jackknife per group. Default: true."
                 },
+                "stop_after_jackknife": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Stop the pipeline after rf-jackknife completes, skipping rf-fold, structure visualisation, browser track generation, and RDAT output. Useful for calibration runs where you only want jackknife statistics."
+                },
                 "rfrctools_gtf_feature": {
                     "type": "string",
                     "description": "GTF feature type to extract with rf-rctools (`-f`); override for non-standard annotations.",

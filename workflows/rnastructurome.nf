@@ -174,90 +174,94 @@ workflow RNASTRUCTUROME {
     )
     ch_versions = ch_versions.mix(FOLD_STRUCTURES.out.versions)
 
-    //
-    // SUBWORKFLOW: VISUALISE_STRUCTURES — R2DT / ViennaRNA 2D structure diagrams
-    //
-    VISUALISE_STRUCTURES (
-        NORMALISE_REACTIVITIES.out.xml,
-        FOLD_STRUCTURES.out.structures,
-        FOLD_STRUCTURES.out.fold_input,
-        ch_reference_fasta_map,
-        pipeline_config
-    )
-    ch_versions = ch_versions.mix(VISUALISE_STRUCTURES.out.versions)
+    if (!params.stop_after_jackknife) {
+        //
+        // SUBWORKFLOW: VISUALISE_STRUCTURES — R2DT / ViennaRNA 2D structure diagrams
+        //
+        VISUALISE_STRUCTURES (
+            NORMALISE_REACTIVITIES.out.xml,
+            FOLD_STRUCTURES.out.structures,
+            FOLD_STRUCTURES.out.fold_input,
+            ch_reference_fasta_map,
+            pipeline_config
+        )
+        ch_versions = ch_versions.mix(VISUALISE_STRUCTURES.out.versions)
 
-    //
-    // SUBWORKFLOW: BROWSER_TRACKS — rf-wiggle → BigWig genome/transcript tracks (+ Shannon)
-    //
-    BROWSER_TRACKS (
-        NORMALISE_REACTIVITIES.out.xml,
-        FOLD_STRUCTURES.out.shannon_wig,
-        ch_reference_gtf_map,
-        pipeline_config
-    )
-    ch_versions = ch_versions.mix(BROWSER_TRACKS.out.versions)
-
-    //
-    // MODULE: tordat — compile rf-norm XML + rf-fold .db structures into RDAT format
-    //
-    // Build per-reference source file name channels so the RDAT COMMENT records
-    // the exact Ensembl filenames (e.g. Homo_sapiens.GRCh38.114.cdna.all.fa.gz)
-    // or NCBI accessions (e.g. EU081230.1) rather than the generic pipeline names.
-    def ch_ref_fasta_names
-    def ch_ref_gtf_names
-    if (pipeline_config.fasta) {
-        def local_fasta_name = file(pipeline_config.fasta.toString()).name
-        def local_gtf_name   = pipeline_config.gtf ? file(pipeline_config.gtf.toString()).name : ''
-        ch_ref_fasta_names = PREPARE_REFERENCES.out.local_fasta_sorted
-            .map { meta, _fasta -> [ meta.id.toString(), local_fasta_name ] }
-        ch_ref_gtf_names = PREPARE_REFERENCES.out.local_fasta_sorted
-            .map { meta, _fasta -> [ meta.id.toString(), local_gtf_name ] }
-    } else {
-        ch_ref_fasta_names = PREPARE_REFERENCES.out.ensembl_fasta_source_url
-            .map { meta, urls_file ->
-                def names = urls_file.readLines().findAll { line -> line.trim() }
-                    .collect { line -> line.tokenize('/').last() }.join(' + ')
-                [ meta.id.toString(), names ]
-            }
-            .mix(PREPARE_REFERENCES.out.ncbi_source_accessions
-                .map { meta, acc_file ->
-                    def accs = acc_file.readLines()
-                        .findAll { line -> line.trim() && !line.startsWith('stub:') }
-                        .collect { line -> line.tokenize('/').last() }.join(', ')
-                    [ meta.id.toString(), accs ?: meta.id.toString() ]
-                })
-        ch_ref_gtf_names = PREPARE_REFERENCES.out.ensembl_gtf_source_urls
-            .map { meta, urls_file ->
-                def name = urls_file.readLines().find { line -> line.trim() }?.tokenize('/')?.last() ?: ''
-                [ meta.id.toString(), name ]
-            }
-            .mix(PREPARE_REFERENCES.out.gtf_local
-                .map { meta, gtf_file -> [ meta.id.toString(), gtf_file.name ] })
-            .mix(PREPARE_REFERENCES.out.ncbi_source_accessions
-                .map { meta, _acc -> [ meta.id.toString(), '' ] })
+        //
+        // SUBWORKFLOW: BROWSER_TRACKS — rf-wiggle → BigWig genome/transcript tracks (+ Shannon)
+        //
+        BROWSER_TRACKS (
+            NORMALISE_REACTIVITIES.out.xml,
+            FOLD_STRUCTURES.out.shannon_wig,
+            ch_reference_gtf_map,
+            pipeline_config
+        )
+        ch_versions = ch_versions.mix(BROWSER_TRACKS.out.versions)
     }
 
-    def ch_rdat_input = FOLD_STRUCTURES.out.fold_input
-        .map { meta, xml -> [ meta.id.toString(), meta, xml ] }
-        .combine(
-            FOLD_STRUCTURES.out.structures
-                .map { meta, fold_dir -> [ meta.id.toString(), fold_dir ] },
-            by: 0
-        )
-        .map { _key, fold_meta, xml, fold_dir ->
-            def reference_key = resolveReferenceKey(fold_meta, pipeline_config.organism)
-            [ reference_key.toString(), fold_meta, xml, fold_dir ]
-        }
-        .combine(ch_ref_fasta_names, by: 0)
-        .combine(ch_ref_gtf_names, by: 0)
-        .map { _ref_key, fold_meta, xml, fold_dir, fasta_name, gtf_name ->
-            [ fold_meta + [ fasta_name: fasta_name, gtf_name: gtf_name ], xml, fold_dir ]
+    if (!params.stop_after_jackknife) {
+        //
+        // MODULE: tordat — compile rf-norm XML + rf-fold .db structures into RDAT format
+        //
+        // Build per-reference source file name channels so the RDAT COMMENT records
+        // the exact Ensembl filenames (e.g. Homo_sapiens.GRCh38.114.cdna.all.fa.gz)
+        // or NCBI accessions (e.g. EU081230.1) rather than the generic pipeline names.
+        def ch_ref_fasta_names
+        def ch_ref_gtf_names
+        if (pipeline_config.fasta) {
+            def local_fasta_name = file(pipeline_config.fasta.toString()).name
+            def local_gtf_name   = pipeline_config.gtf ? file(pipeline_config.gtf.toString()).name : ''
+            ch_ref_fasta_names = PREPARE_REFERENCES.out.local_fasta_sorted
+                .map { meta, _fasta -> [ meta.id.toString(), local_fasta_name ] }
+            ch_ref_gtf_names = PREPARE_REFERENCES.out.local_fasta_sorted
+                .map { meta, _fasta -> [ meta.id.toString(), local_gtf_name ] }
+        } else {
+            ch_ref_fasta_names = PREPARE_REFERENCES.out.ensembl_fasta_source_url
+                .map { meta, urls_file ->
+                    def names = urls_file.readLines().findAll { line -> line.trim() }
+                        .collect { line -> line.tokenize('/').last() }.join(' + ')
+                    [ meta.id.toString(), names ]
+                }
+                .mix(PREPARE_REFERENCES.out.ncbi_source_accessions
+                    .map { meta, acc_file ->
+                        def accs = acc_file.readLines()
+                            .findAll { line -> line.trim() && !line.startsWith('stub:') }
+                            .collect { line -> line.tokenize('/').last() }.join(', ')
+                        [ meta.id.toString(), accs ?: meta.id.toString() ]
+                    })
+            ch_ref_gtf_names = PREPARE_REFERENCES.out.ensembl_gtf_source_urls
+                .map { meta, urls_file ->
+                    def name = urls_file.readLines().find { line -> line.trim() }?.tokenize('/')?.last() ?: ''
+                    [ meta.id.toString(), name ]
+                }
+                .mix(PREPARE_REFERENCES.out.gtf_local
+                    .map { meta, gtf_file -> [ meta.id.toString(), gtf_file.name ] })
+                .mix(PREPARE_REFERENCES.out.ncbi_source_accessions
+                    .map { meta, _acc -> [ meta.id.toString(), '' ] })
         }
 
-    RNAFRAMEWORK_TORDAT (
-        ch_rdat_input,
-        file("${projectDir}/bin/rnaframework_to_rdat.py", checkIfExists: true)
-    )
+        def ch_rdat_input = FOLD_STRUCTURES.out.fold_input
+            .map { meta, xml -> [ meta.id.toString(), meta, xml ] }
+            .combine(
+                FOLD_STRUCTURES.out.structures
+                    .map { meta, fold_dir -> [ meta.id.toString(), fold_dir ] },
+                by: 0
+            )
+            .map { _key, fold_meta, xml, fold_dir ->
+                def reference_key = resolveReferenceKey(fold_meta, pipeline_config.organism)
+                [ reference_key.toString(), fold_meta, xml, fold_dir ]
+            }
+            .combine(ch_ref_fasta_names, by: 0)
+            .combine(ch_ref_gtf_names, by: 0)
+            .map { _ref_key, fold_meta, xml, fold_dir, fasta_name, gtf_name ->
+                [ fold_meta + [ fasta_name: fasta_name, gtf_name: gtf_name ], xml, fold_dir ]
+            }
+
+        RNAFRAMEWORK_TORDAT (
+            ch_rdat_input,
+            file("${projectDir}/bin/rnaframework_to_rdat.py", checkIfExists: true)
+        )
+    }
 
     // Add RNAframework outputs to MultiQC input collection.
     ch_multiqc_files = ch_multiqc_files.mix(ch_rfcount_rc.collect { rc_file -> rc_file[1] })
@@ -290,14 +294,17 @@ workflow RNASTRUCTUROME {
     )
 
     // RF-fold summary table: one row per fold group (sample_group; may span replicates).
-    def ch_rffold_stats_mqc = FOLD_STRUCTURES.out.rffold_log
-        .map { meta, log -> [ meta.id.toString(), parseRffoldLog(log) ] }
-        .collect()
-        .map { rows -> rffoldStatsMultiqc(rows) }
+    // Skipped when stop_after_jackknife is true (rffold_log is empty).
+    if (!params.stop_after_jackknife) {
+        def ch_rffold_stats_mqc = FOLD_STRUCTURES.out.rffold_log
+            .map { meta, log -> [ meta.id.toString(), parseRffoldLog(log) ] }
+            .collect()
+            .map { rows -> rffoldStatsMultiqc(rows) }
 
-    ch_multiqc_files = ch_multiqc_files.mix(
-        ch_rffold_stats_mqc.collectFile(name: 'rffold_stats_mqc.yaml', sort: true)
-    )
+        ch_multiqc_files = ch_multiqc_files.mix(
+            ch_rffold_stats_mqc.collectFile(name: 'rffold_stats_mqc.yaml', sort: true)
+        )
+    }
 
     // RNAframework module versions collected via ch_versions below
 
@@ -350,7 +357,9 @@ workflow RNASTRUCTUROME {
     //
     // FASTQC, SAMtools, cutadapt, bowtie2, umitools use topic: versions → captured by channel.topic("versions") below
     // Old-style modules (emit: versions) must be mixed in explicitly
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_TORDAT.out.versions.first())
+    if (!params.stop_after_jackknife) {
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_TORDAT.out.versions.first())
+    }
 
     //
     // Collate and save software versions
@@ -443,6 +452,7 @@ def defaultPipelineConfig() {
         jackknife_reference               : null,
         rfeval_reference                  : null,
         rfjackknife_pool_all              : true,
+        stop_after_jackknife              : false,
         rfnorm_reactive_bases             : null,
         rfnorm_remap_reactivities         : false,
         rfnorm_norm_window                : null,

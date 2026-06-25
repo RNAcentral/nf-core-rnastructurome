@@ -140,6 +140,7 @@ def buildPipelineConfig(all_params) {
         jackknife_reference              : all_params.jackknife_reference,
         rfeval_reference                 : all_params.rfeval_reference,
         rfjackknife_pool_all             : all_params.rfjackknife_pool_all,
+        stop_after_jackknife             : all_params.stop_after_jackknife,
         rfnorm_reactive_bases            : all_params.rfnorm_reactive_bases,
         rfnorm_remap_reactivities        : all_params.rfnorm_remap_reactivities,
         rfnorm_norm_window               : all_params.rfnorm_norm_window,

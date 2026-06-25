@@ -126,43 +126,52 @@ workflow PREPARE_REFERENCES {
     )
     ch_versions = ch_versions.mix(NCBI_GTF.out.versions)
 
-    def ch_reference_gtf_requests = uniqueReferenceResolution(
-        ch_samplesheet_for_branching.map { meta, _reads -> resolveReferenceResolution(meta, pipeline_config, 'gtf') },
-        'GTF reference'
-    )
+    // GTF resolution: skip entirely when stop_after_jackknife + transcriptome because
+    // every GTF-consuming step is either gated behind stop_after_jackknife or inside the
+    // genome route (i.e. !transcriptome). No wasted Ensembl lookups in this mode.
+    def ch_all_reference_gtf        = channel.empty()
+    def ch_reference_gtf_local      = channel.empty()
+    def ch_ensembl_gtf_source_urls  = channel.empty()
 
-    // Local GTF (already in GTF format) — used directly
-    def ch_reference_gtf_local = ch_reference_gtf_requests
-        .filter { _k, resolution, _o -> resolution.startsWith('path::') }
-        .map { reference_key, resolution, _original_organism ->
-            [ [ id: reference_key, organism: reference_key ], file(resolution - 'path::', checkIfExists: true) ]
-        }
+    if (!(pipeline_config.stop_after_jackknife && pipeline_config.transcriptome)) {
+        def ch_reference_gtf_requests = uniqueReferenceResolution(
+            ch_samplesheet_for_branching.map { meta, _reads -> resolveReferenceResolution(meta, pipeline_config, 'gtf') },
+            'GTF reference'
+        )
 
-    def ch_reference_gtf_ensembl_input = ch_reference_gtf_requests
-        .filter { _k, resolution, _o -> resolution.startsWith('ensembl::') }
-        .map { reference_key, resolution, original_organism ->
-            def ensembl_species = resolution - 'ensembl::'
-            [ [ id: reference_key, organism: reference_key, ensembl_species: ensembl_species,
-                original_organism: original_organism ], ensembl_species ]
-        }
+        // Local GTF (already in GTF format) — used directly
+        ch_reference_gtf_local = ch_reference_gtf_requests
+            .filter { _k, resolution, _o -> resolution.startsWith('path::') }
+            .map { reference_key, resolution, _original_organism ->
+                [ [ id: reference_key, organism: reference_key ], file(resolution - 'path::', checkIfExists: true) ]
+            }
 
-    ENSEMBL_GTF (
-        ch_reference_gtf_ensembl_input,
-        [
-            ensembl_release : pipeline_config.ensembl_release,
-            ensembl_base_url: pipeline_config.ensembl_base_url
-        ],
-        file("${projectDir}/bin/ensembl_gtf.py", checkIfExists: true)
-    )
-    ch_versions = ch_versions.mix(ENSEMBL_GTF.out.versions)
+        def ch_reference_gtf_ensembl_input = ch_reference_gtf_requests
+            .filter { _k, resolution, _o -> resolution.startsWith('ensembl::') }
+            .map { reference_key, resolution, original_organism ->
+                def ensembl_species = resolution - 'ensembl::'
+                [ [ id: reference_key, organism: reference_key, ensembl_species: ensembl_species,
+                    original_organism: original_organism ], ensembl_species ]
+            }
 
+        ENSEMBL_GTF (
+            ch_reference_gtf_ensembl_input,
+            [
+                ensembl_release : pipeline_config.ensembl_release,
+                ensembl_base_url: pipeline_config.ensembl_base_url
+            ],
+            file("${projectDir}/bin/ensembl_gtf.py", checkIfExists: true)
+        )
+        ch_versions = ch_versions.mix(ENSEMBL_GTF.out.versions)
+        ch_ensembl_gtf_source_urls = ENSEMBL_GTF.out.source_urls
 
-    // NCBI references (both pre-configured and Ensembl-not-found): annotation is the synthetic
-    // GTF from NCBI_GTF, which has already run above from NCBI_FASTA.out.fasta.
-    // ENSEMBL_GTF.out.not_found is silently dropped — those organisms have a GTF via NCBI_GTF.
-    def ch_all_reference_gtf = ch_reference_gtf_local
-        .mix(ENSEMBL_GTF.out.gtf)
-        .mix(NCBI_GTF.out.gtf)
+        // NCBI references (both pre-configured and Ensembl-not-found): annotation is the synthetic
+        // GTF from NCBI_GTF, which has already run above from NCBI_FASTA.out.fasta.
+        // ENSEMBL_GTF.out.not_found is silently dropped — those organisms have a GTF via NCBI_GTF.
+        ch_all_reference_gtf = ch_reference_gtf_local
+            .mix(ENSEMBL_GTF.out.gtf)
+            .mix(NCBI_GTF.out.gtf)
+    }
 
     def ch_fasta_sort_script = file("${projectDir}/bin/fasta_sort.py", checkIfExists: true)
 
@@ -311,6 +320,6 @@ workflow PREPARE_REFERENCES {
     gtf_local               = ch_reference_gtf_local         // channel: [ val(meta), path(gtf) ]
     local_fasta_sorted      = FASTA_SORT_LOCAL.out.fasta     // channel: [ val(meta), path(fasta) ] (--fasta route naming)
     ncbi_source_accessions  = NCBI_FASTA.out.source_accessions // channel: [ val(meta), path(acc) ]
-    ensembl_gtf_source_urls = ENSEMBL_GTF.out.source_urls    // channel: [ val(meta), path(urls) ]
+    ensembl_gtf_source_urls = ch_ensembl_gtf_source_urls     // channel: [ val(meta), path(urls) ] — empty when stop_after_jackknife + transcriptome
     versions                = ch_versions
 }

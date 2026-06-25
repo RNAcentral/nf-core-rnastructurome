@@ -151,65 +151,76 @@ workflow FOLD_STRUCTURES {
         ch_rfeval_csv  = RNAFRAMEWORK_RFEVAL.out.csv
     }
 
-    RNAFRAMEWORK_RFFOLD (
-        ch_fold_for_rffold
-    )
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
+    def ch_fold_structures  = channel.empty()
+    def ch_shannon_wig      = channel.empty()
+    def ch_rffold_log       = channel.empty()
+    def ch_bp_dotplot       = channel.empty()
+    def ch_bp               = channel.empty()
+    def ch_bp_transcript    = channel.empty()
 
-    //
-    // Convert dot-plot outputs to .bp arc files for genome browser visualisation.
-    // Genome-coordinate: remap via GTF.  Transcript-coordinate: use dot-plots directly.
-    //
-    def ch_dotplot_bp_input = RNAFRAMEWORK_RFFOLD.out.structures
-        .combine(ch_reference_gtf_map)
-        .flatMap { combined ->
-            def meta      = combined[0]
-            def fold_dir  = combined[1]
-            def gtf_map   = combined[2]
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
-            def gtf_tuple = gtf_map[reference_key]
-            if (!gtf_tuple) {
-                log.warn("Skipping dotplot-to-bp conversion for '${reference_key}': no GTF available (expected for NCBI/viral references).")
-                return []
+    if (!pipeline_config.stop_after_jackknife) {
+        RNAFRAMEWORK_RFFOLD (
+            ch_fold_for_rffold
+        )
+        ch_versions     = ch_versions.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
+        ch_fold_structures = RNAFRAMEWORK_RFFOLD.out.structures
+        ch_shannon_wig     = RNAFRAMEWORK_RFFOLD.out.shannon_wig
+        ch_rffold_log      = RNAFRAMEWORK_RFFOLD.out.log
+
+        def ch_dotplot_bp_input = RNAFRAMEWORK_RFFOLD.out.structures
+            .combine(ch_reference_gtf_map)
+            .flatMap { combined ->
+                def meta      = combined[0]
+                def fold_dir  = combined[1]
+                def gtf_map   = combined[2]
+                def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def gtf_tuple = gtf_map[reference_key]
+                if (!gtf_tuple) {
+                    log.warn("Skipping dotplot-to-bp conversion for '${reference_key}': no GTF available (expected for NCBI/viral references).")
+                    return []
+                }
+                return [ [ meta, fold_dir, gtf_tuple[1] ] ]
             }
-            return [ [ meta, fold_dir, gtf_tuple[1] ] ]
-        }
 
-    RNAFRAMEWORK_DOTPLOT2BP (
-        ch_dotplot_bp_input,
-        file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
-    )
+        RNAFRAMEWORK_DOTPLOT2BP (
+            ch_dotplot_bp_input,
+            file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
+        )
 
-    // Transcript-coordinate arc files — same dot-plots, skip GTF remapping.
-    RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT (
-        ch_dotplot_bp_input,
-        file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
-    )
+        RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT (
+            ch_dotplot_bp_input,
+            file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
+        )
 
-    MERGE_BP (
-        RNAFRAMEWORK_DOTPLOT2BP.out.bp,
-        file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
-    )
+        MERGE_BP (
+            RNAFRAMEWORK_DOTPLOT2BP.out.bp,
+            file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
+        )
 
-    MERGE_BP_TRANSCRIPT (
-        RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.bp,
-        file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
-    )
+        MERGE_BP_TRANSCRIPT (
+            RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.bp,
+            file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
+        )
 
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.versions.first())
-    ch_versions = ch_versions.mix(MERGE_BP.out.versions.first())
-    ch_versions = ch_versions.mix(MERGE_BP_TRANSCRIPT.out.versions.first())
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.versions.first())
+        ch_versions = ch_versions.mix(MERGE_BP.out.versions.first())
+        ch_versions = ch_versions.mix(MERGE_BP_TRANSCRIPT.out.versions.first())
+
+        ch_bp_dotplot    = RNAFRAMEWORK_DOTPLOT2BP.out.bp
+        ch_bp            = MERGE_BP.out.bp
+        ch_bp_transcript = MERGE_BP_TRANSCRIPT.out.bp
+    }
 
     emit:
-    fold_input    = ch_fold_input                          // channel: [ val(meta), list(path(xml)) ] — grouped by sample_group
-    structures    = RNAFRAMEWORK_RFFOLD.out.structures     // channel: [ val(meta), path(fold_dir) ]
-    shannon_wig   = RNAFRAMEWORK_RFFOLD.out.shannon_wig    // channel: [ val(meta), path(wig) ]
-    rffold_log    = RNAFRAMEWORK_RFFOLD.out.log            // channel: [ val(meta), path(log) ]
-    jackknife_csv = ch_jackknife_csv                       // channel: [ val(meta), path(csv) ] — empty when --jackknife_reference not set
-    rfeval_csv    = ch_rfeval_csv                          // channel: [ val(meta), path(csv) ] — empty when --rfeval_reference not set
-    bp_dotplot    = RNAFRAMEWORK_DOTPLOT2BP.out.bp         // channel: [ val(meta), path(bp) ] — per-transcript, unmerged
-    bp            = MERGE_BP.out.bp                        // channel: [ val(meta), path(bp) ] — merged per fold group
-    bp_transcript = MERGE_BP_TRANSCRIPT.out.bp             // channel: [ val(meta), path(bp) ]
+    fold_input    = ch_fold_input       // channel: [ val(meta), list(path(xml)) ] — grouped by sample_group
+    structures    = ch_fold_structures  // channel: [ val(meta), path(fold_dir) ]  — empty when stop_after_jackknife
+    shannon_wig   = ch_shannon_wig      // channel: [ val(meta), path(wig) ]        — empty when stop_after_jackknife
+    rffold_log    = ch_rffold_log       // channel: [ val(meta), path(log) ]        — empty when stop_after_jackknife
+    jackknife_csv = ch_jackknife_csv    // channel: [ val(meta), path(csv) ]        — empty when --jackknife_reference not set
+    rfeval_csv    = ch_rfeval_csv       // channel: [ val(meta), path(csv) ]        — empty when --rfeval_reference not set
+    bp_dotplot    = ch_bp_dotplot       // channel: [ val(meta), path(bp) ]         — empty when stop_after_jackknife
+    bp            = ch_bp              // channel: [ val(meta), path(bp) ]          — empty when stop_after_jackknife
+    bp_transcript = ch_bp_transcript   // channel: [ val(meta), path(bp) ]          — empty when stop_after_jackknife
     versions      = ch_versions                            // channel: [ path(versions.yml) ]
 }

@@ -66,16 +66,17 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
 
     summary_tsv="${outdir}/${prefix}.rfcount_genome_summary.tsv"
     {
-        printf 'sample\\tcovered\\tpct_a_stops\\tpct_c_stops\\tpct_g_stops\\tpct_u_stops\\n'
+        printf 'sample\\tcovered\\tpct_mutated\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
         awk -v sample="${prefix}" '
             \$1 == sample {
-                # rf-count-genome reports the A-stop coverage as "x/y  (pct%)" — two fields.
-                # Detect this by checking if field 3 contains "/" and field 4 starts with "(".
+                # MaP output: "count/total (pct%)" spans two fields ($3=count/total, $4=(pct%))
+                # followed by %A %C %G %U in $5-$8.
                 if (\$3 ~ /\\// && substr(\$4, 1, 1) == "(") {
-                    pct_a = \$4; gsub(/[()%]/, "", pct_a)
-                    print \$1 "\\t" \$2 "\\t" pct_a "\\t" \$5 "\\t" \$6 "\\t" \$7
+                    pct_mut = \$4; gsub(/[()%]/, "", pct_mut)
+                    print \$1 "\\t" \$2 "\\t" pct_mut "\\t" \$5 "\\t" \$6 "\\t" \$7 "\\t" \$8
                 } else {
-                    print \$1 "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
+                    # Older / non-MaP format: pct_mutated not reported; %A-U in $3-$6
+                    print \$1 "\\t" \$2 "\\t" "" "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
                 }
             }
         ' \${cleaned_log} | tail -n 1
@@ -112,7 +113,7 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     touch ${outdir}/error.out
     touch ${outdir}/samtools.log
     cat <<-END_SUMMARY > ${outdir}/${prefix}.rfcount_genome_summary.tsv
-    sample	covered	pct_a_stops	pct_c_stops	pct_g_stops	pct_u_stops
+    sample	covered	pct_mutated	pct_a_muts	pct_c_muts	pct_g_muts	pct_u_muts
     ${prefix}	1	25.0	25.0	25.0	25.0
     END_SUMMARY
 

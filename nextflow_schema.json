@@ -404,8 +404,18 @@
                 },
                 "rfcount_map_no_deletions": {
                     "type": "boolean",
-                    "description": "MaP only: ignore deletion events during mutation counting (`-nd`).",
+                    "description": "MaP only: ignore all deletion events during mutation counting (`-nd`).",
                     "default": false
+                },
+                "rfcount_map_no_ambiguous": {
+                    "type": "boolean",
+                    "description": "MaP only: ignore ambiguously aligned deletion events (`-na`). Recommended for DMS-MaP.",
+                    "default": false
+                },
+                "rfcount_map_max_deletion_length": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "MaP only: ignore deletions longer than this many nucleotides (`-md N`). Set to 1 to discard all multi-nt deletions, as in the Spitale DMS-MaP protocol."
                 },
                 "rfcount_map_no_insertions": {
                     "type": "boolean",

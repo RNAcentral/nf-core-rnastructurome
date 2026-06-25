@@ -277,21 +277,26 @@
                     "minimum": 1,
                     "description": "Bowtie v1 `--chunkmbs` memory chunk size."
                 },
+                "bowtie2_preset": {
+                    "type": "string",
+                    "default": "--very-sensitive-local",
+                    "description": "Bowtie2 alignment preset. Default is equivalent to `--local -N 0 -D 20 -R 3 -L 20 -i S,1,0.50`."
+                },
                 "bowtie2_N": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 1,
-                    "description": "Bowtie2 `-N` seed mismatches."
+                    "description": "Bowtie2 `-N` seed mismatches. Ignored when `bowtie2_preset` is set."
                 },
                 "bowtie2_D": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Bowtie2 `-D` max seed extension attempts."
+                    "description": "Bowtie2 `-D` max seed extension attempts. Ignored when `bowtie2_preset` is set."
                 },
                 "bowtie2_R": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Bowtie2 `-R` max re-seeding attempts."
+                    "description": "Bowtie2 `-R` max re-seeding attempts. Ignored when `bowtie2_preset` is set."
                 },
                 "bowtie2_mp": {
                     "type": "string",

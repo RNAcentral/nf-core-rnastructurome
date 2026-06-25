@@ -69,13 +69,10 @@ process RNAFRAMEWORK_RFCOUNT {
         printf 'sample\\tcovered\\tpct_mutated\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
         awk -v sample="${prefix}" '
             \$1 == sample {
-                # MaP output: "count/total (pct%)" spans two fields ($3=count/total, $4=(pct%))
-                # followed by %A %C %G %U in $5-$8.
-                if (\$3 ~ /\\// && substr(\$4, 1, 1) == "(") {
-                    pct_mut = \$4; gsub(/[()%]/, "", pct_mut)
+                if (index(\$3, "/") > 0 && substr(\$4, 1, 1) == "(") {
+                    pct_mut = \$4; gsub("[()%]", "", pct_mut)
                     print \$1 "\\t" \$2 "\\t" pct_mut "\\t" \$5 "\\t" \$6 "\\t" \$7 "\\t" \$8
                 } else {
-                    # Older / non-MaP format: pct_mutated not reported; %A-U in $3-$6
                     print \$1 "\\t" \$2 "\\t" "" "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
                 }
             }

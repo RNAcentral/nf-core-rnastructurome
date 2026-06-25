@@ -508,9 +508,9 @@
                     "description": "Normalization window offset (`--window-offset`)."
                 },
                 "rfnorm_dynamic_window": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "Dynamically resize normalization windows to include at least this many reactive bases (`--dynamic-window`)."
+                    "type": ["integer", "boolean"],
+                    "minimum": 0,
+                    "description": "Enable dynamic normalization window (`--dynamic-window`). Set to a positive integer to enable (value is passed to `--norm-window`); set to `false` or `0` to explicitly disable even for DMS (which enables it by default). Leave unset to use the per-method default."
                 },
                 "rfnorm_norm_independent": {
                     "type": "boolean",

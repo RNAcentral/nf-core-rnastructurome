@@ -56,8 +56,13 @@ def fetch_text(url: str, timeout: int = 60) -> str:
             raise
     except urllib.error.URLError:
         fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
-        with urllib.request.urlopen(fallback_url, timeout=timeout) as response:
-            return response.read().decode("utf-8", errors="ignore")
+        try:
+            with urllib.request.urlopen(fallback_url, timeout=timeout) as response:
+                return response.read().decode("utf-8", errors="ignore")
+        except urllib.error.HTTPError as fallback_exc:
+            if fallback_exc.code == 404:
+                raise EnsemblSpeciesNotFound(f"HTTP 404 at {fallback_url}") from fallback_exc
+            raise urllib.error.URLError(str(fallback_exc)) from fallback_exc
 
 
 def release_path_for_value(release: str) -> str:
@@ -164,6 +169,15 @@ def main() -> int:
         print(
             f"[ENSEMBL_GTF] Species '{species}' not found on any Ensembl FTP "
             f"— dotplot-to-bp conversion will be skipped: {exc}",
+            file=sys.stderr,
+        )
+        with open(args.not_found_file, "w", encoding="utf-8"):
+            pass
+        return 0
+    except (urllib.error.URLError, OSError) as exc:
+        print(
+            f"[ENSEMBL_GTF] Network error reaching Ensembl FTP for '{species}' "
+            f"— falling back to NCBI if available: {exc}",
             file=sys.stderr,
         )
         with open(args.not_found_file, "w", encoding="utf-8"):

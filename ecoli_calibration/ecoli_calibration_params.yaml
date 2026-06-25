@@ -1,0 +1,40 @@
+# E. coli rRNA calibration — replicating collaborator's exact rf-map/rf-count/rf-norm/rf-jackknife run
+# that achieved FMI 0.789 (slope 4.2-5.0, intercept -1.4)
+
+# Reference files
+fasta: "/hps/nobackup/agb/rnacentral/chemicalprob/nf-core-rnastructurome/ecoli_calibration/ecoli_k12_rrna.fa"
+transcriptome: true
+jackknife_reference: "/hps/nobackup/agb/rnacentral/chemicalprob/nf-core-rnastructurome/ecoli_calibration/ecoli_k12_rrna_reference_collab.db"
+
+# Adapter trimming — collaborator used rf-map defaults; we use the same adapter with --trim-n
+# (--trim-n is already pipeline default via cutadapt_trim_n = true)
+cutadapt_adapter_3p: "AGATCGGAAG"
+cutadapt_adapter_5p: "AGATCGGAAG"
+
+# Alignment — rf-map -b2 -mp "--very-sensitive-local"
+# No --nofw, no --trim5 (collaborator did not use these)
+bowtie2_preset: "--very-sensitive-local"
+
+# rf-count: -m -ds 90 -na -ni -md 1 -dc 3 -me 0.1
+rfcount_map_discard_shorter: 90
+rfcount_map_no_ambiguous: true
+rfcount_map_max_deletion_length: 1
+rfcount_map_no_insertions: true
+rfcount_map_eval_surrounding: false   # collaborator did not use -es
+rfcount_map_max_collapse_distance: 3
+
+# rf-norm: -sm 4 -nm 3 -rb AC (no dynamic window)
+# sm=4 (Zubradt), nm=3 (box-plot), rb=AC are auto-set for DMS method
+# rfnorm_nan left unset → DMS default of -n 100 (min reads/position).
+# Collaborator used -n 1000 but on all 4 samples pooled (~1800 reads/pos);
+# per-sample coverage here is ~450 reads/pos, so 100 is the right threshold.
+rfnorm_dynamic_window: false   # disable auto-DMS dynamic window; collaborator used whole-transcript normalization (window = 1e9)
+
+# rf-jackknife: -x -kl -rp "-md 600"
+# -x = relaxed FMI (not -m mFMI)
+# -kl and -rp "-md 600" are already pipeline defaults
+rfjackknife_relaxed: true
+
+# Stop after jackknife — skip rf-fold, visualise, browser tracks, RDAT
+# GTF not required in this mode (transcriptome route, all GTF-consuming steps gated)
+stop_after_jackknife: true

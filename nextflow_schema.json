@@ -330,6 +330,10 @@
                     "type": "boolean",
                     "description": "Allow dovetailing mates (`--dovetail`)."
                 },
+                "skip_markdup": {
+                    "type": "boolean",
+                    "description": "Skip samtools markdup deduplication. Use when comparing against rf-map-based workflows that do not deduplicate."
+                },
                 "star_map_sjdb_overhang": {
                     "type": "integer",
                     "minimum": 1,

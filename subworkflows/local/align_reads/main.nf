@@ -201,12 +201,16 @@ workflow ALIGN_READS {
     // FASTA/FAI not needed for BAM output; pass empty.
     // Drop the bai from [meta, bam, bai] — markdup only takes [meta, bam].
     //
-    SAMTOOLS_MARKDUP (
-        dedup_branches.non_umi.map { meta, bam, _bai -> [ meta, bam ] },
-        channel.value([ [], [], [] ])
-    )
-
-    ch_dedup_bam = UMITOOLS_DEDUP.out.bam.mix(SAMTOOLS_MARKDUP.out.bam)
+    def ch_non_umi_bam = dedup_branches.non_umi.map { meta, bam, _bai -> [ meta, bam ] }
+    if (!params.skip_markdup) {
+        SAMTOOLS_MARKDUP (
+            ch_non_umi_bam,
+            channel.value([ [], [], [] ])
+        )
+        ch_dedup_bam = UMITOOLS_DEDUP.out.bam.mix(SAMTOOLS_MARKDUP.out.bam)
+    } else {
+        ch_dedup_bam = UMITOOLS_DEDUP.out.bam.mix(ch_non_umi_bam)
+    }
 
     ch_multiqc_files = ch_multiqc_files.mix(UMITOOLS_DEDUP.out.log.collect { dedup_log -> dedup_log[1] })
 

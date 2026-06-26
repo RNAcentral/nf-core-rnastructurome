@@ -16,7 +16,8 @@ process RNAFRAMEWORK_RFCOUNT {
     tuple val(meta), path("*_rfcount/error.out"), optional: true, emit: error_log
     tuple val(meta), path("*_rfcount/samtools.log"), optional: true, emit: samtools_log
     tuple val(meta), path("*_rfcount/*.rfcount_summary.tsv"), optional: true, emit: summary
-    tuple val(meta), path("*_rfcount/plots/*.pdf"), optional: true, emit: plots
+    tuple val(meta), path("*_rfcount/*.rfcount.log"),         optional: true, emit: log
+    tuple val(meta), path("*_rfcount/plots/*.pdf"),           optional: true, emit: plots
     path "versions.yml"          , emit: versions
 
     script:
@@ -66,14 +67,14 @@ process RNAFRAMEWORK_RFCOUNT {
 
     summary_tsv="${outdir}/${prefix}.rfcount_summary.tsv"
     {
-        printf 'sample\\tcovered\\tpct_mutated\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
+        printf 'sample\\tcovered\\tmutated_alignments\\tpct_mutated\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
         awk -v sample="${prefix}" '
             \$1 == sample {
                 if (index(\$3, "/") > 0 && substr(\$4, 1, 1) == "(") {
                     pct_mut = \$4; gsub("[()%]", "", pct_mut)
-                    print \$1 "\\t" \$2 "\\t" pct_mut "\\t" \$5 "\\t" \$6 "\\t" \$7 "\\t" \$8
+                    print \$1 "\\t" \$2 "\\t" \$3 "\\t" pct_mut "\\t" \$5 "\\t" \$6 "\\t" \$7 "\\t" \$8
                 } else {
-                    print \$1 "\\t" \$2 "\\t" "" "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
+                    print \$1 "\\t" \$2 "\\t" "" "\\t" "" "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
                 }
             }
         ' "\${cleaned_log}" | tail -n 1
@@ -99,7 +100,8 @@ process RNAFRAMEWORK_RFCOUNT {
         echo "[RNAFRAMEWORK_RFCOUNT] rf-count exited with status \${rfcount_status} after reporting completion; continuing because RC files were produced." >&2
     fi
 
-    rm -f "\${rfcount_log_tmp}" "\${cleaned_log}"
+    mv "\${cleaned_log}" "${outdir}/${prefix}.rfcount.log"
+    rm -f "\${rfcount_log_tmp}"
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

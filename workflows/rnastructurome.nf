@@ -123,7 +123,7 @@ workflow RNASTRUCTUROME {
             name: 'rfcount_summary_all_samples.tsv',
             keepHeader: true,
             skip: 1,
-            storeDir: "${params.outdir}/rnaframework/rfcount"
+            storeDir: "${params.outdir}/count"
         )
 
     def ch_pre_dedup_mapped_reads = ALIGN_READS.out.flagstat_pre

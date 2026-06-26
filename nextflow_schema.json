@@ -430,6 +430,10 @@
                     "description": "MaP only: ignore insertion events during mutation counting (`-ni`).",
                     "default": true
                 },
+                "rfcount_map_discard_consecutive": {
+                    "type": "integer",
+                    "description": "MaP only: discard mutations within N nt of each other (`-dc N`). Filters clustered artefact mutations. Null = no filter."
+                },
                 "rfcount_map_eval_surrounding": {
                     "type": "boolean",
                     "description": "MaP only: also evaluate quality of \u00b11 nt surrounding each mutation (`-es`).",

@@ -137,7 +137,10 @@ PYEOF
     else
         _covered=\$(rf-rctools view ${outdir}/${prefix}.rc 2>/dev/null | awk 'NF == 0 { line = 0; next } { line++ } line == 1 { c++ } line == 4 { line = 0 } END { print c + 0 }')
     fi
-    awk -v cov="\${_covered}" 'BEGIN { FS = OFS = "\\t" } NR == 1 { print; next } { \$2 = cov; print }' \\
+    awk -v cov="\${_covered}" -v sample="${prefix}" 'BEGIN { FS = OFS = "\\t" }
+        NR == 1 { print; next }
+        { \$2 = cov; print; seen = 1 }
+        END { if (!seen) print sample, cov, "", "", "", "", "", "" }' \\
         ${summary} > ${outdir}/${prefix}.rfcount_genome_summary.tsv
 
     printf '"%s":\\n    rnaframework: %s\\n' \\

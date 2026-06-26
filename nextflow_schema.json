@@ -644,7 +644,7 @@
                 },
                 "rfjackknife_keep_pseudoknots": {
                     "type": "boolean",
-                    "description": "Retain pseudoknotted base-pairs (`[]` notation) in the reference structure before comparison (`-kp`). Required when using reference files that mark pseudoknots explicitly."
+                    "description": "Retain pseudoknotted base-pairs in the reference structure during FMI comparison (`-kp`). Disabled by default because rf-fold cannot predict pseudoknots, so including them systematically lowers FMI."
                 },
                 "rfjackknife_only_common": {
                     "type": "boolean",

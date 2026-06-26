@@ -116,6 +116,16 @@ workflow RNASTRUCTUROME {
     def ch_rfcount_summary = QUANTIFY_REACTIVITY.out.summary
     def ch_rfcount_plots   = QUANTIFY_REACTIVITY.out.plots
 
+    // Aggregate per-sample rf-count summaries into a single TSV for the whole run
+    ch_rfcount_summary
+        .map { _meta, tsv -> tsv }
+        .collectFile(
+            name: 'rfcount_summary_all_samples.tsv',
+            keepHeader: true,
+            skip: 1,
+            storeDir: "${params.outdir}/rnaframework/rfcount"
+        )
+
     def ch_pre_dedup_mapped_reads = ALIGN_READS.out.flagstat_pre
         .map { meta, flagstat -> [ meta.id.toString(), parseFlagstatMappedReads(flagstat) ] }
 

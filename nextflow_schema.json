@@ -234,7 +234,11 @@
                 },
                 "bowtie_norc": {
                     "type": "boolean",
-                    "description": "Map only to sense strand (`--norc`)."
+                    "description": "Only align to forward strand (`--norc`). Use when reads are known to be sense-strand."
+                },
+                "bowtie_nofw": {
+                    "type": "boolean",
+                    "description": "Only align to reverse strand (`--nofw`). Use when reads are cDNA antisense to the RNA (e.g. DMS-MaP-seq single-end)."
                 },
                 "bowtie_trim5": {
                     "type": "integer",

@@ -135,7 +135,7 @@
 <text x="1250.5" y="90.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="auto"><tspan x="1250.5" dy="0em">SAMtools:</tspan><tspan x="1250.5" dy="1.2em">sort, index</tspan></text>
 <text x="612.5" y="396.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">MultiQC</text>
 <text x="580.0" y="106.0" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="auto">cat FASTQ</text>
-<text x="1391.5" y="134.0" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">SAMtools markdup</text>
+<text x="1391.5" y="134.0" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"><tspan x="1391.5" dy="0em">SAMtools markdup</tspan><tspan x="1391.5" dy="1.2em" font-weight="normal" font-style="italic">(not recommended)</tspan></text>
 <text x="1391.5" y="195.8" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">UMI-tools Dedup</text>
 <text x="640.0" y="134.0" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">FastQC</text>
 <text x="1514.5" y="106.0" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="auto">SAMtools stats</text>
@@ -155,7 +155,7 @@
 <text x="1052.5" y="106.0" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="auto">FastQC</text>
 <text x="851.5" y="368.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="auto">fold</text>
 <text x="791.5" y="365.4" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="auto">output</text>
-<rect x="462.0" y="539.6330338" width="400.0" height="72.0" rx="6" ry="6" fill="rgba(180, 180, 180, 0.3)" />
+<rect x="462.0" y="539.6330338" width="460.0" height="72.0" rx="6" ry="6" fill="rgba(180, 180, 180, 0.3)" />
 <path d="M474.0,563.6330338 L498.0,563.6330338" stroke="#eb5757" stroke-width="3.0" stroke-linecap="round" />
 <text x="510.0" y="563.6330338" font-size="14.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" dy="0.3em">genome RT-stop</text>
 <path d="M474.0,587.6330338 L498.0,587.6330338" stroke="#2f80ed" stroke-width="3.0" stroke-linecap="round" />
@@ -213,6 +213,13 @@
 <path d="M976.5,385.4 C957.0,385.4 932.0,443.0 911.5,443.0 C891.0,443.0 866.0,385.4 851.5,385.4" stroke="#2f80ed" stroke-width="3.0" fill="none" stroke-linecap="round" stroke-linejoin="round" />
 <rect x="906.5" y="435.0" width="10.0" height="13.0" rx="5.0" ry="5.0" fill="#ffffff" stroke="#888888" stroke-width="1.5" />
 <text x="911.5" y="452.0" font-size="13.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">jackknife</text>
+<!-- stop_after_jackknife: terminal stub + end-cap ("stop") + results file (FMI table/log) -->
+<path d="M911.5,466.0 L911.5,482.0" stroke="#888888" stroke-width="2.5" fill="none" stroke-linecap="round" />
+<path d="M905.5,482.0 L917.5,482.0" stroke="#888888" stroke-width="2.5" fill="none" stroke-linecap="round" />
+<path d="M899.5,487.0 L917.5,487.0 L925.5,495.0 L925.5,517.0 Q925.5,519.0,923.5,519.0 L899.5,519.0 Q897.5,519.0,897.5,517.0 L897.5,489.0 Q897.5,487.0,899.5,487.0 Z" fill="#ffffff" stroke="#888888" stroke-width="1.5" stroke-linejoin="round" />
+<path d="M917.5,487.0 L917.5,495.0 L925.5,495.0 Z" fill="#888888" opacity="0.15" stroke="none" />
+<path d="M917.5,487.0 L917.5,495.0 L925.5,495.0" fill="none" stroke="#888888" stroke-width="0.8999999999999999" />
+<text x="911.5" y="504.2" font-size="7.5" fill="#000000" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dy="0.3em">FMI</text>
 <!-- rf-eval: evaluation spur (straight) down from fold -->
 <path d="M850.2,383.7 L838.7,438.1" stroke="#eb5757" stroke-width="3.0" fill="none" stroke-linecap="round" stroke-linejoin="round" />
 <path d="M852.8,384.3 L841.3,438.7" stroke="#2f80ed" stroke-width="3.0" fill="none" stroke-linecap="round" stroke-linejoin="round" />
@@ -240,4 +247,18 @@
 <path d="M533.5,367.9 L533.5,375.9 L541.5,375.9 Z" fill="#888888" opacity="0.15" stroke="none" />
 <path d="M533.5,367.9 L533.5,375.9 L541.5,375.9" fill="none" stroke="#888888" stroke-width="0.8999999999999999" />
 <text x="527.5" y="385.1" font-size="7.5" fill="#000000" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" text-anchor="middle" dy="0.3em">HTML</text>
+<!-- node status dots: a filled dot marks an optional/conditional step (transcriptome route, UMI handling, markdup, jackknife/eval, HTML); undotted nodes always run on the default path -->
+<g>
+<circle cx="700.0" cy="121.5" r="2.2" fill="#333333" />
+<circle cx="944.5" cy="80.0" r="2.2" fill="#333333" />
+<circle cx="944.5" cy="200.0" r="2.2" fill="#333333" />
+<circle cx="1391.5" cy="121.5" r="2.2" fill="#333333" />
+<circle cx="1391.5" cy="182.3" r="2.2" fill="#333333" />
+<circle cx="1373.0" cy="341.4" r="2.2" fill="#333333" />
+<circle cx="1373.0" cy="466.4" r="2.2" fill="#333333" />
+<circle cx="911.5" cy="441.5" r="2.2" fill="#333333" />
+<circle cx="840.0" cy="438.4" r="2.2" fill="#333333" />
+<circle cx="845.0" cy="563.6330338" r="3.4" fill="#333333" />
+<text font-size="14.0" fill="#333333" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" dy="0.3em"><tspan x="855.0" y="563.6330338">optional</tspan><tspan x="855.0" y="587.6330338">step</tspan></text>
+</g>
 </svg>

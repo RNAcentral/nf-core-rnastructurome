@@ -1,10 +1,11 @@
 //
 // VISUALISE_STRUCTURES — render 2D structure diagrams from rf-fold structures.
 //
-// When R2DT is enabled (container-only), draw template-based diagrams with a
-// reactivity overlay and fall back to ViennaRNA for structures R2DT could not
-// draw. Otherwise draw everything with ViennaRNA. Produces only published SVGs
-// and software versions; nothing here is consumed downstream.
+// ViennaRNA (RNAplot) always draws every structure. When R2DT is enabled
+// (container-only) it additionally draws template-based diagrams in parallel,
+// so both renderings are available side by side for comparison
+// (structures/viennarna/ vs structures/r2dt/). Produces only published SVGs and
+// software versions; nothing here is consumed downstream.
 //
 
 include { R2DT                } from '../../../modules/local/r2dt/main'
@@ -23,6 +24,23 @@ workflow VISUALISE_STRUCTURES {
     main:
     ch_versions = channel.empty()
 
+    // Always draw every structure with ViennaRNA (RNAplot). Independent of R2DT
+    // (drawn list = /dev/null means "draw all"), so the two renderers run in
+    // parallel rather than ViennaRNA only filling R2DT's gaps.
+    def ch_rnaplot_input = ch_fold_structures
+        .map { meta, dir -> [ meta.id.toString(), meta, dir ] }
+        .join(ch_fold_input.map { meta, xmls -> [ meta.id.toString(), xmls ] })
+        .map { _id, meta, dir, xmls -> [ meta, dir, xmls, file('/dev/null') ] }
+
+    VIENNARNA(
+        ch_rnaplot_input,
+        file("${projectDir}/bin/viennarna_extract_xml.py",   checkIfExists: true),
+        file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
+    )
+    ch_versions = ch_versions.mix(VIENNARNA.out.versions.first())
+
+    // R2DT (container-only): additionally draw template-based diagrams for every
+    // structure, published alongside the ViennaRNA renderings for comparison.
     if (params.r2dt) {
         def ch_r2dt_xml = ch_rfnorm_xml
             .map { meta, xml ->
@@ -58,32 +76,6 @@ workflow VISUALISE_STRUCTURES {
             file("${projectDir}/bin/r2dt_extract_sequences.py",  checkIfExists: true)
         )
         ch_versions = ch_versions.mix(R2DT.out.versions.first())
-
-        def ch_rnaplot_input = ch_fold_structures
-            .map { meta, dir -> [ meta.id.toString(), meta, dir ] }
-            .join(ch_fold_input.map { meta, xmls -> [ meta.id.toString(), xmls ] })
-            .join(R2DT.out.drawn_ids.map { meta, f -> [ meta.id.toString(), f ] })
-            .map { _id, meta, dir, xmls, drawn -> [ meta, dir, xmls, drawn ] }
-
-        VIENNARNA(
-            ch_rnaplot_input,
-            file("${projectDir}/bin/viennarna_extract_xml.py",   checkIfExists: true),
-            file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
-        )
-        ch_versions = ch_versions.mix(VIENNARNA.out.versions.first())
-    } else {
-        // R2DT is container-only; when running without containers draw all structures with ViennaRNA
-        def ch_rnaplot_input = ch_fold_structures
-            .map { meta, dir -> [ meta.id.toString(), meta, dir ] }
-            .join(ch_fold_input.map { meta, xmls -> [ meta.id.toString(), xmls ] })
-            .map { _id, meta, dir, xmls -> [ meta, dir, xmls, file('/dev/null') ] }
-
-        VIENNARNA(
-            ch_rnaplot_input,
-            file("${projectDir}/bin/viennarna_extract_xml.py",   checkIfExists: true),
-            file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
-        )
-        ch_versions = ch_versions.mix(VIENNARNA.out.versions.first())
     }
 
     emit:

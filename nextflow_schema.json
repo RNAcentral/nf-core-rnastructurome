@@ -336,7 +336,8 @@
                 },
                 "skip_markdup": {
                     "type": "boolean",
-                    "description": "Skip samtools markdup deduplication. Use when comparing against rf-map-based workflows that do not deduplicate."
+                    "default": true,
+                    "description": "Skip SAMtools markdup deduplication (default: true). Position-based duplicate removal is not valid for chemical-probing libraries without UMIs, where reads sharing a 5' start are independent RT events rather than PCR duplicates. Leave enabled; UMI libraries are still deduplicated via UMI-tools. Set false only if you have a specific reason."
                 },
                 "star_map_sjdb_overhang": {
                     "type": "integer",

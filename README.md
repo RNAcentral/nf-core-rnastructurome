@@ -23,12 +23,14 @@
 
 **nf-core/rnastructurome** is a bioinformatics pipeline for the analysis of chemical-based high-throughput RNA structure probing data. It accepts FASTQ files from **SHAPE** or **DMS** experiments using either the **RT-stop** or **mutational profiling (MaP)** principle, and processes them from raw reads through alignment and deduplication to per-base reactivity scores and RNA secondary structure predictions.
 
-// TODO: insert final nf-metro image
-
-
+<p align="center">
+    <picture>
+        <source media="(prefers-reduced-motion: reduce)" srcset="docs/images/nf-metro-light.svg">
+        <img src="docs/images/nf-metro-light-animated.svg" alt="nf-core/rnastructurome metro map" width="100%">
+    </picture>
+</p>
 
 Pipeline steps:
-The pipeline supports two chemical probing chemistries and two readout principles. These drive automatic parameter selection throughout the pipeline and should be set per sample in the samplesheet or globally via `--method` and `--principle`. Both are case-insensitive.
 
 1. Merge re-sequenced FASTQ files (`cat/fastq`)
 2. Raw read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
@@ -38,15 +40,15 @@ The pipeline supports two chemical probing chemistries and two readout principle
 6. Reference indexing: [`STAR`](https://github.com/alexdobin/STAR) genome index by default; optional [`Bowtie`](http://bowtie-bio.sourceforge.net/) / [`Bowtie2`](http://bowtie-bio.sourceforge.net/bowtie2/) transcriptome indexes with `--transcriptome`
 7. Alignment: STAR for the default genome route; Bowtie for RT-stop and Bowtie2 for MaP on the optional transcriptome route
 8. BAM sorting, indexing, and alignment QC ([`SAMtools`](https://www.htslib.org/))
-9. Duplicate handling: optional UMI-aware deduplication ([`UMI-tools dedup`](https://umi-tools.readthedocs.io/)) or duplicate marking ([`SAMtools markdup`](https://www.htslib.org/))
+9. Duplicate handling: UMI-aware deduplication ([`UMI-tools dedup`](https://umi-tools.readthedocs.io/)) for libraries with a `umi_pattern`. Position-based duplicate removal ([`SAMtools markdup`](https://www.htslib.org/)) is **disabled by default** (`skip_markdup = true`) and is not recommended for chemical-probing data without UMIs, where reads sharing a 5' start are independent molecules rather than PCR duplicates; enable it with `--skip_markdup false` only if you have a specific reason
 10. Genome-route strandedness support: GTF-to-BED conversion ([`BEDOPS`](https://bedops.readthedocs.io/)) and MaP strandedness inference ([`RSeQC infer_experiment`](https://rseqc.sourceforge.net/))
 11. Per-base reactivity counting: [`rf-count-genome`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count-genome/) plus [`rf-rctools extract`](https://rnaframework-docs.readthedocs.io/en/latest/rf-rctools/) on the default genome route, or [`rf-count`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count/) directly on the transcriptome route
 12. Reactivity normalisation with automatic control pairing and scoring-method selection ([`rf-norm`](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/))
 13. Reactivity track generation from rf-norm outputs, including transcript-coordinate and genome-coordinate WIG/BigWig files ([`rf-wiggle`](https://rnaframework-docs.readthedocs.io/en/latest/rf-wiggle/))
-14. Optional normalisation calibration against reference structures ([`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/)) when `--jackknife_reference` is provided
+14. Optional normalisation calibration against reference structures ([`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/)) when `--jackknife_reference` is provided; with `--stop_after_jackknife` the pipeline ends here, emitting the FMI calibration table as its final output
 15. RNA secondary structure prediction across grouped replicates ([`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/))
 16. Base-pair and Shannon entropy track generation from rf-fold outputs, including transcript-coordinate and genome-coordinate files where possible
-17. 2D structure diagram drawing: template-matched diagrams via [`R2DT`](https://github.com/RNAcentral/R2DT) when enabled, with [`ViennaRNA`](https://www.tbi.univie.ac.at/RNA/) RNAplot fallback; conda/mamba runs skip R2DT and draw all structures with ViennaRNA
+17. 2D structure diagram drawing: every structure is drawn with [`ViennaRNA`](https://www.tbi.univie.ac.at/RNA/) RNAplot; when enabled, [`R2DT`](https://github.com/RNAcentral/R2DT) template-matched diagrams are drawn in parallel for side-by-side comparison (`structures/viennarna/` vs `structures/r2dt/`). R2DT is container-only, so conda/mamba runs draw with ViennaRNA alone
 18. RDAT export combining per-transcript reactivity and structure ([`rnaframework_to_rdat`](bin/rnaframework_to_rdat.py))
 19. Aggregated QC report ([`MultiQC`](http://multiqc.info/))
 
@@ -54,6 +56,8 @@ The pipeline supports two chemical probing chemistries and two readout principle
 
 > [!NOTE]
 > If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/usage/installation) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/usage/introduction#how-to-run-a-pipeline) with `-profile test` before running the workflow on actual data.
+
+The pipeline supports two chemical probing chemistries and two readout principles. These drive automatic parameter selection throughout the pipeline and should be set per sample in the samplesheet or globally via `--method` and `--principle`. Both are case-insensitive.
 
 First, prepare a samplesheet with your input data:
 

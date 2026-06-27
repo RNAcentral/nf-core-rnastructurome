@@ -41,6 +41,10 @@ All paths are relative to the top-level output directory specified with `--outdi
 │   └── shannon_transcript_bw/*.bw
 ├── structextract/                     (if --structextract)
 │   └── <group>_structextract/
+├── correlate/                         (if --correlate_replicates and >1 replicate)
+│   └── <group>_correlate/
+│       ├── matrix.csv
+│       └── pairwise/*.tsv
 ├── eval/                              (if --eval_reference provided)
 ├── reference/                         (only when reference downloaded from Ensembl)
 │   ├── *.sorted.fa
@@ -120,6 +124,20 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
 </details>
 
 [`rf-norm`](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/) normalises raw RT-stop or MaP counts into per-nucleotide reactivity scores. Output is grouped by `sample_group` + `replicate` (e.g. `HEK293T_1`). The XML files are the primary output passed to downstream structure-prediction steps. Per-transcript reactivity plots are available as PDFs; the BigWigs provide reactivity tracks (averaged across replicates where applicable) in both genomic and transcript coordinates for genome browser visualisation.
+
+### rf-correlate (replicate QC)
+
+<details markdown="1">
+<summary>Output files </summary>
+
+- `correlate/<group>_correlate/`
+  - `matrix.csv`: Overall pairwise correlation matrix between the group's replicates.
+  - `pairwise/<repA>_vs_<repB>.tsv`: Per-transcript correlation coefficients and p-values for each replicate pair.
+  - `*.pdf`: Correlation heatmap (only with `--correlate_img`).
+
+</details>
+
+[`rf-correlate`](https://rnaframework-docs.readthedocs.io/en/latest/rf-correlate/) quantifies replicate reproducibility by correlating reactivity profiles between the replicates of a sample group (transcriptome-wide and per-transcript). It runs for groups with more than one replicate (controlled by `--correlate_replicates`). The overall pairwise correlations are also summarised in the **MultiQC report** as a per-sample-group table (number of replicates, mean and minimum pairwise correlation), giving an at-a-glance reproducibility check.
 
 ### rf-fold
 

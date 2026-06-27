@@ -678,6 +678,56 @@ def rffoldStatsMultiqc(rows) {
     )
 }
 
+// Parse an rf-correlate matrix.csv (overall pairwise correlation between replicates) into the
+// off-diagonal summary used for the MultiQC reproducibility table: number of replicates, and the
+// mean and minimum pairwise correlation. Header: Sample,<label0>,<label1>,...; data rows:
+// <label_i>,<corr_i0>,<corr_i1>,...
+def parseRfcorrelateMatrix(matrixFile) {
+    def lines = matrixFile.readLines().findAll { line -> line.trim() }
+    if (lines.size() < 2) {
+        return [ replicates: 0, mean_corr: 0, min_corr: 0 ]
+    }
+    def labels = lines[0].split(',').drop(1)
+    def values = []
+    lines.drop(1).eachWithIndex { line, i ->
+        def parts = line.split(',')
+        // Upper-triangle off-diagonal only: column j > row i. parts[0] is the row label.
+        ((i + 1)..<labels.size()).each { j ->
+            def raw = (j + 1) < parts.size() ? parts[j + 1].toString().trim() : ''
+            if (raw && raw.toLowerCase() != 'nan') {
+                values << (raw as Double)
+            }
+        }
+    }
+    if (!values) {
+        return [ replicates: labels.size(), mean_corr: 0, min_corr: 0 ]
+    }
+    def mean = values.sum() / values.size()
+    [
+        replicates: labels.size(),
+        mean_corr : (Math.round(mean * 1000) / 1000.0),
+        min_corr  : (Math.round(values.min() * 1000) / 1000.0)
+    ]
+}
+
+def rfCorrelateMultiqc(rows) {
+    def normalised = normaliseMqcRows(rows)
+    if (!normalised) {
+        return ''
+    }
+    buildSimpleMultiqcTable(
+        normalised,
+        'nf-core-rnastructurome-rfcorrelate',
+        'nf-core/rnastructurome Replicate Correlation',
+        'Pairwise reactivity-profile correlation between replicates from rf-correlate (per sample group). Higher is more reproducible.',
+        [
+            replicates: [title: 'Replicates',    description: 'Number of replicates compared', scale: 'Blues',  format: '{:,.0f}'],
+            mean_corr : [title: 'Mean Corr.',     description: 'Mean pairwise replicate correlation (overall, transcriptome-wide)', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}'],
+            min_corr  : [title: 'Min Corr.',      description: 'Minimum pairwise replicate correlation (worst replicate pair)', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}']
+        ]
+    )
+}
+
 def cutadaptAdaptersMultiqc(rows) {
     def rowEntries
     if (rows instanceof Map) {

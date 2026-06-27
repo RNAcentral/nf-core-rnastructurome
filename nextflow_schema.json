@@ -820,6 +820,31 @@
                     "description": "rf-structextract preserves dinucleotide frequencies when shuffling for energy evaluation (`-ds`).",
                     "default": false
                 },
+                "correlate_replicates": {
+                    "type": "boolean",
+                    "description": "Run rf-correlate to compute pairwise reactivity-profile correlations between replicates of each sample group (a replicate-reproducibility QC surfaced in MultiQC). Only runs for sample groups with more than one replicate; a no-op otherwise.",
+                    "default": true
+                },
+                "correlate_spearman": {
+                    "type": "boolean",
+                    "description": "Use Spearman instead of Pearson correlation in rf-correlate (`-S`).",
+                    "default": false
+                },
+                "correlate_min_values": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "rf-correlate minimum number of values to calculate a correlation (`-m`); a value between 0 and 1 is interpreted as a fraction of transcript length. Unset uses the tool default (off)."
+                },
+                "correlate_ignore_sequence": {
+                    "type": "boolean",
+                    "description": "rf-correlate ignores sequence differences (e.g. SNVs) between compared transcripts (`-I`).",
+                    "default": false
+                },
+                "correlate_img": {
+                    "type": "boolean",
+                    "description": "Generate the rf-correlate correlation heatmap PDF (`-g`; requires R).",
+                    "default": false
+                },
                 "rffold_ct": {
                     "type": "boolean",
                     "description": "Write CT format structures with rf-fold (`-ct`). Disabled by default to keep dot-bracket output.",

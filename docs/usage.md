@@ -180,6 +180,14 @@ The factor calculation reuses the same scoring and normalisation settings as the
 
 For the full list of available options see the [rf-normfactor documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-normfactor/).
 
+### rf-correlate (replicate reproducibility QC)
+
+When a sample group has more than one replicate, `rf-correlate` measures how reproducible the replicates are by computing pairwise correlations between their reactivity profiles (transcriptome-wide and per-transcript). This runs by default — set `--correlate_replicates false` to disable it — and is a no-op for single-replicate groups. The overall pairwise correlations are summarised into a **MultiQC table** (one row per sample group, reporting the number of replicates and the mean and minimum pairwise correlation), so a low number flags a discordant replicate before it dilutes the folded consensus.
+
+By default it uses Pearson correlation; switch to Spearman with `--correlate_spearman true`. Other options: `--correlate_min_values` sets the minimum number of covered positions required to correlate a transcript (a value between 0 and 1 is read as a fraction of transcript length), `--correlate_ignore_sequence` tolerates sequence differences (e.g. SNVs) between compared transcripts, and `--correlate_img true` additionally writes the rf-correlate correlation heatmap PDF. The full per-transcript pairwise TSVs and the correlation matrix are published under `correlate/`.
+
+For the full list of available options see the [rf-correlate documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-correlate/).
+
 ### rf-fold
 
 `rf-fold` predicts RNA secondary structures from normalised reactivity profiles using ViennaRNA. The pipeline groups XMLs by `sample_group`, merging replicates, and folds them together. Dot-bracket output is the default; CT format can be enabled with `--rffold_ct`.

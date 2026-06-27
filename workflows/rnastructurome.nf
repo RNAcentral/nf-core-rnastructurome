@@ -16,6 +16,7 @@ include { ALIGN_READS              } from '../subworkflows/local/align_reads/mai
 include { QUANTIFY_REACTIVITY      } from '../subworkflows/local/quantify_reactivity/main'
 include { NORMALISE_REACTIVITIES   } from '../subworkflows/local/normalise_reactivities/main'
 include { FOLD_STRUCTURES          } from '../subworkflows/local/fold_structures/main'
+include { RNAFRAMEWORK_RFCORRELATE } from '../modules/local/rnaframework/correlate/main'
 include { VISUALISE_STRUCTURES     } from '../subworkflows/local/visualise/main'
 include { BROWSER_TRACKS           } from '../subworkflows/local/browser_tracks/main'
 
@@ -29,6 +30,8 @@ include {
     countProgressionMultiqc
     rfnormStatsMultiqc
     rffoldStatsMultiqc
+    parseRfcorrelateMatrix
+    rfCorrelateMultiqc
     filterSummaryParams
     addModuleOptionsSummary
 } from './rnastructurome_functions.nf'
@@ -313,6 +316,37 @@ workflow RNASTRUCTUROME {
 
         ch_multiqc_files = ch_multiqc_files.mix(
             ch_rffold_stats_mqc.collectFile(name: 'rffold_stats_mqc.yaml', sort: true)
+        )
+    }
+
+    // rf-correlate — replicate-reproducibility QC. Reuses FOLD_STRUCTURES' per-sample_group XML
+    // grouping (with replicate sizes/labels) and runs only for groups with >1 replicate; the overall
+    // pairwise correlations are summarised into a MultiQC table (mean/min per sample group).
+    if (params.correlate_replicates) {
+        def ch_correlate_input = FOLD_STRUCTURES.out.fold_input
+            .filter { meta, _xmls -> (meta.fold_replicate_sizes?.size() ?: 0) >= 2 }
+            .map { meta, xmls ->
+                // rf-correlate sample labels must be unique and free of ':' / whitespace; derive from
+                // the per-replicate labels, sanitised, with an index suffix to guarantee uniqueness.
+                def rawLabels = (meta.fold_replicates ?: '').toString().tokenize(',')
+                def labels    = rawLabels.withIndex().collect { lbl, i -> "rep${i + 1}_${lbl.replaceAll(/[^A-Za-z0-9_.-]/, '_')}" }
+                def cmeta = meta + [
+                    correlate_replicate_sizes : meta.fold_replicate_sizes,
+                    correlate_replicate_labels: labels
+                ]
+                [ cmeta, xmls ]
+            }
+
+        RNAFRAMEWORK_RFCORRELATE(ch_correlate_input)
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCORRELATE.out.versions.first())
+
+        def ch_correlate_mqc = RNAFRAMEWORK_RFCORRELATE.out.matrix
+            .map { meta, matrix -> [ meta.id.toString(), parseRfcorrelateMatrix(matrix) ] }
+            .collect()
+            .map { rows -> rfCorrelateMultiqc(rows) }
+
+        ch_multiqc_files = ch_multiqc_files.mix(
+            ch_correlate_mqc.collectFile(name: 'rfcorrelate_mqc.yaml', sort: true)
         )
     }
 

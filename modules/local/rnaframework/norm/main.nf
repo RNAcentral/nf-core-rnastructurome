@@ -6,7 +6,7 @@ process RNAFRAMEWORK_RFNORM {
     container params.rnaframework_container
 
     input:
-    tuple val(meta), path(treated), path(untreated), path(denatured), path(rci_files)
+    tuple val(meta), path(treated), path(untreated), path(denatured), path(rci_files), path(norm_factor)
 
     output:
     tuple val(meta), path("${prefix}_norm/*.xml"), emit: xml
@@ -19,6 +19,9 @@ process RNAFRAMEWORK_RFNORM {
     prefix            = task.ext.prefix ?: "${meta.id}"
     def untreated_arg = untreated ? "-u ${untreated}" : ''
     def denatured_arg = denatured ? "-d ${denatured}" : ''
+    // Cross-experiment normalisation factor file from rf-normfactor (opt-in via --rfnorm_use_normfactor).
+    // When staged, it overrides rf-norm's internal per-sample normalisation.
+    def norm_factor_arg = norm_factor ? "-nf ${norm_factor}" : ''
     def treated_list  = treated instanceof List ? treated.join(' ') : "${treated}"
     """
     export TERM="\${TERM:-xterm}"
@@ -29,6 +32,7 @@ process RNAFRAMEWORK_RFNORM {
         -o ${prefix}_norm \\
         -ow \\
         ${args} \\
+        ${norm_factor_arg} \\
         -t ${treated_list} \\
         ${untreated_arg} \\
         ${denatured_arg} 2>&1 | tee "\${rfnorm_log_tmp}"
@@ -46,10 +50,8 @@ process RNAFRAMEWORK_RFNORM {
         done
     fi
 
-    printf '"%s":\n    rnaframework: %s\n' \\
-        "${task.process}" \\
-        "\$(rf-norm 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 || echo "unknown")" \\
-        > versions.yml
+    rnaframework_version=\$(rf-norm -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
+    printf '"%s":\n    rnaframework: %s\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -61,9 +63,7 @@ process RNAFRAMEWORK_RFNORM {
     touch ${prefix}_norm/plots/${prefix}.pdf
     touch ${prefix}_norm/rfnorm.log
 
-    printf '"%s":\n    rnaframework: %s\n' \\
-        "${task.process}" \\
-        "\$(rf-norm 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 || echo "unknown")" \\
-        > versions.yml
+    rnaframework_version=\$(rf-norm -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
+    printf '"%s":\n    rnaframework: %s\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

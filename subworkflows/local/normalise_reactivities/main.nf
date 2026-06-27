@@ -4,7 +4,8 @@
 // run rf-norm to produce per-base reactivity XML files.
 //
 
-include { RNAFRAMEWORK_RFNORM        } from '../../../modules/local/rnaframework/norm/main'
+include { RNAFRAMEWORK_RFNORM         } from '../../../modules/local/rnaframework/norm/main'
+include { RNAFRAMEWORK_RFNORMFACTOR   } from '../../../modules/local/rnaframework/normfactor/main'
 include { RNAFRAMEWORK_RFRCTOOLS_SPLIT } from '../../../modules/local/rnaframework/rctools/split/main'
 include {
     sampleGroupBaseToken
@@ -170,6 +171,108 @@ workflow NORMALISE_REACTIVITIES {
             [ gmeta, treated_rcs, untreated_rc ?: [], denatured_rc ?: [], rci_files ?: [] ]
         }
 
+    // Cross-experiment normalisation via rf-normfactor. Derives one set of transcriptome-wide
+    // normalisation factors per reference (across that reference's treated samples, with their matched
+    // untreated/denatured), then feeds the factor file to every group's rf-norm via -nf — putting
+    // reactivities on a common scale, unlike per-sample box-plot.
+    //
+    // Enablement is decided PER REFERENCE:
+    //   --rfnorm_use_normfactor true   -> force on for every reference
+    //   --rfnorm_use_normfactor false  -> force off (always per-sample box-plot)
+    //   --rfnorm_use_normfactor null   -> AUTO (default): on for a reference that has paired untreated
+    //                                     controls OR more than one treated sample.
+    // References that stay off keep an empty factor slot and normalise each group independently.
+    def nfRaw          = pipeline_config.rfnorm_use_normfactor
+    def nfForceOn      = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['true', '1', 'yes'])
+    def nfForceOff     = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['false', '0', 'no'])
+    def chunkingActive = pipeline_config.rfnorm_chunk_size && !pipeline_config.transcriptome
+    if (nfForceOn && chunkingActive) {
+        error("--rfnorm_use_normfactor true is incompatible with --rfnorm_chunk_size: chunking would fragment the cross-experiment factor calculation. Disable one of them.")
+    }
+
+    def ch_norm_input_final
+    if (nfForceOff || chunkingActive) {
+        // rf-normfactor disabled (explicit off, or the chunking path owns normalisation).
+        ch_norm_input_final = ch_norm_input
+            .map { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ->
+                [ gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, [] ]
+            }
+    } else {
+        // Build per-reference candidates from ch_norm_input, which already pairs each group's treated
+        // sample(s) with their RESOLVED untreated/denatured (exact or fuzzy). rf-normfactor pairs
+        // -t/-u/-d positionally (treated[i] ↔ untreated[i]), so emit one entry per treated RC carrying
+        // its own controls — keeping the pairing intact regardless of groupTuple ordering.
+        def ch_nf_pairs = ch_norm_input
+            .flatMap { gmeta, treated_rcs, untreated_rc, denatured_rc, _rci ->
+                def ref   = resolveReferenceKey(gmeta, pipeline_config.organism)
+                def tlist = treated_rcs instanceof List ? treated_rcs : [treated_rcs]
+                // A single resolved untreated/denatured control is shared across the group's treated RCs.
+                def untreated = (untreated_rc instanceof List ? (untreated_rc ? untreated_rc[0] : null) : untreated_rc) ?: null
+                def denatured = (denatured_rc instanceof List ? (denatured_rc ? denatured_rc[0] : null) : denatured_rc) ?: null
+                tlist.collect { t -> [ ref, [ meta: gmeta, treated: t, untreated: untreated, denatured: denatured ] ] }
+            }
+
+        // Per reference: decide enablement and assemble positionally-paired control lists.
+        def ch_nf_candidates = ch_nf_pairs
+            .groupTuple()
+            .map { ref, entries ->
+                def base_meta     = entries[0].meta
+                def treated_list  = entries.collect { entry -> entry.treated }
+                def untreated_all = entries.collect { entry -> entry.untreated }
+                def denatured_all = entries.collect { entry -> entry.denatured }
+                def hasUntreated  = untreated_all.any { it }
+                // rf-normfactor needs every treated paired with an untreated for Ding/Siegfried scoring.
+                if (hasUntreated && untreated_all.any { !it }) {
+                    def missing = entries.findAll { entry -> !entry.untreated }.collect { entry -> entry.meta.id }.sort().join(', ')
+                    error("rf-normfactor for reference '${ref}': not every treated sample has a matched untreated control (missing for: ${missing}). Cross-experiment normalisation requires all-or-none untreated controls; add the missing controls or set --rfnorm_use_normfactor false.")
+                }
+                // AUTO: a reference is worth a shared factor once it has paired untreated controls or
+                // more than one treated sample; an explicit 'true' forces it on regardless.
+                def autoEnable     = hasUntreated || treated_list.size() > 1
+                def enabled        = nfForceOn ? true : autoEnable
+                // Denatured is optional, but must align 1:1 with treated to stay positionally paired; if
+                // only some groups have a denatured control, drop it rather than mispair.
+                def denatured_list = denatured_all.every { it } ? denatured_all : []
+                def principle      = (base_meta.principle ?: '').toLowerCase()
+                def scoringMethod  = principle == 'map'
+                    ? (hasUntreated ? 3 : 4)
+                    : (hasUntreated ? 1 : 2)
+                def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
+                def nfmeta = base_meta + [
+                    id                    : ref,
+                    rfnorm_scoring_method : scoringMethod,
+                    rfnorm_norm_method    : normMethod
+                ]
+                [ ref, enabled, nfmeta, treated_list, hasUntreated ? untreated_all : [], denatured_list ]
+            }
+
+        def ch_nf_input = ch_nf_candidates
+            .filter { _ref, enabled, _meta, _t, _u, _d -> enabled }
+            .map    { _ref, _enabled, nfmeta, t, u, d -> [ nfmeta, t, u, d, [] ] }
+
+        RNAFRAMEWORK_RFNORMFACTOR(ch_nf_input)
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORMFACTOR.out.versions.first())
+
+        // Complete per-reference factor map: derived factor for enabled refs, empty for disabled refs,
+        // so EVERY group below matches exactly one entry (disabled refs fall back to box-plot).
+        def ch_disabled_refs = ch_nf_candidates
+            .filter { _ref, enabled, _meta, _t, _u, _d -> !enabled }
+            .map    { ref, _enabled, _meta, _t, _u, _d -> [ ref, [] ] }
+
+        def ch_factor_by_ref = RNAFRAMEWORK_RFNORMFACTOR.out.factors
+            .map { nfmeta, factors -> [ nfmeta.id.toString(), factors ] }
+            .mix(ch_disabled_refs)
+
+        ch_norm_input_final = ch_norm_input
+            .map { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ->
+                [ resolveReferenceKey(gmeta, pipeline_config.organism), gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ]
+            }
+            .combine(ch_factor_by_ref, by: 0)
+            .map { _ref, gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, factors ->
+                [ gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, factors ]
+            }
+    }
+
     def ch_xml
     def ch_plots
     def ch_rfnorm_log
@@ -223,7 +326,9 @@ workflow NORMALISE_REACTIVITIES {
             .join(ch_untreated_transposed, by: [0, 1], remainder: true)
             .combine(ch_norm_branched.for_controls, by: 0)
             .map { _group_key, _chunk_id, chunk_gmeta, treated_chunk, untreated_chunk, denatured_rc, rci_files ->
-                [ chunk_gmeta, [treated_chunk], untreated_chunk ? [untreated_chunk] : [], denatured_rc ?: [], rci_files ?: [] ]
+                // Chunking is mutually exclusive with --rfnorm_use_normfactor (guarded above), so the
+                // factor slot is always empty on this path.
+                [ chunk_gmeta, [treated_chunk], untreated_chunk ? [untreated_chunk] : [], denatured_rc ?: [], rci_files ?: [], [] ]
             }
 
         RNAFRAMEWORK_RFNORM(ch_chunked_inputs)
@@ -257,7 +362,7 @@ workflow NORMALISE_REACTIVITIES {
             .map { _orig_id, gmetas, plot_lists -> [ gmetas[0], plot_lists.flatten() ] }
 
     } else {
-        RNAFRAMEWORK_RFNORM(ch_norm_input)
+        RNAFRAMEWORK_RFNORM(ch_norm_input_final)
         ch_versions   = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
         ch_xml        = RNAFRAMEWORK_RFNORM.out.xml
         ch_plots      = RNAFRAMEWORK_RFNORM.out.plots

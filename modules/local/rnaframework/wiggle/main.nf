@@ -23,10 +23,8 @@ process RNAFRAMEWORK_RFWIGGLE {
         ${args} \\
         xml/
 
-    printf '"%s":\\n    rnaframework: %s\\n' \\
-        "${task.process}" \\
-        "\$(rf-wiggle 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
-        > versions.yml
+    rnaframework_version=\$(rf-wiggle -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
+    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -35,9 +33,7 @@ process RNAFRAMEWORK_RFWIGGLE {
     mkdir -p ${prefix}_wiggle
     touch ${prefix}_wiggle/stub.wig
 
-    printf '"%s":\\n    rnaframework: %s\\n' \\
-        "${task.process}" \\
-        "\$(rf-wiggle 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
-        > versions.yml
+    rnaframework_version=\$(rf-wiggle -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
+    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

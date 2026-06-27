@@ -21,6 +21,7 @@ All paths are relative to the top-level output directory specified with `--outdi
 │   └── <sample>/*.{rc,rci}
 │       └── plots/*.pdf
 ├── norm/
+│   ├── <reference>.norm_factors.txt      (if cross-experiment normalisation enabled)
 │   ├── <group>/
 │   │   ├── xml/*.xml
 │   │   ├── plots/*.pdf
@@ -86,6 +87,18 @@ This pipeline uses modules from [RNA Framework](https://rnaframework-docs.readth
 [`rf-count`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count/) calculates per-base RT-stop or mutation counts and read coverage from aligned reads. On the transcriptome route, the pipeline runs `rf-count` directly against transcript-coordinate BAM files. On the genome route, it runs [`rf-count-genome`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count-genome/) on the genome first, then converts genome-coordinate count files to transcript-level `.rc` files with `rf-rctools extract`.
 
 The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf-norm` for reactivity normalisation.
+
+### rf-normfactor (optional)
+
+<details markdown="1">
+<summary>Output files </summary>
+
+- `norm/<reference>.norm_factors.txt`: Transcriptome-wide, cross-experiment normalisation factors for the reference, applied to every group's `rf-norm` via `-nf`.
+- `norm/<reference>.rfnormfactor.log`: Raw `rf-normfactor` console output.
+
+</details>
+
+[`rf-normfactor`](https://rnaframework-docs.readthedocs.io/en/latest/rf-normfactor/) derives a single set of normalisation factors across all of a reference's samples so that reactivities are on a common scale for cross-sample comparison. It runs once per reference and only when cross-experiment normalisation is enabled for that reference (see `--rfnorm_use_normfactor` in the [usage docs](usage.md); auto-enabled for a reference with paired untreated controls or more than one treated sample). When it does not run, `rf-norm` normalises each group independently and no factor file is produced.
 
 ### rf-norm
 

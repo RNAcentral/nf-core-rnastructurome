@@ -162,6 +162,24 @@ Per-transcript reactivity plots are disabled by default (`--rfnorm_img false`) b
 
 For the full list of available options see the [rf-norm documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
 
+### rf-normfactor (cross-experiment normalisation)
+
+By default `rf-norm` normalises each `sample_group + replicate` group independently. This is fine for looking at one sample, but it means reactivities are not on a common scale across samples — so comparing reactivity between replicates or conditions can be misleading. `rf-normfactor` solves this by deriving a single set of transcriptome-wide normalisation factors across all of a reference's samples at once, which `rf-norm` then applies (via `-nf`) to every group. This is the approach used for cross-sample analyses in recent transcriptome-wide SHAPE-MaP studies.
+
+Whether this runs is decided **per reference** by `--rfnorm_use_normfactor`:
+
+- unset (default) — **auto**: enabled for a reference that has paired treated/untreated controls **or** more than one treated sample. A reference with a single treated sample and no control keeps independent per-sample box-plot normalisation.
+- `true` — force on for every reference.
+- `false` — force off; always use per-sample normalisation.
+
+The factor is computed once per reference across all that reference's treated samples (each paired with its own resolved untreated/denatured control), so within a run different references are normalised independently but all samples mapping to the same reference share one scale. Cross-experiment normalisation with Siegfried scoring requires every treated sample on a reference to have a matched untreated control — if some do but others do not, the pipeline errors rather than mispair; add the missing controls or set `--rfnorm_use_normfactor false`.
+
+The factor calculation reuses the same scoring and normalisation settings as the downstream `rf-norm` (scoring method, `--rfnorm_reactive_bases`, `--rfnorm_pseudocount`, `--rfnorm_max_score`, `--rfnorm_ignore_lower_than_untreated`, `--rfnorm_max_untreated_mut`, `--rfnorm_max_mutation_rate`, `--rfnorm_median_coverage`), so factors are computed on the same footing as the reactivities. The minimum per-base coverage used when calculating factors is set with `--rfnorm_normfactor_min_coverage` (default `1000`, matching the `-mc` value used in published transcriptome-wide protocols).
+
+> **Note**: because auto is the default, multi-sample runs (or any run with paired untreated controls) now use cross-experiment normalisation rather than independent per-sample normalisation, which changes the scale of reported reactivities relative to earlier behaviour. Set `--rfnorm_use_normfactor false` to restore per-sample normalisation. Auto is also disabled while `--rfnorm_chunk_size` is in use.
+
+For the full list of available options see the [rf-normfactor documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-normfactor/).
+
 ### rf-fold
 
 `rf-fold` predicts RNA secondary structures from normalised reactivity profiles using ViennaRNA. The pipeline groups XMLs by `sample_group`, merging replicates, and folds them together. Dot-bracket output is the default; CT format can be enabled with `--rffold_ct`.

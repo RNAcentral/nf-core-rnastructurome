@@ -103,9 +103,10 @@ process RNAFRAMEWORK_RFCOUNT {
     mv "\${cleaned_log}" "${outdir}/${prefix}.rfcount.log"
     rm -f "\${rfcount_log_tmp}"
 
+    rnaframework_version=\$(rf-count -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        rnaframework: \$(rf-count 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 || echo "unknown")
+        rnaframework: \${rnaframework_version:-unknown}
     END_VERSIONS
     """
 
@@ -124,9 +125,10 @@ process RNAFRAMEWORK_RFCOUNT {
     ${prefix}	1	25.0	25.0	25.0	25.0
     END_SUMMARY
 
+    rnaframework_version=\$(rf-count -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        rnaframework: \$(rf-count 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 || echo "unknown")
+        rnaframework: \${rnaframework_version:-unknown}
     END_VERSIONS
     """
 }

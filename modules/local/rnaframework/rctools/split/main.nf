@@ -127,10 +127,8 @@ PYEOF
         fi
     done
 
-    printf '"%s":\\n    rnaframework: %s\\n' \\
-        "${task.process}" \\
-        "\$(rf-rctools 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
-        > versions.yml
+    rnaframework_version=\$(rf-rctools -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
+    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -140,9 +138,7 @@ PYEOF
     mkdir -p chunks/treated chunks/untreated
     touch chunks/treated/${prefix}_chunk_0000.rc
 
-    printf '"%s":\\n    rnaframework: %s\\n' \\
-        "${task.process}" \\
-        "\$(rf-rctools 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
-        > versions.yml
+    rnaframework_version=\$(rf-rctools -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
+    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

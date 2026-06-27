@@ -43,10 +43,8 @@ process RNAFRAMEWORK_RFJACKKNIFE {
     mkdir -p ${prefix}_jackknife
     mv "\${log_tmp}" ${prefix}_jackknife/rfjackknife.log
 
-    printf '"%s":\\n    rnaframework: %s\\n' \\
-        "${task.process}" \\
-        "\$(rf-jackknife 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
-        > versions.yml
+    rnaframework_version=\$(rf-jackknife -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
+    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -62,9 +60,7 @@ process RNAFRAMEWORK_RFJACKKNIFE {
 
     touch ${prefix}_jackknife/rfjackknife.log
 
-    printf '"%s":\\n    rnaframework: %s\\n' \\
-        "${task.process}" \\
-        "\$(rf-jackknife 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 || echo "unknown")" \\
-        > versions.yml
+    rnaframework_version=\$(rf-jackknife -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
+    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

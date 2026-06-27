@@ -3,6 +3,6 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - bioconda::rnaframework=2.9.6
+  - bioconda::rnaframework=2.9.7
   - bioconda::viennarna=2.7.2
   - conda-forge::perl

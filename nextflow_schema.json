@@ -534,6 +534,16 @@
                     "type": "string",
                     "description": "Use a fixed normalization factor for all transcripts (`--norm-factor`). For 90% Winsorizing provide two comma-separated values for the 5th and 95th percentiles."
                 },
+                "rfnorm_use_normfactor": {
+                    "type": "boolean",
+                    "description": "Cross-experiment normalization via rf-normfactor (one factor set per reference, fed to rf-norm via `-nf`), putting reactivities on a common scale. Leave unset for auto (enabled for a reference with paired untreated controls or more than one treated sample); set `true` to force on, `false` to force off (per-sample box-plot). Auto is disabled when `--rfnorm_chunk_size` is set."
+                },
+                "rfnorm_normfactor_min_coverage": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "rf-normfactor minimum coverage (`-mc`): bases below this coverage are excluded from the normalization factor calculation.",
+                    "default": 1000
+                },
                 "rfnorm_norm_method": {
                     "type": "integer",
                     "enum": [

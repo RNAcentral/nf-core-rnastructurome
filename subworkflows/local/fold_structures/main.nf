@@ -7,6 +7,7 @@
 include { RNAFRAMEWORK_RFJACKKNIFE                                     } from '../../../modules/local/rnaframework/jackknife/main'
 include { RNAFRAMEWORK_RFEVAL                                          } from '../../../modules/local/rnaframework/eval/main'
 include { RNAFRAMEWORK_RFFOLD                                          } from '../../../modules/local/rnaframework/fold/main'
+include { RNAFRAMEWORK_RFSTRUCTEXTRACT                                 } from '../../../modules/local/rnaframework/structextract/main'
 include { RNAFRAMEWORK_DOTPLOT2BP                                      } from '../../../modules/local/dotplot2bp/main'
 include { RNAFRAMEWORK_DOTPLOT2BP as RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT } from '../../../modules/local/dotplot2bp/main'
 include { MERGE_BP                                                     } from '../../../modules/local/merge_bp/main'
@@ -157,6 +158,7 @@ workflow FOLD_STRUCTURES {
     def ch_bp_dotplot       = channel.empty()
     def ch_bp               = channel.empty()
     def ch_bp_transcript    = channel.empty()
+    def ch_structextract    = channel.empty()
 
     if (!pipeline_config.stop_after_jackknife) {
         RNAFRAMEWORK_RFFOLD (
@@ -166,6 +168,29 @@ workflow FOLD_STRUCTURES {
         ch_fold_structures = RNAFRAMEWORK_RFFOLD.out.structures
         ch_shannon_wig     = RNAFRAMEWORK_RFFOLD.out.shannon_wig
         ch_rffold_log      = RNAFRAMEWORK_RFFOLD.out.log
+
+        //
+        // Optional rf-structextract — pull high-confidence, low-reactivity / low-Shannon structural
+        // motifs out of the rf-fold output. Pairs each fold output directory (-ro) with the same
+        // group's rf-norm XML reactivities (-xf). XML names repeat across replicates, so deduplicate
+        // by filename (rf-structextract reads one reactivity profile per transcript).
+        //
+        if (pipeline_config.structextract) {
+            def ch_structextract_input = RNAFRAMEWORK_RFFOLD.out.structures
+                .map { meta, fold_dir -> [ meta.id.toString(), meta, fold_dir ] }
+                .join(
+                    ch_fold_for_rffold.map { meta, xmls -> [ meta.id.toString(), xmls ] }
+                )
+                .map { _id, meta, fold_dir, xmls ->
+                    def seen    = [] as Set
+                    def deduped = [xmls].flatten().findAll { x -> seen.add(x.name) }
+                    [ meta, fold_dir, deduped ]
+                }
+
+            RNAFRAMEWORK_RFSTRUCTEXTRACT(ch_structextract_input)
+            ch_versions      = ch_versions.mix(RNAFRAMEWORK_RFSTRUCTEXTRACT.out.versions.first())
+            ch_structextract = RNAFRAMEWORK_RFSTRUCTEXTRACT.out.motifs
+        }
 
         def ch_dotplot_bp_input = RNAFRAMEWORK_RFFOLD.out.structures
             .combine(ch_reference_gtf_map)
@@ -222,5 +247,6 @@ workflow FOLD_STRUCTURES {
     bp_dotplot    = ch_bp_dotplot       // channel: [ val(meta), path(bp) ]         — empty when stop_after_jackknife
     bp            = ch_bp              // channel: [ val(meta), path(bp) ]          — empty when stop_after_jackknife
     bp_transcript = ch_bp_transcript   // channel: [ val(meta), path(bp) ]          — empty when stop_after_jackknife
+    structextract = ch_structextract   // channel: [ val(meta), path(dir) ]         — empty unless --structextract
     versions      = ch_versions                            // channel: [ path(versions.yml) ]
 }

@@ -723,6 +723,103 @@
                     "description": "Generate R metric plots in rf-eval (`-g`).",
                     "default": false
                 },
+                "structextract": {
+                    "type": "boolean",
+                    "description": "Run rf-structextract after rf-fold to extract high-confidence, low-reactivity / low-Shannon structural motifs from the folded structures.",
+                    "default": false
+                },
+                "structextract_win_size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "rf-structextract window size in nt for median reactivity/Shannon calculations (`-w`).",
+                    "default": 50
+                },
+                "structextract_min_transcript_len": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "rf-structextract skips low-reactivity/low-Shannon evaluation for transcripts below this length (`-ml`).",
+                    "default": 500
+                },
+                "structextract_min_value_frac": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "rf-structextract windows with less than this fraction of bases covered are set to NaN (`-mv`).",
+                    "default": 0.4
+                },
+                "structextract_min_below_median": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "rf-structextract minimum fraction of bases whose Shannon and reactivity are below the transcript median (`-mb`).",
+                    "default": 0.7
+                },
+                "structextract_min_paired_frac": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "rf-structextract discards elements with less than this fraction of paired bases (`-mp`).",
+                    "default": 0.45
+                },
+                "structextract_min_motif_len": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "rf-structextract discards structure elements shorter than this (`-mm`).",
+                    "default": 50
+                },
+                "structextract_max_motif_len": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "rf-structextract discards structure elements longer than this (`-xm`). Unset for no limit."
+                },
+                "structextract_max_loop_size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "rf-structextract discards elements with a loop larger than this (`-xl`). Unset for no limit."
+                },
+                "structextract_ignore_react": {
+                    "type": "boolean",
+                    "description": "rf-structextract skips low-reactivity evaluation (`-ir`).",
+                    "default": false
+                },
+                "structextract_ignore_shannon": {
+                    "type": "boolean",
+                    "description": "rf-structextract skips low-Shannon evaluation (`-is`).",
+                    "default": false
+                },
+                "structextract_multiway_only": {
+                    "type": "boolean",
+                    "description": "rf-structextract only reports elements encompassing multiway junctions (`-mo`).",
+                    "default": false
+                },
+                "structextract_one_per_file": {
+                    "type": "boolean",
+                    "description": "rf-structextract reports each extracted element in a separate file (`-opf`).",
+                    "default": false
+                },
+                "structextract_eval_energy": {
+                    "type": "boolean",
+                    "description": "rf-structextract only reports elements with a free energy significantly lower than expected by chance (`-ee`).",
+                    "default": false
+                },
+                "structextract_pvalue": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "rf-structextract p-value threshold for energy significance (`-v`); requires `--structextract_eval_energy`.",
+                    "default": 0.05
+                },
+                "structextract_n_shufflings": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "rf-structextract number of sequence shufflings for energy evaluation (`-ns`).",
+                    "default": 100
+                },
+                "structextract_dinucl_shuffle": {
+                    "type": "boolean",
+                    "description": "rf-structextract preserves dinucleotide frequencies when shuffling for energy evaluation (`-ds`).",
+                    "default": false
+                },
                 "rffold_ct": {
                     "type": "boolean",
                     "description": "Write CT format structures with rf-fold (`-ct`). Disabled by default to keep dot-bracket output.",

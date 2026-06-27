@@ -39,6 +39,8 @@ All paths are relative to the top-level output directory specified with `--outdi
 │   ├── transcript_bp/*.bp
 │   ├── shannon_genome_bw/*.bw
 │   └── shannon_transcript_bw/*.bw
+├── structextract/                     (if --structextract)
+│   └── <group>_structextract/
 ├── eval/                              (if --eval_reference provided)
 ├── reference/                         (only when reference downloaded from Ensembl)
 │   ├── *.sorted.fa
@@ -147,6 +149,19 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
 
 - **[R2DT](https://github.com/RNAcentral/R2DT)** — used when a matching template exists in the R2DT library (rRNA, snRNA, tRNA, etc.). Produces layouts comparable across organisms. Published to `fold/<group>/structures/r2dt/`.
 - **[ViennaRNA](https://www.tbi.univie.ac.at/RNA/)** — fallback for transcripts without an R2DT template. `RNAplot` draws an energy-minimised 2D diagram from the dot-bracket structure. Published to `fold/<group>/structures/viennarna/`.
+
+---
+
+### rf-structextract (optional)
+
+<details markdown="1">
+<summary>Output files </summary>
+
+- `structextract/<group>_structextract/`: Extracted structural motifs and their secondary structures for the sample group, filtered to high-confidence, low-reactivity / low-Shannon elements meeting the configured criteria.
+
+</details>
+
+[`rf-structextract`](https://rnaframework-docs.readthedocs.io/en/latest/rf-structextract/) extracts well-defined structural elements from the rf-fold output by combining the predicted structures with per-base reactivity and Shannon entropy. Only runs when `--structextract` is set (see [usage docs](usage.md) for the selection-criteria parameters). It identifies substructures whose bases are consistently below the transcript median for both reactivity and Shannon entropy — the signature of stably folded regions — and that pass the configured length, pairing, and (optionally) thermodynamic-significance filters.
 
 ---
 

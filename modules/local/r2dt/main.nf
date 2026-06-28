@@ -50,7 +50,7 @@ END_VERSIONS
         2>&1 | grep -E '^(Analysing|Elapsed time|Traveler crashed|Failed cmalign|[Ee]rror|usage:)' | tee -a ${prefix}_r2dt.log || true
 
     # ── 3. Overlay reactivities onto SVGs ──────────────────────────────────────
-    if ls r2dt_raw/results/svg/*.svg 1>/dev/null 2>&1; then
+    if find r2dt_raw/results/svg -maxdepth 1 -name '*.svg' 2>/dev/null | grep -q .; then  # find avoids ARG_MAX with many per-transcript SVGs
         mkdir -p ${prefix}_r2dt
         python3 ${colour_script} \\
             --svg-dir       r2dt_raw/results/svg \\

@@ -1,0 +1,72 @@
+nextflow_process {
+
+    name "Test Process WIG_CHROM_SIZES"
+    script "../main.nf"
+    process "WIG_CHROM_SIZES"
+
+    tag "modules"
+    tag "modules_local"
+    tag "wig_chrom_sizes"
+    config "./nextflow.config"
+
+    test("computes chrom sizes from fixedStep and variableStep wiggle") {
+
+        when {
+            params {
+                module_prefix = 'group1'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group1' ],
+                    file("${projectDir}/modules/local/wig_chrom_sizes/tests/fixtures/sample.wig", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/bin/wig_chrom_sizes.py", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.sizes.size() == 1 },
+                {
+                    def sizesText = path(process.out.sizes[0][1]).text
+                    assert sizesText.readLines() == [
+                        'TX1\t3',
+                        'TX2\t100'
+                    ]
+                },
+                { assert path(process.out.versions[0]).text.contains('python:') }
+            )
+        }
+    }
+
+    test("wig_chrom_sizes - stub") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_prefix = 'group1'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group1' ],
+                    file("${projectDir}/modules/local/wig_chrom_sizes/tests/fixtures/sample.wig", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/bin/wig_chrom_sizes.py", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.sizes.size() == 1 },
+                { assert path(process.out.versions[0]).text.contains('python:') }
+            )
+        }
+    }
+}

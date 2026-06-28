@@ -56,7 +56,25 @@ def fetch_text(url: str, timeout: int = 60) -> str:
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
             raise EnsemblSpeciesNotFound(f"HTTP 404 at {url}") from exc
-        raise
+        # Some servers (and file:// dir URLs) don't serve directory listings directly; retry index.html.
+        fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
+        try:
+            with urllib.request.urlopen(fallback_url, timeout=timeout) as response:
+                return response.read().decode("utf-8", errors="ignore")
+        except urllib.error.HTTPError as fallback_exc:
+            if fallback_exc.code == 404:
+                raise EnsemblSpeciesNotFound(f"HTTP 404 at {fallback_url}") from fallback_exc
+            raise
+    except urllib.error.URLError:
+        # file:// directory URLs raise URLError ("Is a directory"); fall back to the index.html listing.
+        fallback_url = f"{url}index.html" if url.endswith("/") else f"{url}/index.html"
+        try:
+            with urllib.request.urlopen(fallback_url, timeout=timeout) as response:
+                return response.read().decode("utf-8", errors="ignore")
+        except urllib.error.HTTPError as fallback_exc:
+            if fallback_exc.code == 404:
+                raise EnsemblSpeciesNotFound(f"HTTP 404 at {fallback_url}") from fallback_exc
+            raise urllib.error.URLError(str(fallback_exc)) from fallback_exc
 
 
 def release_path_for_value(release: str) -> str:

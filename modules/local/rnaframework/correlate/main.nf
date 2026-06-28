@@ -35,7 +35,7 @@ process RNAFRAMEWORK_RFCORRELATE {
     sizes=(${sizes})
     labels=(${labels})
     _input_dirs=()
-    while IFS= read -r d; do _input_dirs+=( "\${d}" ); done < <(ls -d input*/ 2>/dev/null | sort -t t -k2,2n)
+    while IFS= read -r d; do _input_dirs+=( "\${d}" ); done < <(printf '%s\\n' input*/ | sort -t t -k2,2n)  # printf is a builtin: no ARG_MAX limit at high replicate/transcript counts
     if [[ \${#_input_dirs[@]} -ne ${total} ]]; then
         echo "[RNAFRAMEWORK_RFCORRELATE] staged input dir count (\${#_input_dirs[@]}) != expected (${total})." >&2
         exit 1

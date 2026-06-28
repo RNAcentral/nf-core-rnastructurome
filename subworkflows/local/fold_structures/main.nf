@@ -187,7 +187,11 @@ workflow FOLD_STRUCTURES {
                     [ meta, fold_dir, deduped ]
                 }
 
-            RNAFRAMEWORK_RFSTRUCTEXTRACT(ch_structextract_input)
+            RNAFRAMEWORK_RFSTRUCTEXTRACT(
+                ch_structextract_input,
+                file("${projectDir}/bin/viennarna_extract_xml.py", checkIfExists: true),
+                file("${projectDir}/bin/viennarna_colour_svg.py",  checkIfExists: true)
+            )
             ch_versions      = ch_versions.mix(RNAFRAMEWORK_RFSTRUCTEXTRACT.out.versions.first())
             ch_structextract = RNAFRAMEWORK_RFSTRUCTEXTRACT.out.motifs
         }

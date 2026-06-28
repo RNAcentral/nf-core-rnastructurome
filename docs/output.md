@@ -34,13 +34,14 @@ All paths are relative to the top-level output directory specified with `--outdi
 │   │   ├── structures/r2dt/*.svg
 │   │   ├── structures/viennarna/*.svg
 │   │   ├── summaries/*.pdf
-│   │   └── rdat/*.rdat
+│   │   ├── rdat/*.rdat
+│   │   └── extracted_structures/      (if --structextract)
+│   │       ├── dotbracket/*.db        (extracted motifs, dot-bracket)
+│   │       └── images/*_ss.svg        (per-motif diagrams, reactivity-coloured)
 │   ├── genome_bp/*.bp
 │   ├── transcript_bp/*.bp
 │   ├── shannon_genome_bw/*.bw
 │   └── shannon_transcript_bw/*.bw
-├── structextract/                     (if --structextract)
-│   └── <group>_structextract/
 ├── correlate/                         (if --correlate_replicates and >1 replicate)
 │   └── <group>_correlate/
 │       ├── matrix.csv
@@ -175,11 +176,12 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
 <details markdown="1">
 <summary>Output files </summary>
 
-- `structextract/<group>_structextract/`: Extracted structural motifs and their secondary structures for the sample group, filtered to high-confidence, low-reactivity / low-Shannon elements meeting the configured criteria.
+- `fold/<group>/extracted_structures/dotbracket/*.db`: Extracted structural motifs for the sample group in dot-bracket notation (one multi-record file per transcript, each record named `<transcript>_<start>-<end>`), filtered to high-confidence, low-reactivity / low-Shannon elements meeting the configured criteria.
+- `fold/<group>/extracted_structures/images/*_ss.svg`: One 2D diagram per extracted motif, drawn with ViennaRNA RNAplot and coloured by SHAPE reactivity in the same style as the rf-fold structure plots. Written unless `--structextract_plot false`.
 
 </details>
 
-[`rf-structextract`](https://rnaframework-docs.readthedocs.io/en/latest/rf-structextract/) extracts well-defined structural elements from the rf-fold output by combining the predicted structures with per-base reactivity and Shannon entropy. Only runs when `--structextract` is set (see [usage docs](usage.md) for the selection-criteria parameters). It identifies substructures whose bases are consistently below the transcript median for both reactivity and Shannon entropy — the signature of stably folded regions — and that pass the configured length, pairing, and (optionally) thermodynamic-significance filters.
+[`rf-structextract`](https://rnaframework-docs.readthedocs.io/en/latest/rf-structextract/) extracts well-defined structural elements from the rf-fold output by combining the predicted structures with per-base reactivity and Shannon entropy. Only runs when `--structextract` is set (see [usage docs](usage.md) for the selection-criteria parameters). It identifies substructures whose bases are consistently below the transcript median for both reactivity and Shannon entropy — the signature of stably folded regions — and that pass the configured length, pairing, and (optionally) thermodynamic-significance filters. Outputs are nested under the sample group's `fold/<group>/` directory.
 
 ---
 

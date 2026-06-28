@@ -253,15 +253,18 @@ workflow NORMALISE_REACTIVITIES {
         RNAFRAMEWORK_RFNORMFACTOR(ch_nf_input)
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORMFACTOR.out.versions.first())
 
-        // Complete per-reference factor map: derived factor for enabled refs, empty for disabled refs,
-        // so EVERY group below matches exactly one entry (disabled refs fall back to box-plot).
-        def ch_disabled_refs = ch_nf_candidates
-            .filter { _ref, enabled, _meta, _t, _u, _d -> !enabled }
-            .map    { ref, _enabled, _meta, _t, _u, _d -> [ ref, [] ] }
-
-        def ch_factor_by_ref = RNAFRAMEWORK_RFNORMFACTOR.out.factors
-            .map { nfmeta, factors -> [ nfmeta.id.toString(), factors ] }
-            .mix(ch_disabled_refs)
+        // Complete per-reference factor map covering EVERY candidate reference, so all groups match
+        // exactly one entry below. A reference gets a factor file only if it was enabled AND
+        // rf-normfactor actually produced one; disabled references, and enabled ones where
+        // rf-normfactor produced nothing (best-effort skip, e.g. coverage too low), get an empty slot
+        // and fall back to per-sample normalisation.
+        def ch_factor_by_ref = ch_nf_candidates
+            .map { ref, _enabled, _meta, _t, _u, _d -> [ ref, true ] }
+            .join(
+                RNAFRAMEWORK_RFNORMFACTOR.out.factors.map { nfmeta, factors -> [ nfmeta.id.toString(), factors ] },
+                remainder: true
+            )
+            .map { ref, _present, factors -> [ ref, factors ?: [] ] }
 
         ch_norm_input_final = ch_norm_input
             .map { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ->

@@ -49,7 +49,7 @@ process RNAFRAMEWORK_RFFOLD {
     _input_dirs=()
     while IFS= read -r d; do
         _input_dirs+=( "\${d}" )
-    done < <(ls -d input*/ 2>/dev/null | sort -t t -k2,2n)
+    done < <(printf '%s\\n' input*/ | sort -t t -k2,2n)  # printf is a builtin: no ARG_MAX limit at high replicate/transcript counts
     if [[ \${#_input_dirs[@]} -ne ${meta.fold_replicate_sizes.sum()} ]]; then
         echo "[RNAFRAMEWORK_RFFOLD] staged input dir count (\${#_input_dirs[@]}) != expected (${meta.fold_replicate_sizes.sum()})." >&2
         exit 1
@@ -75,7 +75,7 @@ process RNAFRAMEWORK_RFFOLD {
     _this=\$(mktemp)
     _first=1
     for d in experiment*/; do
-        ls "\${d}"*.xml 2>/dev/null | sed 's#.*/##' | sort -u >| "\${_this}"
+        find "\${d}" -maxdepth 1 -name '*.xml' | sed 's#.*/##' | sort -u >| "\${_this}"  # find avoids ARG_MAX on large experiment dirs
         if [[ \${_first} -eq 1 ]]; then
             cp "\${_this}" "\${_intersect}"
             _first=0

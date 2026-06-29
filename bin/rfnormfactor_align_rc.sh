@@ -19,19 +19,23 @@ set -euo pipefail
 label="$1"; shift
 aligned_dir="$1"; shift
 
-# Per-transcript id list, and id<TAB>length, parsed from rf-rctools view's 4-line-per-transcript output.
-idlist() { rf-rctools view "$1" | awk 'NF==0{l=0;next}{l++} l==1{print $0} l==4{l=0}' | sort -u; }
-idlen()  { rf-rctools view "$1" | awk 'NF==0{l=0;next}{l++} l==1{id=$0} l==2{len=length($0)} l==4{print id"\t"len; l=0}' | sort -u; }
+# id<TAB>length for every transcript, parsed from rf-rctools view's 4-line-per-transcript output.
+# 'rf-rctools view' is the expensive step on a whole transcriptome, so run it ONCE per file and
+# derive the id list from column 1 (cut -f1) rather than decoding the RC a second time.
+idlen() { rf-rctools view "$1" | awk 'NF==0{l=0;next}{l++} l==1{id=$0} l==2{len=length($0)} l==4{print id"\t"len; l=0}' | sort -u; }
 
 first=1
 for rc in "$@"; do
     rf-rctools index "$rc" >/dev/null 2>&1 || true
+    # One view pass per file: capture id<TAB>len, then derive the id list from column 1.
+    idlen "$rc" > idlen.txt
+    cut -f1 idlen.txt > ids.txt
     if [[ ${first} -eq 1 ]]; then
-        idlist "$rc" > common_ids.txt
-        idlen  "$rc" > lengths.txt
+        cp ids.txt common_ids.txt
+        cp idlen.txt lengths.txt
         first=0
     else
-        comm -12 common_ids.txt <(idlist "$rc") > common_ids.new
+        comm -12 common_ids.txt ids.txt > common_ids.new
         mv common_ids.new common_ids.txt
     fi
 done

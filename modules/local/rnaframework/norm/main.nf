@@ -19,20 +19,38 @@ process RNAFRAMEWORK_RFNORM {
     prefix            = task.ext.prefix ?: "${meta.id}"
     def untreated_arg = untreated ? "-u ${untreated}" : ''
     def denatured_arg = denatured ? "-d ${denatured}" : ''
-    // Cross-experiment normalisation factor file from rf-normfactor (opt-in via --rfnorm_use_normfactor).
-    // When staged, it overrides rf-norm's internal per-sample normalisation.
-    def norm_factor_arg = norm_factor ? "-nf ${norm_factor}" : ''
+    // Cross-experiment normalisation factor from rf-normfactor (opt-in via --rfnorm_use_normfactor).
+    // IMPORTANT: rf-norm's -nf takes a NUMERIC factor value, NOT a path. rf-normfactor writes a
+    // per-experiment table (col 1 = treated RC basename, col 2 = factor); we look up THIS group's
+    // factor by its treated RC name below and pass the value. Only attempted for single-treated
+    // groups (cross-experiment normalisation emits one treated per group); a missing entry or a
+    // multi-treated group falls back to rf-norm's internal per-sample normalisation.
+    def treatedNames  = (treated instanceof List ? treated : [treated]).collect { f -> f.name }
+    def nfKeyName     = (norm_factor && treatedNames.size() == 1) ? treatedNames[0] : ''
     def treated_list  = treated instanceof List ? treated.join(' ') : "${treated}"
     """
     export TERM="\${TERM:-xterm}"
     rfnorm_log_tmp="${prefix}.rfnorm.log"
+
+    # Resolve the numeric -nf value for this group from the rf-normfactor table (see note above).
+    norm_factor_arg=""
+    nf_key_name="${nfKeyName}"
+    if [[ -n "\${nf_key_name}" && -s "${norm_factor}" ]]; then
+        nf_key="\${nf_key_name%.rc}"
+        nf_value="\$(awk -v k="\${nf_key}" '\$1 == k { print \$2; exit }' "${norm_factor}")"
+        if [[ -n "\${nf_value}" ]]; then
+            norm_factor_arg="-nf \${nf_value}"
+        else
+            echo "[RNAFRAMEWORK_RFNORM] no rf-normfactor entry for '\${nf_key}' in ${norm_factor}; using rf-norm internal per-sample normalisation" >&2
+        fi
+    fi
 
     rf-norm \\
         -p ${task.cpus} \\
         -o ${prefix}_norm \\
         -ow \\
         ${args} \\
-        ${norm_factor_arg} \\
+        \${norm_factor_arg} \\
         -t ${treated_list} \\
         ${untreated_arg} \\
         ${denatured_arg} 2>&1 | tee "\${rfnorm_log_tmp}"

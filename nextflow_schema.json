@@ -373,7 +373,7 @@
                 "rfcount_img": {
                     "type": "boolean",
                     "description": "Deprecated: rf-count plot generation (`-g`) is always enabled.",
-                    "default": true
+                    "default": false
                 },
                 "rfcount_strandedness": {
                     "type": "string",
@@ -608,7 +608,7 @@
                 "rfnorm_img": {
                     "type": "boolean",
                     "description": "Deprecated: rf-norm plot generation (`--img`) is always enabled.",
-                    "default": true
+                    "default": false
                 },
                 "rffold_img": {
                     "type": "boolean",
@@ -909,12 +909,12 @@
                 },
                 "rffold_slope": {
                     "type": "number",
-                    "default": 4.6,
+                    "default": 4.2,
                     "description": "Slope for reactivity-to-folding-constraint conversion in rf-fold (`-sl`). Overridden automatically when `--rfjackknife_pool_all` is used."
                 },
                 "rffold_intercept": {
                     "type": "number",
-                    "default": -2.2,
+                    "default": -1.4,
                     "description": "Intercept for reactivity-to-folding-constraint conversion in rf-fold (`-in`). Overridden automatically when `--rfjackknife_pool_all` is used."
                 },
                 "rffold_vienna_rnaplot": {

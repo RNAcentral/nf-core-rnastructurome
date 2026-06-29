@@ -1,0 +1,90 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "PREPARE_REFERENCES"
+description: Resolve and fetch reference genomes/transcriptomes and GTFs (Ensembl, NCBI, or local FASTA), sort FASTAs, and build STAR/Bowtie/Bowtie2 indices for the resolved references.
+keywords:
+  - reference
+  - genome
+  - index
+  - star
+  - bowtie
+  - rnastructurome
+components:
+  - bowtie/build
+  - bowtie2/build
+  - collecttomap
+  - ensembl/genome
+  - ensembl/gtf
+  - ensembl/transcriptome
+  - fasta/sort
+  - ncbi/fasta
+  - ncbi/gtf
+  - resolvereferencekey
+  - resolvereferenceresolution
+  - star/genomegenerate
+  - uniquereferenceresolution
+input:
+  - ch_samplesheet_for_branching:
+      type: channel
+      description: |
+        Reads after lane concatenation, used to determine which references are needed. Structure: [ val(meta), [ reads ] ]
+  - pipeline_config:
+      type: map
+      description: |
+        Resolved pipeline configuration/parameters map.
+output:
+  - fasta_map:
+      type: map
+      description: |
+        Value map of reference_key -> [ val(meta), path(fasta) ].
+  - gtf_map:
+      type: map
+      description: |
+        Value map of reference_key -> [ val(meta), path(gtf) ].
+  - all_gtf:
+      type: channel
+      description: |
+        All reference GTFs. Structure: [ val(meta), path(gtf) ]
+  - genome_fasta_keyed:
+      type: channel
+      description: |
+        Genome FASTA keyed by reference. Structure: [ key, [ val(meta), path(fasta) ] ]
+  - star_index:
+      type: channel
+      description: |
+        STAR index (genome route). Structure: [ val(meta), path(index) ]
+  - bowtie_index_map:
+      type: map
+      description: |
+        Value map of reference_key -> [ val(meta), path(index) ] for Bowtie.
+  - bowtie2_index_map:
+      type: map
+      description: |
+        Value map of reference_key -> [ val(meta), path(index) ] for Bowtie2.
+  - ensembl_fasta_source_url:
+      type: channel
+      description: |
+        Ensembl FASTA source URL provenance. Structure: [ val(meta), path(urls) ]
+  - gtf_local:
+      type: channel
+      description: |
+        Locally provided GTF. Structure: [ val(meta), path(gtf) ]
+  - local_fasta_sorted:
+      type: channel
+      description: |
+        Sorted FASTA for the --fasta route. Structure: [ val(meta), path(fasta) ]
+  - ncbi_source_accessions:
+      type: channel
+      description: |
+        NCBI source accessions provenance. Structure: [ val(meta), path(acc) ]
+  - ensembl_gtf_source_urls:
+      type: channel
+      description: |
+        Ensembl GTF source URL provenance; empty when --stop_after_jackknife with transcriptome. Structure: [ val(meta), path(urls) ]
+  - versions:
+      type: channel
+      description: |
+        Collected software version files. Structure: [ path(versions.yml) ]
+authors:
+  - "@vicbeg"
+maintainers:
+  - "@vicbeg"

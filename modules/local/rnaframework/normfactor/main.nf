@@ -19,34 +19,40 @@ process RNAFRAMEWORK_RFNORMFACTOR {
     script:
     def args           = task.ext.args ?: ''
     prefix             = task.ext.prefix ?: "${meta.id}"
-    def treatedNames   = (treated instanceof List ? treated : [treated]).collect { it.name }
-    def untreatedNames = untreated ? (untreated instanceof List ? untreated : [untreated]).collect { it.name } : []
-    def denaturedNames = denatured ? (denatured instanceof List ? denatured : [denatured]).collect { it.name } : []
+    // Staged file names are UNIQUE (the subworkflow deduplicates before staging, since a shared
+    // untreated/denatured control cannot be staged twice under the same name). The positional -t/-u/-d
+    // order — which repeats a shared control once per treated sample — is carried in meta and used to
+    // build the argument lists below; it falls back to the staged names when not provided.
+    def treatedNames   = (treated instanceof List ? treated : [treated]).collect { f -> f.name }
+    def untreatedNames = untreated ? (untreated instanceof List ? untreated : [untreated]).collect { f -> f.name } : []
+    def denaturedNames = denatured ? (denatured instanceof List ? denatured : [denatured]).collect { f -> f.name } : []
+    def alignNames     = (treatedNames + untreatedNames + denaturedNames).unique()
+    def treatedOrder   = meta.nf_treated_order   ?: treatedNames
+    def untreatedOrder = meta.nf_untreated_order ?: untreatedNames
+    def denaturedOrder = meta.nf_denatured_order ?: denaturedNames
     """
     export TERM="\${TERM:-xterm}"
     rfnormfactor_log_tmp="${prefix}.rfnormfactor.log"
 
-    treated_files=(${treatedNames.collect { "\"${it}\"" }.join(' ')})
-    untreated_files=(${untreatedNames ? untreatedNames.collect { "\"${it}\"" }.join(' ') : ''})
-    denatured_files=(${denaturedNames ? denaturedNames.collect { "\"${it}\"" }.join(' ') : ''})
-
     # rf-normfactor requires every input RC file to contain the SAME transcript set (it errors with
     # "Provided RC files have unequal sizes" otherwise). On the genome route, the per-sample coverage
     # pre-filter in rf-rctools extract leaves treated/untreated covering different transcripts. Align
-    # all inputs to their common transcript set by re-extracting them (see bin/rfnormfactor_align_rc.sh);
-    # transcript order is identical across outputs, so the positional -t/-u/-d pairing is preserved.
-    all_files=( "\${treated_files[@]}" )
-    [[ \${#untreated_files[@]} -gt 0 ]] && all_files+=( "\${untreated_files[@]}" )
-    [[ \${#denatured_files[@]} -gt 0 ]] && all_files+=( "\${denatured_files[@]}" )
+    # the UNIQUE staged RC files to their common transcript set by re-extracting them
+    # (see bin/rfnormfactor_align_rc.sh); transcript order is identical across outputs.
+    align_files=(${alignNames.collect { n -> "\"${n}\"" }.join(' ')})
+    rfnormfactor_align_rc.sh "${prefix}" aligned "\${align_files[@]}"
 
-    rfnormfactor_align_rc.sh "${prefix}" aligned "\${all_files[@]}"
-
+    # Build the positionally-paired -t/-u/-d lists from the meta order (repeats a shared control once
+    # per treated sample). Each name points at its aligned copy; repeats reuse the same aligned file.
     aligned_list() { local out=""; for f in "\$@"; do out+="aligned/\${f},"; done; echo "\${out%,}"; }
-    treated_arg="-t \$(aligned_list "\${treated_files[@]}")"
+    treated_order=(${treatedOrder.collect { n -> "\"${n}\"" }.join(' ')})
+    untreated_order=(${untreatedOrder ? untreatedOrder.collect { n -> "\"${n}\"" }.join(' ') : ''})
+    denatured_order=(${denaturedOrder ? denaturedOrder.collect { n -> "\"${n}\"" }.join(' ') : ''})
+    treated_arg="-t \$(aligned_list "\${treated_order[@]}")"
     untreated_arg=""
-    [[ \${#untreated_files[@]} -gt 0 ]] && untreated_arg="-u \$(aligned_list "\${untreated_files[@]}")"
+    [[ \${#untreated_order[@]} -gt 0 ]] && untreated_arg="-u \$(aligned_list "\${untreated_order[@]}")"
     denatured_arg=""
-    [[ \${#denatured_files[@]} -gt 0 ]] && denatured_arg="-d \$(aligned_list "\${denatured_files[@]}")"
+    [[ \${#denatured_order[@]} -gt 0 ]] && denatured_arg="-d \$(aligned_list "\${denatured_order[@]}")"
 
     # Best-effort: rf-normfactor can legitimately fail to produce factors (e.g. "No bases covered
     # across all samples" when no base meets -mc across every sample). Cross-experiment normalisation

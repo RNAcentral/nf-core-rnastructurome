@@ -132,7 +132,6 @@ PYEOF
     """
 
     stub:
-    def chunk_size = task.ext.chunk_size ?: 5000
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     mkdir -p chunks/treated chunks/untreated

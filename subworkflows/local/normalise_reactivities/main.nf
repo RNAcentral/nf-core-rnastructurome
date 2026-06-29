@@ -220,9 +220,9 @@ workflow NORMALISE_REACTIVITIES {
                 def treated_list  = entries.collect { entry -> entry.treated }
                 def untreated_all = entries.collect { entry -> entry.untreated }
                 def denatured_all = entries.collect { entry -> entry.denatured }
-                def hasUntreated  = untreated_all.any { it }
+                def hasUntreated  = untreated_all.any { u -> u }
                 // rf-normfactor needs every treated paired with an untreated for Ding/Siegfried scoring.
-                if (hasUntreated && untreated_all.any { !it }) {
+                if (hasUntreated && untreated_all.any { u -> !u }) {
                     def missing = entries.findAll { entry -> !entry.untreated }.collect { entry -> entry.meta.id }.sort().join(', ')
                     error("rf-normfactor for reference '${ref}': not every treated sample has a matched untreated control (missing for: ${missing}). Cross-experiment normalisation requires all-or-none untreated controls; add the missing controls or set --rfnorm_use_normfactor false.")
                 }
@@ -232,18 +232,30 @@ workflow NORMALISE_REACTIVITIES {
                 def enabled        = nfForceOn ? true : autoEnable
                 // Denatured is optional, but must align 1:1 with treated to stay positionally paired; if
                 // only some groups have a denatured control, drop it rather than mispair.
-                def denatured_list = denatured_all.every { it } ? denatured_all : []
+                def denatured_list = denatured_all.every { d -> d } ? denatured_all : []
                 def principle      = (base_meta.principle ?: '').toLowerCase()
                 def scoringMethod  = principle == 'map'
                     ? (hasUntreated ? 3 : 4)
                     : (hasUntreated ? 1 : 2)
                 def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
+                // Fuzzy untreated pairing can resolve several treated samples to the SAME untreated (or
+                // denatured) control, so untreated_all/denatured_list repeat that file. The positional
+                // order (with repeats) is what rf-normfactor needs for -t/-u/-d pairing, but the same
+                // file cannot be staged twice — so carry the order as names in meta and stage the files
+                // deduplicated by name. The module rebuilds the repeated -u/-d lists from the meta order.
+                def untreated_order = hasUntreated ? untreated_all : []
                 def nfmeta = base_meta + [
                     id                    : ref,
                     rfnorm_scoring_method : scoringMethod,
-                    rfnorm_norm_method    : normMethod
+                    rfnorm_norm_method    : normMethod,
+                    nf_treated_order      : treated_list.collect    { f -> f.name },
+                    nf_untreated_order    : untreated_order.collect  { f -> f.name },
+                    nf_denatured_order    : denatured_list.collect   { f -> f.name }
                 ]
-                [ ref, enabled, nfmeta, treated_list, hasUntreated ? untreated_all : [], denatured_list ]
+                def treated_staged   = treated_list.unique    { f -> f.name }
+                def untreated_staged = untreated_order.unique  { f -> f.name }
+                def denatured_staged = denatured_list.unique   { f -> f.name }
+                [ ref, enabled, nfmeta, treated_staged, untreated_staged, denatured_staged ]
             }
 
         def ch_nf_input = ch_nf_candidates

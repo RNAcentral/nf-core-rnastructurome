@@ -1,8 +1,5 @@
-//
-// NORMALISE_REACTIVITIES — group RC files by sample_group/replicate/condition, pair treated
-// with untreated controls (exact match, or fuzzy base-token fallback when enabled), then
-// run rf-norm to produce per-base reactivity XML files.
-//
+// NORMALISE_REACTIVITIES — group RC files by sample_group/replicate/condition, pair treated with untreated
+// controls (exact or fuzzy base-token fallback), then run rf-norm to produce per-base reactivity XML files.
 
 include { RNAFRAMEWORK_RFNORM         } from '../../../modules/local/rnaframework/norm/main'
 include { RNAFRAMEWORK_RFNORMFACTOR   } from '../../../modules/local/rnaframework/normfactor/main'
@@ -64,10 +61,8 @@ workflow NORMALISE_REACTIVITIES {
         .map     { group, _condition, _meta, _rc, rci -> [ group, rci ] }
         .groupTuple()
 
-    // Enforce rf-norm pairing rules and select the representative meta per group.
-    // Defined before the fallback channels so ch_treated_no_untreated can join against it.
-    // Note: the denatured-without-untreated check is deferred to ch_norm_input assembly
-    // so that fuzzy untreated resolution can supply the missing control first.
+    // Enforce rf-norm pairing rules and select the representative meta per group, defined before the
+    // fallback channels. The denatured-without-untreated check is deferred to ch_norm_input assembly.
     def ch_group_meta = ch_rc_by_group
         .map     { group, condition, meta, _rc, _rci -> [ group, [ condition: condition, meta: meta ] ] }
         .groupTuple()
@@ -89,13 +84,9 @@ workflow NORMALISE_REACTIVITIES {
             [ group, entries.find { entry -> entry.condition == 'treated' }.meta ]
         }
 
-    // Fuzzy untreated pairing fallback (enabled by default; disable with --fuzzy_untreated_pairing false).
-    // When a treated group has no exact sample_group+replicate untreated match, the pipeline
-    // falls back to an untreated sample sharing the same sample_group base token (the portion
-    // before the first underscore, e.g. "MDA-MB-231" from "MDA-MB-231_MTX") at the same
-    // replicate.  The fallback errors if ambiguous; otherwise it warns and proceeds.
-    // When disabled, unmatched treated groups proceed without an untreated control
-    // (scoring method 2 or 4 instead of 1 or 3).
+    // Fuzzy untreated pairing fallback (default on; disable with --fuzzy_untreated_pairing false). When a
+    // treated group has no exact untreated match, fall back to one sharing the same sample_group base token
+    // (e.g. "MDA-MB-231" from "MDA-MB-231_MTX") at the same replicate — erroring if ambiguous.
     def ch_resolved_untreated
     if (pipeline_config.fuzzy_untreated_pairing as Boolean) {
         // Each untreated sample keyed as [base_token, replicate, group, rc] for cross-matching.
@@ -114,10 +105,8 @@ workflow NORMALISE_REACTIVITIES {
                 [ sampleGroupBaseToken(base_meta.sample_group.toString()), base_meta.replicate.toString(), group ]
             }
 
-        // Cross-product treated-without-untreated × available untreated, filter on base+rep match,
-        // then group by treated group to validate uniqueness before selecting the fallback.
-        // When ch_untreated_for_lookup is empty (all-treated datasets), this channel is also
-        // empty and the remainder:true join below correctly produces null for untreated.
+        // Cross-product treated-without-untreated × available untreated, filtered on base+rep match,
+        // then grouped by treated group to validate uniqueness before selecting the fallback.
         def ch_fallback_untreated = ch_treated_no_untreated
             .combine(ch_untreated_for_lookup)
             .filter { treated_base, treated_rep, _group, unt_base, unt_rep, _unt_group, _unt_rc ->
@@ -171,17 +160,10 @@ workflow NORMALISE_REACTIVITIES {
             [ gmeta, treated_rcs, untreated_rc ?: [], denatured_rc ?: [], rci_files ?: [] ]
         }
 
-    // Cross-experiment normalisation via rf-normfactor. Derives one set of transcriptome-wide
-    // normalisation factors per reference (across that reference's treated samples, with their matched
-    // untreated/denatured), then feeds the factor file to every group's rf-norm via -nf — putting
-    // reactivities on a common scale, unlike per-sample box-plot.
-    //
-    // Enablement is decided PER REFERENCE:
-    //   --rfnorm_use_normfactor true   -> force on for every reference
-    //   --rfnorm_use_normfactor false  -> force off (always per-sample box-plot)
-    //   --rfnorm_use_normfactor null   -> AUTO (default): on for a reference that has paired untreated
-    //                                     controls OR more than one treated sample.
-    // References that stay off keep an empty factor slot and normalise each group independently.
+    // Cross-experiment normalisation via rf-normfactor: derives one set of transcriptome-wide factors per
+    // reference, fed to every group's rf-norm via -nf for a common scale (vs. per-sample box-plot).
+    // Enablement is per reference: true=always on, false=always off, null=AUTO (on when paired untreated
+    // controls exist or more than one treated sample). References that stay off normalise independently.
     def nfRaw          = pipeline_config.rfnorm_use_normfactor
     def nfForceOn      = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['true', '1', 'yes'])
     def nfForceOff     = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['false', '0', 'no'])
@@ -198,10 +180,9 @@ workflow NORMALISE_REACTIVITIES {
                 [ gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, [] ]
             }
     } else {
-        // Build per-reference candidates from ch_norm_input, which already pairs each group's treated
-        // sample(s) with their RESOLVED untreated/denatured (exact or fuzzy). rf-normfactor pairs
-        // -t/-u/-d positionally (treated[i] ↔ untreated[i]), so emit one entry per treated RC carrying
-        // its own controls — keeping the pairing intact regardless of groupTuple ordering.
+        // Build per-reference candidates from ch_norm_input (already pairs treated with resolved
+        // untreated/denatured). rf-normfactor pairs -t/-u/-d positionally, so emit one entry per
+        // treated RC carrying its own controls, keeping the pairing intact regardless of groupTuple order.
         def ch_nf_pairs = ch_norm_input
             .flatMap { gmeta, treated_rcs, untreated_rc, denatured_rc, _rci ->
                 def ref   = resolveReferenceKey(gmeta, pipeline_config.organism)
@@ -216,9 +197,8 @@ workflow NORMALISE_REACTIVITIES {
         def ch_nf_candidates = ch_nf_pairs
             .groupTuple()
             .map { ref, entries ->
-                // groupTuple emits entries in arrival order, which varies run-to-run. Sort by treated
-                // RC filename so the staged -t/-u/-d lists (and the order recorded in meta) are stable,
-                // otherwise rf-normfactor's positionally-hashed inputs miss the resume cache every time.
+                // groupTuple emits entries in run-varying arrival order, so sort by treated RC filename
+                // to keep the staged lists stable — otherwise resume cache misses every time.
                 def ordered       = entries.sort(false) { a, b -> a.treated.name <=> b.treated.name }
                 def base_meta     = ordered[0].meta
                 def treated_list  = ordered.collect { entry -> entry.treated }
@@ -242,11 +222,9 @@ workflow NORMALISE_REACTIVITIES {
                     ? (hasUntreated ? 3 : 4)
                     : (hasUntreated ? 1 : 2)
                 def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
-                // Fuzzy untreated pairing can resolve several treated samples to the SAME untreated (or
-                // denatured) control, so untreated_all/denatured_list repeat that file. The positional
-                // order (with repeats) is what rf-normfactor needs for -t/-u/-d pairing, but the same
-                // file cannot be staged twice — so carry the order as names in meta and stage the files
-                // deduplicated by name. The module rebuilds the repeated -u/-d lists from the meta order.
+                // Fuzzy pairing can resolve several treated samples to the SAME untreated/denatured control,
+                // so the positional order (with repeats) needed for -t/-u/-d is carried as names in meta,
+                // while the files themselves are staged deduplicated by name.
                 def untreated_order = hasUntreated ? untreated_all : []
                 def nfmeta = base_meta + [
                     id                    : ref,
@@ -269,11 +247,9 @@ workflow NORMALISE_REACTIVITIES {
         RNAFRAMEWORK_RFNORMFACTOR(ch_nf_input)
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORMFACTOR.out.versions.first())
 
-        // Complete per-reference factor map covering EVERY candidate reference, so all groups match
-        // exactly one entry below. A reference gets a factor file only if it was enabled AND
-        // rf-normfactor actually produced one; disabled references, and enabled ones where
-        // rf-normfactor produced nothing (best-effort skip, e.g. coverage too low), get an empty slot
-        // and fall back to per-sample normalisation.
+        // Complete per-reference factor map covering EVERY candidate reference. A reference gets a factor
+        // file only if enabled AND rf-normfactor produced one; otherwise it gets an empty slot and falls
+        // back to per-sample normalisation (e.g. best-effort skip on low coverage).
         def ch_factor_by_ref = ch_nf_candidates
             .map { ref, _enabled, _meta, _t, _u, _d -> [ ref, true ] }
             .join(
@@ -297,15 +273,10 @@ workflow NORMALISE_REACTIVITIES {
     def ch_rfnorm_log
 
     if (pipeline_config.rfnorm_chunk_size && !pipeline_config.transcriptome) {
-        // Scatter: split the treated RC into transcript chunks; fan out a RFNORM job per chunk.
-        // Only the first treated RC per group is split (groups with multiple treated samples are
-        // uncommon; multi-treated support can be added if needed).
-        // Pass both treated and untreated to SPLIT so matching chunks are extracted from both.
-        // Transcript names in the chunk RC files must match between treated and untreated
-        // for rf-norm to pair them correctly.
-        //
-        // Resolve the GTF for each group up front: SPLIT derives per-transcript lengths from it
-        // (rf-rctools stats does not report lengths) to build the 4-column extraction BEDs.
+        // Scatter: split the treated RC into transcript chunks (only the first treated RC per group);
+        // fan out an RFNORM job per chunk. Both treated and untreated go to SPLIT so matching transcript
+        // names are extracted from both. Resolve the GTF up front: SPLIT derives per-transcript lengths
+        // from it (rf-rctools stats doesn't report lengths) to build the 4-column extraction BEDs.
         def ch_norm_input_with_gtf = ch_norm_input
             .combine(ch_reference_gtf_map)
             .map { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, gtf_map ->

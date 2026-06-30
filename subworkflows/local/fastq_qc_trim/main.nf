@@ -1,13 +1,6 @@
-//
-// FASTQ_QC_TRIM — per-sample read intake, QC and adapter/UMI trimming.
-//
-// cat resequenced FASTQs -> pre-trim FastQC -> optional UMI extraction ->
-// principle-specific cutadapt (RT-stop vs MaP) -> post-trim FastQC.
-// Emits the post-cat samplesheet (for reference resolution + principle
-// branching downstream), the trimmed reads per principle (for alignment),
-// and the MultiQC contributions from this stage. FastQC/cutadapt/umi_tools
-// report versions via the `versions` topic, so no versions emit is needed.
-//
+// FASTQ_QC_TRIM — per-sample read intake, QC and adapter/UMI trimming: cat -> pre-trim FastQC -> optional
+// UMI extraction -> principle-specific cutadapt -> post-trim FastQC. Emits post-cat samplesheet, trimmed
+// reads per principle, and MultiQC contributions (versions come via the `versions` topic).
 
 include { FASTQC as FASTQC_PRE        } from '../../../modules/nf-core/fastqc/main'
 include { FASTQC as FASTQC_POST       } from '../../../modules/nf-core/fastqc/main'
@@ -35,9 +28,7 @@ workflow FASTQ_QC_TRIM {
         [meta, reads]
     }
 
-    //
     // MODULE: cat/fastq — merge resequenced FASTQ files per sample before QC
-    //
     CAT_FASTQ (
         ch_samplesheet_checked
     )
@@ -49,9 +40,7 @@ workflow FASTQ_QC_TRIM {
     def ch_pretrim_fastqc_input = ch_pretrim_reads_split.fastqc.map { meta, reads -> [ meta, reads ] }
     def ch_samplesheet_for_branching = ch_pretrim_reads_split.branching.map { meta, reads -> [ meta, reads ] }
 
-    //
     // MODULE: fastqc (pre-trim) — quality control on raw reads
-    //
     FASTQC_PRE (
         ch_pretrim_fastqc_input
     )
@@ -71,9 +60,7 @@ workflow FASTQ_QC_TRIM {
         !((meta.umi_pattern ?: '').toString().trim())
     }
 
-    //
     // MODULE: umi_tools extract — extract UMIs from reads
-    //
     UMITOOLS_EXTRACT (
         ch_reads_with_umi
     )
@@ -87,16 +74,12 @@ workflow FASTQ_QC_TRIM {
     def ch_map_reads_for_cutadapt = reads_for_cutadapt.map
     ch_multiqc_files = ch_multiqc_files.mix(UMITOOLS_EXTRACT.out.log.collect { umi_log -> umi_log[1] })
 
-    //
     // MODULE: cutadapt (RT-stop) — trim RT-stop reads
-    //
     CUTADAPT_RTSTOP (
         ch_rtstop_reads_for_cutadapt
     )
 
-    //
     // MODULE: cutadapt (MaP) — trim MaP reads
-    //
     CUTADAPT_MAP (
         ch_map_reads_for_cutadapt
     )
@@ -148,9 +131,7 @@ workflow FASTQ_QC_TRIM {
         )
     )
 
-    //
     // MODULE: fastqc (post-trim) — quality control on trimmed reads
-    //
     FASTQC_POST (
         ch_trimmed_reads.map { meta, reads -> [ meta + [id: "${meta.id}_trimmed"], reads ] }
     )

@@ -1,12 +1,5 @@
-//
-// VISUALISE_STRUCTURES — render 2D structure diagrams from rf-fold structures.
-//
-// ViennaRNA (RNAplot) always draws every structure. When R2DT is enabled
-// (container-only) it additionally draws template-based diagrams in parallel,
-// so both renderings are available side by side for comparison
-// (structures/viennarna/ vs structures/r2dt/). Produces only published SVGs and
-// software versions; nothing here is consumed downstream.
-//
+// VISUALISE_STRUCTURES — render 2D structure diagrams from rf-fold structures. ViennaRNA (RNAplot) always
+// draws every structure; R2DT (container-only) additionally draws template-based diagrams in parallel.
 
 include { R2DT                } from '../../../modules/local/r2dt/main'
 include { VIENNARNA           } from '../../../modules/local/viennarna/main'
@@ -24,9 +17,8 @@ workflow VISUALISE_STRUCTURES {
     main:
     ch_versions = channel.empty()
 
-    // Always draw every structure with ViennaRNA (RNAplot). Independent of R2DT
-    // (drawn list = /dev/null means "draw all"), so the two renderers run in
-    // parallel rather than ViennaRNA only filling R2DT's gaps.
+    // Always draw every structure with ViennaRNA, independent of R2DT (drawn list = /dev/null means
+    // "draw all"), so the two renderers run in parallel rather than ViennaRNA filling R2DT's gaps.
     def ch_rnaplot_input = ch_fold_structures
         .map { meta, dir -> [ meta.id.toString(), meta, dir ] }
         .join(ch_fold_input.map { meta, xmls -> [ meta.id.toString(), xmls ] })

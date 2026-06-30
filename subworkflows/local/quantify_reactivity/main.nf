@@ -1,11 +1,6 @@
-//
-// QUANTIFY_REACTIVITY — per-base RT-stop / mutation counts as RNAFramework RC files.
-//
-// Genome route (STAR): rf-count-genome on the genome BAM (multi-mappers counted
-// at all genome positions), then rf-rctools extract redistributes counts to
-// transcripts via the reference GTF — more accurate than STAR TranscriptomeSAM.
-// Transcriptome route (--transcriptome): rf-count directly on the transcript BAM.
-//
+// QUANTIFY_REACTIVITY — per-base RT-stop/mutation counts as RNAFramework RC files. Genome route (STAR):
+// rf-count-genome on the genome BAM, then rf-rctools extract redistributes counts to transcripts via the
+// GTF (more accurate than STAR TranscriptomeSAM). Transcriptome route: rf-count directly on the transcript BAM.
 
 include { RNAFRAMEWORK_RFCOUNT           } from '../../../modules/local/rnaframework/count/main'
 include { RNAFRAMEWORK_RFCOUNT_GENOME    } from '../../../modules/local/rnaframework/count_genome/main'
@@ -27,30 +22,18 @@ workflow QUANTIFY_REACTIVITY {
     main:
     ch_versions = channel.empty()
 
-    // MODULE: rf-count / rf-count-genome — per-base RT-stop or mutation counts
-    // Genome route (STAR): rf-count-genome with genome FASTA + genome-coord BAM
-    // Transcriptome route (--transcriptome): rf-count with transcript FASTA
-    //
     def ch_rfcount_rc        = channel.empty()
     def ch_rfcount_rci       = channel.empty()
     def ch_rfcount_summary   = channel.empty()
     def ch_rfcount_plots     = channel.empty()
 
-    //
-    // MODULES: rf-count — per-base RT-stop or mutation counts
-    //
-    // STAR route (genome alignment): genome BAM → rf-count-genome → rf-rctools extract → transcript RC files
-    //   Multi-mappers are counted at all genome positions then redistributed to transcripts via GTF,
-    //   which is more accurate than STAR's internal TranscriptomeSAM quantification.
-    //
-    // Bowtie route (--transcriptome): transcript-coordinate BAM → rf-count → transcript RC files
-    //
+    // STAR route: genome BAM → rf-count-genome → rf-rctools extract → transcript RC files.
+    // Bowtie route (--transcriptome): transcript-coordinate BAM → rf-count → transcript RC files.
     if (!pipeline_config.transcriptome) {
         def ch_genome_fasta_map = collectToMap(ch_reference_genome_fasta_keyed)
 
-        // Annotate each BAM with the per-sample strandedness inferred by RSeQC.
-        // remainder: true keeps samples whose reference had no BED (e.g. viral) — they
-        // get strandedness = null, and modules.config falls back to params.rfcount_strandedness.
+        // Annotate each BAM with the per-sample strandedness inferred by RSeQC. remainder: true keeps
+        // samples with no BED (e.g. viral) at strandedness = null, falling back to params.rfcount_strandedness.
         def ch_bam_stranded = ch_markdup_bam_bai
             .map { meta, bam, bai -> [ meta.id.toString(), meta, bam, bai ] }
             .join(ch_strandedness_by_id, remainder: true)
@@ -78,12 +61,9 @@ workflow QUANTIFY_REACTIVITY {
         ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT_GENOME.out.plots
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT_GENOME.out.versions)
 
-        // rf-rctools extract: genome RC → transcript-level RC using reference GTF.
-        // The module generates per-file .rci indexes itself (rf-rctools index) and calls
-        // rf-rctools extract with the BASENAME so strand-aware extraction is activated.
-        // It also rewrites the rf-count-genome summary's 'covered' (a genome reference count)
-        // with the covered-transcript count, so pair the RC with its summary (same task, strict
-        // join — both always emit) and pass it through.
+        // rf-rctools extract: genome RC → transcript-level RC using the reference GTF, calling extract
+        // with the BASENAME for strand-aware extraction. Also rewrites the summary's genome-level
+        // 'covered' count to the covered-transcript count, so pair the RC with its summary (strict join).
         def ch_rc_with_summary = RNAFRAMEWORK_RFCOUNT_GENOME.out.rc
             .map { meta, rc -> [ meta.id.toString(), meta, rc ] }
             .join(RNAFRAMEWORK_RFCOUNT_GENOME.out.summary.map { meta, summary -> [ meta.id.toString(), summary ] })

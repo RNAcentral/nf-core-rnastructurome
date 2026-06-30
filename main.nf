@@ -18,6 +18,7 @@
 include { RNASTRUCTUROME  } from './workflows/rnastructurome'
 include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_rnastructurome_pipeline'
 include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_rnastructurome_pipeline'
+include { allReferencesUseNcbiRoute } from './workflows/rnastructurome_functions.nf'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -25,9 +26,7 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_rnas
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-//
 // WORKFLOW: Run main analysis pipeline depending on type of input
-//
 workflow NFCORE_RNASTRUCTUROME {
 
     take:
@@ -36,9 +35,7 @@ workflow NFCORE_RNASTRUCTUROME {
 
     main:
 
-    //
     // WORKFLOW: Run pipeline
-    //
     RNASTRUCTUROME (
         samplesheet,
         pipeline_config
@@ -58,9 +55,15 @@ workflow {
 
     main:
     def pipeline_config = buildPipelineConfig(params)
-    //
+
+    // NCBI (bacteria/viral) references have no introns, so STAR offers nothing over Bowtie — auto-enable
+    // the transcriptome route when every reference resolves to NCBI, so users don't need --transcriptome.
+    if (!pipeline_config.transcriptome
+            && allReferencesUseNcbiRoute(params.input, "${projectDir}/assets/schema_input.json", pipeline_config)) {
+        log.info('[rnastructurome] All references resolve to the NCBI route (no-intron organisms) — enabling the transcriptome (Bowtie) route automatically. Pass --transcriptome to set it explicitly.')
+        pipeline_config = pipeline_config + [ transcriptome: true ]
+    }
     // SUBWORKFLOW: Run initialisation tasks
-    //
     PIPELINE_INITIALISATION (
         params.version,
         params.validate_params,
@@ -74,16 +77,12 @@ workflow {
         pipeline_config
     )
 
-    //
     // WORKFLOW: Run main workflow
-    //
     NFCORE_RNASTRUCTUROME (
         PIPELINE_INITIALISATION.out.samplesheet,
         pipeline_config
     )
-    //
     // SUBWORKFLOW: Run completion tasks
-    //
     PIPELINE_COMPLETION (
         params.email,
         params.email_on_fail,

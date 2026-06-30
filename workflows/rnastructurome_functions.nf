@@ -6,6 +6,8 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
+include { samplesheetToList } from 'plugin/nf-schema'
+
 def normaliseEnsemblSpecies(value) {
     value
         ?.toString()
@@ -30,10 +32,8 @@ def resolveReferenceKey(meta, fallbackOrganism) {
     rawReference
 }
 
-// Resolve how one sample's reference artifact (kind = 'fasta' | 'gtf') is obtained,
-// returning [ reference_key, "<scheme>::<value>", original_organism ] where scheme is
-// one of path:: | ensembl:: | ncbi:: | none::. The FASTA and GTF policies differ only
-// in their local-path lookup and NCBI handling; everything else is shared.
+// Resolve how one sample's reference artifact (kind = 'fasta' | 'gtf') is obtained, returning
+// [ reference_key, "<scheme>::<value>", original_organism ] (scheme: path:: | ensembl:: | ncbi:: | none::).
 def resolveReferenceResolution(meta, cfg, kind) {
     def reference_key     = resolveReferenceKey(meta, cfg.organism)
     def original_organism = meta.organism?.toString() ?: reference_key
@@ -83,6 +83,28 @@ def resolveReferenceResolution(meta, cfg, kind) {
     return [ reference_key, "ensembl::${reference_key}", original_organism ]
 }
 
+// Decide whether a run should default to the transcriptome (Bowtie) route: NCBI (bacteria/viral)
+// references have no introns, so STAR offers nothing — auto-enable when every reference resolves to
+// NCBI (samplesheets are single-organism-class by contract). Returns false on any parse error so the
+// normal validation path in PIPELINE_INITIALISATION still runs and reports.
+def allReferencesUseNcbiRoute(samplesheetPath, schemaPath, cfg) {
+    if (!samplesheetPath) return false
+    try {
+        def rows = samplesheetToList(samplesheetPath.toString(), schemaPath.toString())
+        if (!rows) return false
+        def organisms = rows.collect { row ->
+            def meta = (row instanceof List) ? row[0] : row
+            (meta?.organism ?: cfg.organism)?.toString()?.trim()
+        }
+        if (organisms.any { org -> !org }) return false
+        return organisms.every { org ->
+            resolveReferenceResolution([ id: 'route-probe', organism: org ], cfg, 'fasta')[1].startsWith('ncbi::')
+        }
+    } catch (Exception _ignored) {
+        return false
+    }
+}
+
 // Collect a queue channel of [key, value] pairs into a single value channel holding
 // a [key: value] map (last write wins on duplicate keys). Empty input yields [:].
 def collectToMap(ch_keyed) {
@@ -92,10 +114,8 @@ def collectToMap(ch_keyed) {
         .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
 }
 
-// Build STAR_ALIGN inputs for a set of trimmed reads: pair each sample with its
-// reference's STAR index + GTF (combine by:0 so one reference fans out to all its
-// samples) and emit [ [meta,reads], [idx_meta,index], [gtf_meta,gtf], ignore_gtf ].
-// Shared by the RT-stop and MaP alignment branches.
+// Build STAR_ALIGN inputs for a set of trimmed reads: pair each sample with its reference's STAR index +
+// GTF (combine by:0) and emit [ [meta,reads], [idx_meta,index], [gtf_meta,gtf], ignore_gtf ].
 def buildStarAlignInputs(ch_trimmed, ch_star_index, ch_gtf, cfg) {
     def ch_keyed = ch_trimmed
         .map { meta, reads -> [ resolveReferenceKey(meta, cfg.organism), meta, reads ] }
@@ -478,10 +498,8 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
     ]
 }
 
-// Returns the base sample_group identifier: the portion before the first underscore.
-// e.g. "MDA-MB-231_MTX" → "MDA-MB-231", "HEK293T_v2" → "HEK293T", "HEK293T" → "HEK293T".
-// Used by fuzzy untreated-pairing so that an untreated sample can cover a treated sample
-// whose sample_group shares the same root but has a drug/condition suffix.
+// Returns the base sample_group identifier (portion before the first underscore), e.g.
+// "MDA-MB-231_MTX" → "MDA-MB-231". Used by fuzzy untreated-pairing to match a shared root.
 def sampleGroupBaseToken(String sample_group) {
     sample_group.tokenize('_')[0]
 }
@@ -529,10 +547,8 @@ def parseCutadaptCommandArg(logFile, optionName) {
     matcher.find() ? matcher.group(1) : 'none'
 }
 
-// Normalise the assorted shapes Nextflow collect() can produce (a single [id, map],
-// nested [[id, map], ...], flattened [id, map, id, map, ...], or a Map) into a uniform
-// list of [id, map] entries. With a non-null `label`, an unrecognised shape errors;
-// otherwise it yields [].
+// Normalise the assorted shapes Nextflow collect() can produce (single, nested, flattened, or Map) into
+// a uniform list of [id, map] entries. With a non-null `label`, an unrecognised shape errors; else [].
 def normaliseMqcRows(rows, label = null) {
     if (rows instanceof Map) {
         return rows.entrySet().collect { entry -> [entry.key, entry.value] }
@@ -678,10 +694,8 @@ def rffoldStatsMultiqc(rows) {
     )
 }
 
-// Parse an rf-correlate matrix.csv (overall pairwise correlation between replicates) into the
-// off-diagonal summary used for the MultiQC reproducibility table: number of replicates, and the
-// mean and minimum pairwise correlation. Header: Sample,<label0>,<label1>,...; data rows:
-// <label_i>,<corr_i0>,<corr_i1>,...
+// Parse an rf-correlate matrix.csv into the off-diagonal summary for the MultiQC reproducibility table
+// (replicate count, mean/min pairwise correlation). Header: Sample,<label0>,...; rows: <label_i>,<corr_i0>,...
 def parseRfcorrelateMatrix(matrixFile) {
     def lines = matrixFile.readLines().findAll { line -> line.trim() }
     if (lines.size() < 2) {

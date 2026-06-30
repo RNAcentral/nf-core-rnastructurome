@@ -1,10 +1,5 @@
-//
-// CORRELATE_REPLICATES — rf-correlate replicate-reproducibility QC.
-//
-// Reuses FOLD_STRUCTURES' per-sample_group XML grouping (with replicate sizes/labels) and runs only
-// for groups with >1 replicate; the overall pairwise correlations are summarised into a MultiQC
-// table (mean/min per sample group).
-//
+// CORRELATE_REPLICATES — rf-correlate replicate-reproducibility QC. Reuses FOLD_STRUCTURES' per-sample_group
+// XML grouping, runs only for groups with >1 replicate, and summarises pairwise correlations for MultiQC.
 
 include { RNAFRAMEWORK_RFCORRELATE } from '../../../modules/local/rnaframework/correlate/main'
 include {

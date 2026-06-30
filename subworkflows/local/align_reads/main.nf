@@ -1,13 +1,6 @@
-//
-// ALIGN_READS — align trimmed reads, coordinate-sort, deduplicate and collect
-// alignment QC + library strandedness.
-//
-// Genome route: STAR (RT-stop SE and MaP PE). MaP PE BAMs go name-sort ->
-// fixmate -> coord-sort to carry the MC tag markdup needs; RT-stop SE skips it.
-// Transcriptome route: Bowtie (RT-stop) / Bowtie2 (MaP). UMI samples are
-// deduplicated with umi_tools, others with samtools markdup. RSeQC infers
-// per-sample strandedness from BED12 (genome route only).
-//
+// ALIGN_READS — align trimmed reads, coordinate-sort, deduplicate and collect alignment QC + strandedness.
+// Genome route: STAR, with MaP PE BAMs going name-sort -> fixmate -> coord-sort for markdup's MC tag.
+// Transcriptome route: Bowtie/Bowtie2, deduped with umi_tools (UMI samples) or samtools markdup.
 
 include { STAR_ALIGN as STAR_ALIGN_RTSTOP        } from '../../../modules/nf-core/star/align/main'
 include { STAR_ALIGN as STAR_ALIGN_MAP           } from '../../../modules/nf-core/star/align/main'
@@ -47,9 +40,7 @@ workflow ALIGN_READS {
     main:
     ch_multiqc_files = channel.empty()
 
-    //
     // RT-STOP ALIGNMENT
-    //
     def ch_rtstop_aligned_bam      = channel.empty()
 
     if (!pipeline_config.transcriptome) {
@@ -90,9 +81,7 @@ workflow ALIGN_READS {
         ch_multiqc_files = ch_multiqc_files.mix(BOWTIE_ALIGN.out.log.collect { _meta, log -> log })
     }
 
-    //
     // MAP ALIGNMENT
-    //
     def ch_map_aligned_bam    = channel.empty()
 
     if (!pipeline_config.transcriptome) {
@@ -138,10 +127,8 @@ workflow ALIGN_READS {
         ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { _meta, log -> log })
     }
 
-    //
-    // MaP (PE) BAMs need name-sort → fixmate → coordinate-sort to add the MC tag
-    // required by samtools markdup. RT-stop (SE) BAMs skip this step.
-    //
+    // MaP (PE) BAMs need name-sort → fixmate → coordinate-sort to add the MC tag for samtools markdup.
+    // RT-stop (SE) BAMs skip this step.
     SAMTOOLS_SORT_NAME (
         ch_map_aligned_bam,
         channel.value([ [], [], [] ]),
@@ -152,19 +139,15 @@ workflow ALIGN_READS {
     )
     ch_mapped_bam = ch_rtstop_aligned_bam.mix(SAMTOOLS_FIXMATE.out.bam)
 
-    //
-    // MODULE: samtools sort — coordinate-sort mapped (genome) BAMs
+    // MODULE: samtools sort — coordinate-sort mapped (genome) BAMs.
     // FASTA/FAI not needed for BAM output (only required for CRAM); pass empty.
-    //
     SAMTOOLS_SORT (
         ch_mapped_bam,
         channel.value([ [], [], [] ]),
         false
     )
 
-    //
     // MODULE: samtools index (sorted) — index sorted genome BAMs
-    //
     SAMTOOLS_INDEX_SORT (
         SAMTOOLS_SORT.out.bam
     )
@@ -181,26 +164,19 @@ workflow ALIGN_READS {
         non_umi: !((meta.umi_pattern ?: '').toString().trim())
     }
 
-    //
     // MODULE: samtools flagstat — collect pre-dedup flag statistics
-    //
     SAMTOOLS_FLAGSTAT_PRE (
         ch_sorted_bam_bai
     )
 
-    //
     // MODULE: umi_tools dedup — deduplicate UMI-tagged BAMs
-    //
     UMITOOLS_DEDUP (
         dedup_branches.umi,
         false
     )
 
-    //
-    // MODULE: samtools markdup — deduplicate non-UMI BAMs
-    // FASTA/FAI not needed for BAM output; pass empty.
+    // MODULE: samtools markdup — deduplicate non-UMI BAMs. FASTA/FAI not needed; pass empty.
     // Drop the bai from [meta, bam, bai] — markdup only takes [meta, bam].
-    //
     def ch_non_umi_bam = dedup_branches.non_umi.map { meta, bam, _bai -> [ meta, bam ] }
     if (!params.skip_markdup) {
         SAMTOOLS_MARKDUP (
@@ -214,9 +190,7 @@ workflow ALIGN_READS {
 
     ch_multiqc_files = ch_multiqc_files.mix(UMITOOLS_DEDUP.out.log.collect { dedup_log -> dedup_log[1] })
 
-    //
     // MODULE: samtools index (final) — index deduplicated BAMs
-    //
     SAMTOOLS_INDEX_FINAL (
         ch_dedup_bam
     )
@@ -228,25 +202,18 @@ workflow ALIGN_READS {
             [ bam_tuple[0], bam_tuple[1], bai_tuple[1] ]
         }
 
-    //
-    // MODULE: samtools stats — collect alignment statistics
-    // FASTA/FAI not needed for transcript BAMs; pass empty.
-    //
+    // MODULE: samtools stats — collect alignment statistics. FASTA/FAI not needed for transcript BAMs; pass empty.
     SAMTOOLS_STATS (
         ch_markdup_bam_bai,
         channel.value([ [], [], [] ])
     )
 
-    //
     // MODULE: samtools flagstat — collect flag statistics
-    //
     SAMTOOLS_FLAGSTAT (
         ch_markdup_bam_bai
     )
 
-    //
     // MODULE: samtools idxstats — collect per-reference mapping statistics
-    //
     SAMTOOLS_IDXSTATS (
         ch_markdup_bam_bai
     )
@@ -258,11 +225,8 @@ workflow ALIGN_READS {
     // Software versions are collected later via ch_versions (old-style emit: versions)
     // and channel.topic("versions") (new-style topic-based modules)
 
-    //
-    // MODULES: BEDOPS_GTF2BED + RSEQC_INFEREXPERIMENT (STAR route only)
-    // Convert each reference GTF to BED12 once, then run infer_experiment on
-    // every final BAM to determine library strandedness automatically.
-    //
+    // MODULES: BEDOPS_GTF2BED + RSEQC_INFEREXPERIMENT (STAR route only). Convert each reference GTF to
+    // BED12 once, then run infer_experiment on every final BAM to determine strandedness automatically.
     def ch_strandedness_by_id = channel.empty()
 
     if (!pipeline_config.transcriptome) {

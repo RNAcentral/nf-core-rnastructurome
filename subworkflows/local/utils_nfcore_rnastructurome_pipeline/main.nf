@@ -1,6 +1,4 @@
-//
 // Subworkflow with functionality specific to the nf-core/rnastructurome pipeline
-//
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,9 +41,7 @@ workflow PIPELINE_INITIALISATION {
 
     validateRequiredPaths(input, outdir)
 
-    //
     // Print version and exit if required and dump pipeline parameters to JSON file
-    //
     UTILS_NEXTFLOW_PIPELINE (
         version,
         true,
@@ -53,9 +49,7 @@ workflow PIPELINE_INITIALISATION {
         workflow.profile.tokenize(',').intersect(['conda', 'mamba']).size() >= 1
     )
 
-    //
     // Validate parameters and generate parameter summary to stdout
-    //
     before_text = """
 -\033[2m----------------------------------------------------\033[0m-
                                         \033[0;32m,--.\033[0;30m/\033[0;32m,-.\033[0m
@@ -88,21 +82,15 @@ workflow PIPELINE_INITIALISATION {
         null
     )
 
-    //
     // Check config provided to the pipeline
-    //
     UTILS_NFCORE_PIPELINE (
         nextflow_cli_args
     )
 
-    //
     // Custom validation for pipeline parameters
-    //
     validateInputParameters(pipeline_config)
 
-    //
     // Create channel from input file provided through `input`
-    //
 
     channel
         .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
@@ -164,9 +152,7 @@ workflow PIPELINE_COMPLETION {
     summary_params = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
     def multiqc_reports = multiqc_report.toList()
 
-    //
     // Completion email and summary
-    //
     workflow.onComplete {
         if (email || email_on_fail) {
             completionEmail(
@@ -194,9 +180,7 @@ workflow PIPELINE_COMPLETION {
     FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-//
 // Check and validate pipeline parameters
-//
 def defaultPipelineConfig() {
     [
         sample_id  : null,
@@ -228,9 +212,7 @@ def isSpecifiedPath(value) {
     return normalised && !normalised.equalsIgnoreCase('null')
 }
 
-//
 // Validate channels from input samplesheet
-//
 def validateInputSamplesheet(input) {
     def (metas, fastqs) = input[1..2]
 
@@ -242,9 +224,7 @@ def validateInputSamplesheet(input) {
 
     return [ metas[0], fastqs ]
 }
-//
 // Get attribute from genome config file e.g. fasta
-//
 def getGenomeAttribute(attribute, pipeline_config) {
     if (pipeline_config.genomes && pipeline_config.genome && pipeline_config.genomes.containsKey(pipeline_config.genome)) {
         if (pipeline_config.genomes[pipeline_config.genome].containsKey(attribute)) {
@@ -254,9 +234,7 @@ def getGenomeAttribute(attribute, pipeline_config) {
     return null
 }
 
-//
 // Exit pipeline if incorrect --genome key provided
-//
 def genomeExistsError(pipeline_config) {
     if (pipeline_config.genomes && pipeline_config.genome && !pipeline_config.genomes.containsKey(pipeline_config.genome)) {
         def error_string = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n" +
@@ -267,9 +245,7 @@ def genomeExistsError(pipeline_config) {
         error(error_string)
     }
 }
-//
 // Generate methods description for MultiQC
-//
 def toolCitationText(pipeline_config) {
     def citation_text = [
             "Tools used in the workflow included:",
@@ -310,9 +286,8 @@ def methodsDescriptionText(mqc_methods_yaml, pipeline_config) {
 
     // Pipeline DOI
     if (meta.manifest_map.doi) {
-        // Using a loop to handle multiple DOIs
-        // Removing `https://doi.org/` to handle pipelines using DOIs vs DOI resolvers
-        // Removing ` ` since the manifest.doi is a string and not a proper list
+        // Loop to handle multiple DOIs, stripping `https://doi.org/` (DOIs vs resolvers) and spaces
+        // (manifest.doi is a string, not a proper list).
         def temp_doi_ref = ""
         def manifest_doi = meta.manifest_map.doi.tokenize(",")
         manifest_doi.each { doi_ref ->

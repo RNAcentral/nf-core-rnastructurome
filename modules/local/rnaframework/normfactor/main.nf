@@ -19,10 +19,8 @@ process RNAFRAMEWORK_RFNORMFACTOR {
     script:
     def args           = task.ext.args ?: ''
     prefix             = task.ext.prefix ?: "${meta.id}"
-    // Staged file names are UNIQUE (the subworkflow deduplicates before staging, since a shared
-    // untreated/denatured control cannot be staged twice under the same name). The positional -t/-u/-d
-    // order — which repeats a shared control once per treated sample — is carried in meta and used to
-    // build the argument lists below; it falls back to the staged names when not provided.
+    // Staged file names are unique (a shared control can't be staged twice under the same name), so the
+    // positional -t/-u/-d order (which repeats a shared control per treated sample) is carried in meta.
     def treatedNames   = (treated instanceof List ? treated : [treated]).collect { f -> f.name }
     def untreatedNames = untreated ? (untreated instanceof List ? untreated : [untreated]).collect { f -> f.name } : []
     def denaturedNames = denatured ? (denatured instanceof List ? denatured : [denatured]).collect { f -> f.name } : []

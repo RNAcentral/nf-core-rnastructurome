@@ -1,11 +1,5 @@
-//
-// BROWSER_TRACKS — turn rf-norm reactivities (and optional rf-fold Shannon
-// entropy) into genome- and transcript-coordinate BigWig tracks for IGV/UCSC.
-//
-// rf-wiggle → merge per replicate → average across replicates (when >1) →
-// remap transcript WIG to genome coords → wigToBigWig, plus a transcript-coord
-// BigWig built from per-transcript chrom.sizes. Leaf stage: emits only versions.
-//
+// BROWSER_TRACKS — turn rf-norm reactivities (and optional rf-fold Shannon entropy) into genome- and
+// transcript-coordinate BigWig tracks for IGV/UCSC. rf-wiggle → merge/average replicates → wigToBigWig.
 
 include { RNAFRAMEWORK_RFWIGGLE } from '../../../modules/local/rnaframework/wiggle/main'
 include { MERGE_WIG             } from '../../../modules/local/merge_wig/main'
@@ -32,9 +26,7 @@ workflow BROWSER_TRACKS {
     main:
     ch_versions = channel.empty()
 
-    //
     // MODULE: rf-wiggle — convert rf-norm XML reactivities to WIG + chrom.sizes
-    //
     RNAFRAMEWORK_RFWIGGLE (
         ch_rfnorm_xml
     )
@@ -43,11 +35,8 @@ workflow BROWSER_TRACKS {
         RNAFRAMEWORK_RFWIGGLE.out.wig
     )
 
-    //
-    // Group per-replicate merged WIGs by sample_group.
-    // Single replicate: bypass AVERAGE_WIG, keep meta.id = "HEK293T_1" → HEK293T_1_reactivity.bw
-    // Multiple replicates: run AVERAGE_WIG, set meta.id = sample_group   → HEK293T_reactivity.bw
-    //
+    // Group per-replicate merged WIGs by sample_group. Single replicate bypasses AVERAGE_WIG
+    // (meta.id stays e.g. "HEK293T_1"); multiple replicates run it with meta.id = sample_group.
     def ch_reactivity_grouped = MERGE_WIG.out.merged_wig
         .map { meta, wig -> [ meta.sample_group.toString(), meta, wig ] }
         .groupTuple(by: 0)
@@ -68,10 +57,7 @@ workflow BROWSER_TRACKS {
         file("${projectDir}/bin/average_wig.py", checkIfExists: true)
     )
 
-    //
-    // MODULE: wig_to_genome + wigToBigWig — convert merged/averaged transcript WIG
-    // to genomic BigWig for IGV
-    //
+    // MODULE: wig_to_genome + wigToBigWig — convert merged/averaged transcript WIG to genomic BigWig for IGV
     def ch_reactivity_for_bigwig = ch_reactivity_branches.single
         .map { meta, wigs -> [ meta, wigs[0] ] }
         .mix(AVERAGE_WIG.out.merged_wig)
@@ -109,11 +95,8 @@ workflow BROWSER_TRACKS {
         ch_reactivity_genome_split.sizes
     )
 
-    //
-    // MODULE: WIG_CHROM_SIZES + wigToBigWig — transcript-coordinate reactivity BigWig.
-    // Independent channel subscriptions (separate .map{} calls on the same sources) ensure
-    // items are not consumed by the genome BigWig operators above.
-    //
+    // MODULE: WIG_CHROM_SIZES + wigToBigWig — transcript-coordinate reactivity BigWig. Independent
+    // .map{} subscriptions on the same sources ensure items aren't consumed by the genome operators above.
     def ch_wig_chrom_sizes_script = file("${projectDir}/bin/wig_chrom_sizes.py", checkIfExists: true)
     def ch_reactivity_wig_for_sizes = ch_reactivity_branches.single
         .map { meta, wigs -> [ meta, wigs[0] ] }
@@ -142,10 +125,8 @@ workflow BROWSER_TRACKS {
     ch_versions = ch_versions.mix(AVERAGE_WIG.out.versions.first())
     ch_versions = ch_versions.mix(WIG_TO_GENOME_REACTIVITY.out.versions.first())
 
-    //
-    // MODULE: merge_shannon_wig + wigToBigWig — merge per-transcript Shannon entropy WIG files
-    // and convert to genome-coordinate and transcript-coordinate BigWigs for genome browser visualisation
-    //
+    // MODULE: merge_shannon_wig + wigToBigWig — merge per-transcript Shannon entropy WIG files and
+    // convert to genome- and transcript-coordinate BigWigs.
     if (params.rffold_shannon_entropy) {
         MERGE_SHANNON_WIG (
             ch_fold_shannon_wig

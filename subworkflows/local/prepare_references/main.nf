@@ -1,13 +1,6 @@
-//
-// PREPARE_REFERENCES — resolve, fetch, sort and index the reference artifacts.
-//
-// Per sample the reference is resolved to a local path, an Ensembl species, or
-// NCBI accessions (with Ensembl-404 -> NCBI fallback). Genome/transcriptome
-// FASTA + GTF are fetched, chromosome-sorted, and turned into keyed lookup maps,
-// then the aligner index is built (STAR for the genome route, Bowtie/Bowtie2 for
-// the --transcriptome route). Source-provenance channels are emitted for RDAT
-// naming downstream.
-//
+// PREPARE_REFERENCES — resolve each sample's reference to a local path, Ensembl species, or NCBI
+// accessions (with Ensembl-404 fallback), fetch/sort FASTA+GTF into lookup maps, then build the aligner
+// index (STAR or Bowtie/Bowtie2). Source-provenance channels are emitted for RDAT naming downstream.
 
 include { ENSEMBL_TRANSCRIPTOME } from '../../../modules/local/ensembl/transcriptome/main'
 include { ENSEMBL_GENOME        } from '../../../modules/local/ensembl/genome/main'
@@ -61,10 +54,8 @@ workflow PREPARE_REFERENCES {
                 original_organism: original_organism ], ensembl_species ]
         }
 
-    // Ensembl downloads are mutually exclusive: genome mode downloads the soft-masked
-    // genome FASTA (for STAR); transcriptome mode downloads the cDNA FASTA (for Bowtie).
-    // ch_ensembl_not_found triggers NCBI fallback for species absent from Ensembl in both modes.
-    // ch_ensembl_fasta_source_url carries the download URL(s) for provenance reporting.
+    // Ensembl downloads are mutually exclusive: genome mode gets the soft-masked genome FASTA (STAR),
+    // transcriptome mode gets the cDNA FASTA (Bowtie). ch_ensembl_not_found triggers NCBI fallback.
     def ch_ensembl_not_found        = channel.empty()
     def ch_ensembl_fasta_source_url = channel.empty()
     def ch_reference_genome_fasta_keyed = channel.empty()
@@ -99,9 +90,8 @@ workflow PREPARE_REFERENCES {
         ch_ensembl_fasta_source_url = ENSEMBL_GENOME.out.source_url
     }
 
-    // Organisms not found on Ensembl FTP are routed to NCBI_FASTA for automatic accession
-    // search.  meta.original_organism carries the raw samplesheet organism string used as
-    // the esearch query when no accessions are pre-configured.
+    // Organisms not found on Ensembl FTP are routed to NCBI_FASTA for automatic accession search;
+    // meta.original_organism carries the esearch query when no accessions are pre-configured.
     def ch_reference_ncbi_from_ensembl = ch_ensembl_not_found
         .map { meta, _not_found_file -> [ meta, "" ] }
 
@@ -126,9 +116,8 @@ workflow PREPARE_REFERENCES {
     )
     ch_versions = ch_versions.mix(NCBI_GTF.out.versions)
 
-    // GTF resolution: skip entirely when stop_after_jackknife + transcriptome because
-    // every GTF-consuming step is either gated behind stop_after_jackknife or inside the
-    // genome route (i.e. !transcriptome). No wasted Ensembl lookups in this mode.
+    // GTF resolution is skipped entirely when stop_after_jackknife + transcriptome, since every
+    // GTF-consuming step is gated behind one of those, avoiding wasted Ensembl lookups.
     def ch_all_reference_gtf        = channel.empty()
     def ch_reference_gtf_local      = channel.empty()
     def ch_ensembl_gtf_source_urls  = channel.empty()
@@ -165,9 +154,8 @@ workflow PREPARE_REFERENCES {
         ch_versions = ch_versions.mix(ENSEMBL_GTF.out.versions)
         ch_ensembl_gtf_source_urls = ENSEMBL_GTF.out.source_urls
 
-        // NCBI references (both pre-configured and Ensembl-not-found): annotation is the synthetic
-        // GTF from NCBI_GTF, which has already run above from NCBI_FASTA.out.fasta.
-        // ENSEMBL_GTF.out.not_found is silently dropped — those organisms have a GTF via NCBI_GTF.
+        // NCBI references get their annotation from NCBI_GTF's synthetic GTF (already run above);
+        // ENSEMBL_GTF.out.not_found is silently dropped since those organisms have a GTF via NCBI_GTF.
         ch_all_reference_gtf = ch_reference_gtf_local
             .mix(ENSEMBL_GTF.out.gtf)
             .mix(NCBI_GTF.out.gtf)
@@ -214,13 +202,10 @@ workflow PREPARE_REFERENCES {
     def ch_reference_fasta_map   = collectToMap(ch_reference_fasta_keyed)
     def ch_reference_gtf_map     = collectToMap(ch_reference_gtf_keyed)
 
-    // Genome FASTA map for STAR index building.
-    // For Ensembl species: ENSEMBL_GENOME output (soft-masked genome).
-    // For NCBI species (bacteria, viruses): NCBI_FASTA output serves as the genome
-    // reference (no introns — genome and transcriptome are equivalent).
-    // For local FASTA references on the STAR route: the user-supplied FASTA is
-    // the genome (e.g. a viral/mitochondrial genome or a custom assembly).
-    def ch_reference_genome_ncbi_keyed = NCBI_FASTA.out.fasta
+    // Genome FASTA map for STAR index building: Ensembl species use ENSEMBL_GENOME's soft-masked genome;
+    // NCBI species (no introns) use the sorted NCBI FASTA (must be sorted/uncompressed — STAR/samtools
+    // faidx reject the raw plain-gzip download); local FASTA references use the user-supplied FASTA as-is.
+    def ch_reference_genome_ncbi_keyed = FASTA_SORT_NCBI.out.fasta
         .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
     if (!pipeline_config.transcriptome) {
         // Genome route: use the sorted Ensembl genome FASTA for STAR index building.
@@ -265,17 +250,14 @@ workflow PREPARE_REFERENCES {
         .groupTuple()
         .map { _reference_key, entries -> entries[0] }
 
-    //
     // INDEX BUILDING — conditional on chosen aligner per principle
-    //
     def ch_star_index        = channel.empty()
     def ch_bowtie_index_map  = channel.value([:])
     def ch_bowtie2_index_map = channel.value([:])
 
     if (!pipeline_config.transcriptome) {
-        // Build one STAR index per reference using the genome FASTA + GTF.
-        // For Ensembl species this is the soft-masked toplevel genome assembly.
-        // For NCBI species (bacteria, viruses) the NCBI FASTA is used as the genome.
+        // Build one STAR index per reference using the genome FASTA + GTF (Ensembl soft-masked
+        // toplevel assembly, or the NCBI FASTA for bacteria/viruses).
         def ch_star_build = ch_reference_genome_fasta_keyed
             .join(ch_reference_gtf_keyed, remainder: true)
             .map { key, fasta_tuple, gtf_tuple ->

@@ -19,12 +19,9 @@ process RNAFRAMEWORK_RFNORM {
     prefix            = task.ext.prefix ?: "${meta.id}"
     def untreated_arg = untreated ? "-u ${untreated}" : ''
     def denatured_arg = denatured ? "-d ${denatured}" : ''
-    // Cross-experiment normalisation factor from rf-normfactor (opt-in via --rfnorm_use_normfactor).
-    // IMPORTANT: rf-norm's -nf takes a NUMERIC factor value, NOT a path. rf-normfactor writes a
-    // per-experiment table (col 1 = treated RC basename, col 2 = factor); we look up THIS group's
-    // factor by its treated RC name below and pass the value. Only attempted for single-treated
-    // groups (cross-experiment normalisation emits one treated per group); a missing entry or a
-    // multi-treated group falls back to rf-norm's internal per-sample normalisation.
+    // Cross-experiment factor from rf-normfactor (opt-in). IMPORTANT: rf-norm's -nf takes a NUMERIC
+    // value, not a path — looked up from rf-normfactor's table by this group's treated RC name.
+    // Only attempted for single-treated groups; otherwise falls back to per-sample normalisation.
     def treatedNames  = (treated instanceof List ? treated : [treated]).collect { f -> f.name }
     def nfKeyName     = (norm_factor && treatedNames.size() == 1) ? treatedNames[0] : ''
     def treated_list  = treated instanceof List ? treated.join(' ') : "${treated}"

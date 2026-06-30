@@ -50,9 +50,7 @@ workflow RNASTRUCTUROME {
     def pipeline_config = defaultPipelineConfig() + (pipeline_config_input ?: [:])
     ch_versions = channel.empty()
     ch_multiqc_files = channel.empty()
-    //
     // SUBWORKFLOW: FASTQ_QC_TRIM — cat → FastQC → UMI → cutadapt → FastQC
-    //
     FASTQ_QC_TRIM (
         ch_samplesheet
     )
@@ -62,9 +60,7 @@ workflow RNASTRUCTUROME {
     def ch_rtstop_trimmed_for_align = FASTQ_QC_TRIM.out.rtstop_trimmed
     def ch_map_trimmed_for_align    = FASTQ_QC_TRIM.out.map_trimmed
 
-    //
     // SUBWORKFLOW: PREPARE_REFERENCES — resolve/fetch/sort/index reference artifacts
-    //
     PREPARE_REFERENCES (
         ch_samplesheet_for_branching,
         pipeline_config
@@ -79,9 +75,7 @@ workflow RNASTRUCTUROME {
     def ch_bowtie_index_map             = PREPARE_REFERENCES.out.bowtie_index_map
     def ch_bowtie2_index_map            = PREPARE_REFERENCES.out.bowtie2_index_map
 
-    //
     // SUBWORKFLOW: ALIGN_READS — align → sort → dedup → stats → strandedness
-    //
     ALIGN_READS (
         ch_rtstop_trimmed_for_align,
         ch_map_trimmed_for_align,
@@ -98,10 +92,7 @@ workflow RNASTRUCTUROME {
     def ch_dedup_bam          = ALIGN_READS.out.dedup_bam
     def ch_strandedness_by_id = ALIGN_READS.out.strandedness_by_id
 
-    //
-    //
     // SUBWORKFLOW: QUANTIFY_REACTIVITY — rf-count(-genome) → rf-rctools → RC files
-    //
     QUANTIFY_REACTIVITY (
         ch_markdup_bam_bai,
         ch_strandedness_by_id,
@@ -164,9 +155,7 @@ workflow RNASTRUCTUROME {
         )
     )
 
-    //
     // SUBWORKFLOW: NORMALISE_REACTIVITIES — group RC files, pair treated/untreated, run rf-norm
-    //
     NORMALISE_REACTIVITIES (
         ch_rfcount_rc,
         ch_rfcount_rci,
@@ -175,9 +164,7 @@ workflow RNASTRUCTUROME {
     )
     ch_versions = ch_versions.mix(NORMALISE_REACTIVITIES.out.versions)
 
-    //
     // SUBWORKFLOW: FOLD_STRUCTURES — group by sample_group, optional jackknife, rf-fold, dotplot→bp
-    //
     FOLD_STRUCTURES (
         NORMALISE_REACTIVITIES.out.xml,
         ch_reference_gtf_map,
@@ -186,9 +173,7 @@ workflow RNASTRUCTUROME {
     ch_versions = ch_versions.mix(FOLD_STRUCTURES.out.versions)
 
     if (!params.stop_after_jackknife) {
-        //
         // SUBWORKFLOW: VISUALISE_STRUCTURES — R2DT / ViennaRNA 2D structure diagrams
-        //
         VISUALISE_STRUCTURES (
             NORMALISE_REACTIVITIES.out.xml,
             FOLD_STRUCTURES.out.structures,
@@ -198,9 +183,7 @@ workflow RNASTRUCTUROME {
         )
         ch_versions = ch_versions.mix(VISUALISE_STRUCTURES.out.versions)
 
-        //
         // SUBWORKFLOW: BROWSER_TRACKS — rf-wiggle → BigWig genome/transcript tracks (+ Shannon)
-        //
         BROWSER_TRACKS (
             NORMALISE_REACTIVITIES.out.xml,
             FOLD_STRUCTURES.out.shannon_wig,
@@ -211,12 +194,8 @@ workflow RNASTRUCTUROME {
     }
 
     if (!params.stop_after_jackknife) {
-        //
-        // MODULE: tordat — compile rf-norm XML + rf-fold .db structures into RDAT format
-        //
-        // Build per-reference source file name channels so the RDAT COMMENT records
-        // the exact Ensembl filenames (e.g. Homo_sapiens.GRCh38.114.cdna.all.fa.gz)
-        // or NCBI accessions (e.g. EU081230.1) rather than the generic pipeline names.
+        // MODULE: tordat — compile rf-norm XML + rf-fold .db structures into RDAT format. Build per-reference
+        // source file name channels so the RDAT COMMENT records exact Ensembl filenames/NCBI accessions.
         def ch_ref_fasta_names
         def ch_ref_gtf_names
         if (pipeline_config.fasta) {
@@ -326,9 +305,7 @@ workflow RNASTRUCTUROME {
 
     // RNAframework module versions collected via ch_versions below
 
-    //
     // MODULE: multiqc — aggregate pipeline quality control reports
-    //
     ch_multiqc_config        = channel.fromPath(
         "$projectDir/assets/multiqc_config.yml", checkIfExists: true)
     ch_multiqc_custom_config = pipeline_config.multiqc_config ?
@@ -365,23 +342,14 @@ workflow RNASTRUCTUROME {
             .map { files, config, logo -> [ [ id: 'multiqc' ], files, config, logo, [], [] ] }
     )
 
-    //
-    // Collect software versions from all modules.
-    // Modules using `path "versions.yml"` (old pattern) must be mixed in explicitly.
-    // Modules using `topic: versions` (new pattern) are collected automatically by
-    // channel.topic("versions") below and do NOT need to be listed here.
-    //   topic-pattern: CUTADAPT_*, BOWTIE2_*, UMITOOLS_*, all SAMTOOLS_* modules
-    //   file-pattern:  FASTQC, BOWTIE_BUILD/ALIGN, local modules
-    //
-    // FASTQC, SAMtools, cutadapt, bowtie2, umitools use topic: versions → captured by channel.topic("versions") below
-    // Old-style modules (emit: versions) must be mixed in explicitly
+    // Collect software versions: topic-pattern modules (CUTADAPT_*, BOWTIE2_*, UMITOOLS_*, all SAMTOOLS_*,
+    // FASTQC) are captured automatically by channel.topic("versions") below; old `emit: versions` modules
+    // (BOWTIE_BUILD/ALIGN, local modules) must be mixed in explicitly.
     if (!params.stop_after_jackknife) {
         ch_versions = ch_versions.mix(RNAFRAMEWORK_TORDAT.out.versions.first())
     }
 
-    //
     // Collate and save software versions
-    //
     def topic_versions = channel.topic("versions")
         .distinct()
         .branch { entry ->

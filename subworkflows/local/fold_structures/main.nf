@@ -1,8 +1,5 @@
-//
-// FOLD_STRUCTURES — group rfnorm XML files by sample_group, optionally run rf-jackknife for
-// slope/intercept calibration, run rf-fold to predict secondary structures, then convert
-// dot-plot outputs to .bp arc files (genome- and transcript-coordinate) and merge them.
-//
+// FOLD_STRUCTURES — group rfnorm XML files by sample_group, optionally run rf-jackknife for slope/intercept
+// calibration, run rf-fold, then convert dot-plot outputs to .bp arc files (genome+transcript) and merge.
 
 include { RNAFRAMEWORK_RFJACKKNIFE                                     } from '../../../modules/local/rnaframework/jackknife/main'
 include { RNAFRAMEWORK_RFEVAL                                          } from '../../../modules/local/rnaframework/eval/main'
@@ -24,10 +21,8 @@ workflow FOLD_STRUCTURES {
     main:
     ch_versions = channel.empty()
 
-    //
     // Group rfnorm XMLs by sample_group so biological replicates are folded together.
     // The group key intentionally excludes replicate.
-    //
     def ch_fold_input = ch_rfnorm_xml
         .map { meta, xml ->
             if (!meta.sample_group) {
@@ -38,11 +33,9 @@ workflow FOLD_STRUCTURES {
         }
         .groupTuple()
         .map { fold_group, entries ->
-            // Each entry is one rfnorm group (= one replicate) for this sample_group. rf-fold folds
-            // replicates together via majority voting, taking one experiment DIRECTORY per replicate
-            // (rf-fold exp1/ exp2/ ...), not a single merged dir. Sort by replicate for determinism,
-            // then concatenate XMLs grouped by replicate so the module can rebuild per-replicate dirs
-            // from the per-file input*/ staging using the aligned fold_replicate_sizes counts.
+            // rf-fold folds replicates via majority voting, taking one experiment DIRECTORY per replicate
+            // (not a merged dir). Sort by replicate, then concatenate XMLs so the module can rebuild
+            // per-replicate dirs from input*/ staging using the aligned fold_replicate_sizes counts.
             def sortedEntries  = entries.sort { entry -> (entry[0].replicate ?: 'na').toString() }
             def base           = sortedEntries[0][0]
             def perRepXmls     = sortedEntries.collect { entry -> [ entry[1] ].flatten() }
@@ -61,12 +54,8 @@ workflow FOLD_STRUCTURES {
             [ foldMeta, orderedXmls ]
         }
 
-    //
-    // Optional rf-jackknife — quality assessment against a reference structure set.
-    // When --jackknife_reference is provided, jackknife runs and rf-fold is gated on completion.
-    // When --rfjackknife_pool_all is true, the optimal slope/intercept from the jackknife CSV
-    // is parsed and injected directly into rf-fold meta, bypassing a separate calibration run.
-    //
+    // Optional rf-jackknife — quality assessment against a reference structure set; rf-fold is gated on
+    // its completion. With --rfjackknife_pool_all, the optimal slope/intercept is injected into fold meta.
     def ch_fold_for_rffold = ch_fold_input
     def ch_jackknife_csv   = channel.empty()
     def ch_rfeval_csv      = channel.empty()
@@ -74,10 +63,8 @@ workflow FOLD_STRUCTURES {
     if (pipeline_config.jackknife_reference) {
         def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
 
-        // Jackknife runs per rfnorm group (sample_group + replicate), not per fold group.
-        // Fold groups flatten XMLs from multiple replicates which produce identically-named
-        // files (e.g. 16S_rRNA.xml); using input*/* staging gives each file its own
-        // numbered directory so rf-jackknife receives them as separate experiment dirs.
+        // Jackknife runs per rfnorm group (sample_group + replicate), not per fold group, since fold
+        // groups flatten identically-named XMLs (e.g. 16S_rRNA.xml) across replicates.
         def ch_jackknife_input
         if (pipeline_config.rfjackknife_pool_all as Boolean) {
             ch_jackknife_input = ch_rfnorm_xml
@@ -96,10 +83,8 @@ workflow FOLD_STRUCTURES {
         ch_jackknife_csv = RNAFRAMEWORK_RFJACKKNIFE.out.csv
 
         if (pipeline_config.rfjackknife_pool_all as Boolean) {
-            // Parse optimal slope/intercept from the pooled jackknife CSV and inject into fold meta.
-            // FMI.csv is a semicolon-delimited matrix: rows = slopes, columns = intercepts, cells = FMI.
-            // Header row: FMI;<intercept0>;<intercept1>;...
-            // Data rows:  <slope>;<fmi0>;<fmi1>;...
+            // Parse optimal slope/intercept from the pooled jackknife CSV (FMI.csv is a semicolon-delimited
+            // matrix: rows = slopes, columns = intercepts, cells = FMI) and inject into fold meta.
             def ch_calibration = RNAFRAMEWORK_RFJACKKNIFE.out.csv
                 .map { _meta, csv_files ->
                     def csv_file = [csv_files].flatten()[0]
@@ -137,10 +122,8 @@ workflow FOLD_STRUCTURES {
         }
     }
 
-    //
     // Optional rf-eval — evaluate agreement between reactivity data and a reference structure set.
-    // Runs per rfnorm group (one XML set per sample_group+replicate) when --rfeval_reference is provided.
-    //
+    // Runs per rfnorm group when --rfeval_reference is provided.
     if (pipeline_config.rfeval_reference) {
         def ch_rfeval_reference = channel.value(file(pipeline_config.rfeval_reference.toString(), checkIfExists: true))
 
@@ -169,12 +152,8 @@ workflow FOLD_STRUCTURES {
         ch_shannon_wig     = RNAFRAMEWORK_RFFOLD.out.shannon_wig
         ch_rffold_log      = RNAFRAMEWORK_RFFOLD.out.log
 
-        //
-        // Optional rf-structextract — pull high-confidence, low-reactivity / low-Shannon structural
-        // motifs out of the rf-fold output. Pairs each fold output directory (-ro) with the same
-        // group's rf-norm XML reactivities (-xf). XML names repeat across replicates, so deduplicate
-        // by filename (rf-structextract reads one reactivity profile per transcript).
-        //
+        // Optional rf-structextract — pull high-confidence, low-reactivity/low-Shannon motifs out of the
+        // rf-fold output, pairing each fold dir (-ro) with the group's XML reactivities (-xf), deduped by filename.
         if (pipeline_config.structextract) {
             def ch_structextract_input = RNAFRAMEWORK_RFFOLD.out.structures
                 .map { meta, fold_dir -> [ meta.id.toString(), meta, fold_dir ] }

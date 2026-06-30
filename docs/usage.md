@@ -124,6 +124,8 @@ The pipeline downloads a soft-masked genome FASTA (`dna_sm.toplevel.fa.gz`) and 
 
 Add `--transcriptome` to align directly to a transcript FASTA instead of the genome. In this option, the pipeline downloads Ensembl cDNA + ncRNA FASTA files; for bacteria and viruses not in Ensembl it falls back to NCBI and builds a transcript FASTA from the genome assembly automatically. The aligner used depends on the probing principle: Bowtie for RT-stop and Bowtie2 for MaP. This route works well for bacteria and viruses where genome annotation is sparse or absent, or when you prefer to map directly to a curated set of transcripts.
 
+> **Automatic for NCBI references.** Bacteria and viruses are fetched from NCBI and have no introns, so the genome (STAR) route offers no benefit. When _every_ reference in the samplesheet resolves to the NCBI route, the pipeline enables the transcriptome (Bowtie) route automatically — you do not need to pass `--transcriptome`. A log line reports when this happens. Pass `--transcriptome` explicitly to make the choice visible in your command.
+
 `--bowtie_k` (default `1`) sets the maximum number of alignments to report per read — the equivalent of `--star_multimap_nmax` for the transcriptome route. Setting it to `1` means only uniquely mapping reads are kept. Increase it if you want to retain reads that map to multiple transcripts (e.g. paralogs or transcript isoforms), though the same caveats about ambiguous assignment apply. Use `--bowtie_all` instead to report all valid alignments which is useful if you want various isoforms to be reported. Additional flags can be passed via `ext.args` in a custom config.
 
 ### rf-count

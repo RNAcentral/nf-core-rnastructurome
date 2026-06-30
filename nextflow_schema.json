@@ -536,7 +536,7 @@
                 },
                 "rfnorm_use_normfactor": {
                     "type": "boolean",
-                    "description": "Cross-experiment normalization via rf-normfactor (one factor set per reference, fed to rf-norm via `-nf`), putting reactivities on a common scale. Leave unset for auto (enabled for a reference with paired untreated controls or more than one treated sample); set `true` to force on, `false` to force off (per-sample box-plot). Auto is disabled when `--rfnorm_chunk_size` is set."
+                    "description": "Cross-experiment normalization via rf-normfactor (one factor set per reference, fed to rf-norm via `-nf`), putting reactivities on a common scale. Leave unset for auto (enabled only for a reference with more than one treated sample to cross-normalise); set `true` to force on, `false` to force off (per-sample box-plot). Auto is disabled when `--rfnorm_chunk_size` is set."
                 },
                 "rfnorm_normfactor_min_coverage": {
                     "type": "integer",

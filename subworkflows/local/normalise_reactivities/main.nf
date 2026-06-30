@@ -162,8 +162,8 @@ workflow NORMALISE_REACTIVITIES {
 
     // Cross-experiment normalisation via rf-normfactor: derives one set of transcriptome-wide factors per
     // reference, fed to every group's rf-norm via -nf for a common scale (vs. per-sample box-plot).
-    // Enablement is per reference: true=always on, false=always off, null=AUTO (on when paired untreated
-    // controls exist or more than one treated sample). References that stay off normalise independently.
+    // Enablement is per reference: true=always on, false=always off, null=AUTO (on only when the reference
+    // has >1 treated sample to cross-normalise). References that stay off normalise independently.
     def nfRaw          = pipeline_config.rfnorm_use_normfactor
     def nfForceOn      = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['true', '1', 'yes'])
     def nfForceOff     = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['false', '0', 'no'])
@@ -210,9 +210,11 @@ workflow NORMALISE_REACTIVITIES {
                     def missing = ordered.findAll { entry -> !entry.untreated }.collect { entry -> entry.meta.id }.sort().join(', ')
                     error("rf-normfactor for reference '${ref}': not every treated sample has a matched untreated control (missing for: ${missing}). Cross-experiment normalisation requires all-or-none untreated controls; add the missing controls or set --rfnorm_use_normfactor false.")
                 }
-                // AUTO: a reference is worth a shared factor once it has paired untreated controls or
-                // more than one treated sample; an explicit 'true' forces it on regardless.
-                def autoEnable     = hasUntreated || treated_list.size() > 1
+                // AUTO: cross-experiment normalisation only makes sense with >1 treated sample to put on a
+                // common scale. A single treated sample (even with an untreated control, which only affects
+                // scoring) has nothing to cross-normalise, so per-sample normalisation suffices. Explicit
+                // 'true' forces it on regardless.
+                def autoEnable     = treated_list.size() > 1
                 def enabled        = nfForceOn ? true : autoEnable
                 // Denatured is optional, but must align 1:1 with treated to stay positionally paired; if
                 // only some groups have a denatured control, drop it rather than mispair.

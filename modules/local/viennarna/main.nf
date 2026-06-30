@@ -38,10 +38,8 @@ process VIENNARNA {
     }
     export -f _process_db
 
-    # xargs -P instead of manual `&`/`wait -n` job control: on EBI Codon, backgrounding up to
-    # task.cpus subshells via bash job control intermittently hit "/dev/null: Permission denied"
-    # in Nextflow's task launcher under heavy concurrent forking. xargs is the more standard,
-    # better-tested HPC parallelism primitive and avoids that bash-level SIGCHLD/job-table path.
+    # Parallelise per-structure rendering with xargs -P (the same find|xargs pattern R2DT uses),
+    # rather than manual `&`/`wait -n` bash job control.
     find ${fold_dir}/dotbracket -maxdepth 1 -name '*.db' -print0 \\
         | xargs -0 -P ${task.cpus} -I{} bash -c '_process_db "\$@"' _ {} \\
         || true

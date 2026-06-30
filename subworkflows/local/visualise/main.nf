@@ -17,12 +17,15 @@ workflow VISUALISE_STRUCTURES {
     main:
     ch_versions = channel.empty()
 
-    // Always draw every structure with ViennaRNA, independent of R2DT (drawn list = /dev/null means
+    // Always draw every structure with ViennaRNA, independent of R2DT (empty drawn-id list means
     // "draw all"), so the two renderers run in parallel rather than ViennaRNA filling R2DT's gaps.
+    // The empty list is a real asset file, NOT file('/dev/null'): staging /dev/null makes Nextflow
+    // bind-mount the host /dev into the container, which breaks /dev/null writability under Singularity.
+    def ch_empty_drawn_ids = file("${projectDir}/assets/NO_DRAWN_IDS.txt", checkIfExists: true)
     def ch_rnaplot_input = ch_fold_structures
         .map { meta, dir -> [ meta.id.toString(), meta, dir ] }
         .join(ch_fold_input.map { meta, xmls -> [ meta.id.toString(), xmls ] })
-        .map { _id, meta, dir, xmls -> [ meta, dir, xmls, file('/dev/null') ] }
+        .map { _id, meta, dir, xmls -> [ meta, dir, xmls, ch_empty_drawn_ids ] }
 
     VIENNARNA(
         ch_rnaplot_input,

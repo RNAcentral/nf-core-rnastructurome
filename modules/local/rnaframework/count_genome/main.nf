@@ -68,13 +68,14 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     summary_tsv="${outdir}/${prefix}.rfcount_genome_summary.tsv"
     {
         printf 'sample\\tcovered\\tmutated_alignments\\tpct_mutated\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
+        # Sample column carries the staged BAM's filename suffix (e.g. "${prefix}.sorted"), so match by prefix.
         awk -v sample="${prefix}" '
-            \$1 == sample {
+            index(\$1, sample) == 1 {
                 if (index(\$3, "/") > 0 && substr(\$4, 1, 1) == "(") {
                     pct_mut = \$4; gsub("[()%]", "", pct_mut)
-                    print \$1 "\\t" \$2 "\\t" \$3 "\\t" pct_mut "\\t" \$5 "\\t" \$6 "\\t" \$7 "\\t" \$8
+                    print sample "\\t" \$2 "\\t" \$3 "\\t" pct_mut "\\t" \$5 "\\t" \$6 "\\t" \$7 "\\t" \$8
                 } else {
-                    print \$1 "\\t" \$2 "\\t" "" "\\t" "" "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
+                    print sample "\\t" \$2 "\\t" "" "\\t" "" "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
                 }
             }
         ' "\${cleaned_log}" | tail -n 1

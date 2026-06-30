@@ -36,18 +36,15 @@ process VIENNARNA {
             python3 "${colour_script}" "\${_id}.shape" "${prefix}_structures/\${_id}.svg" || true
         fi
     }
+    export -f _process_db
 
-    _n_jobs=0
-    for _db in ${fold_dir}/dotbracket/*.db; do
-        [[ -f "\$_db" ]] || continue
-        _process_db "\$_db" &
-        (( ++_n_jobs ))
-        if (( _n_jobs >= ${task.cpus} )); then
-            wait -n
-            (( --_n_jobs ))
-        fi
-    done
-    wait
+    # xargs -P instead of manual `&`/`wait -n` job control: on EBI Codon, backgrounding up to
+    # task.cpus subshells via bash job control intermittently hit "/dev/null: Permission denied"
+    # in Nextflow's task launcher under heavy concurrent forking. xargs is the more standard,
+    # better-tested HPC parallelism primitive and avoids that bash-level SIGCHLD/job-table path.
+    find ${fold_dir}/dotbracket -maxdepth 1 -name '*.db' -print0 \\
+        | xargs -0 -P ${task.cpus} -I{} bash -c '_process_db "\$@"' _ {} \\
+        || true
 
     printf '"%s":\\n    viennarna: %s\\n' \\
         "${task.process}" \\

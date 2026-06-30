@@ -216,14 +216,18 @@ workflow NORMALISE_REACTIVITIES {
         def ch_nf_candidates = ch_nf_pairs
             .groupTuple()
             .map { ref, entries ->
-                def base_meta     = entries[0].meta
-                def treated_list  = entries.collect { entry -> entry.treated }
-                def untreated_all = entries.collect { entry -> entry.untreated }
-                def denatured_all = entries.collect { entry -> entry.denatured }
+                // groupTuple emits entries in arrival order, which varies run-to-run. Sort by treated
+                // RC filename so the staged -t/-u/-d lists (and the order recorded in meta) are stable,
+                // otherwise rf-normfactor's positionally-hashed inputs miss the resume cache every time.
+                def ordered       = entries.sort(false) { a, b -> a.treated.name <=> b.treated.name }
+                def base_meta     = ordered[0].meta
+                def treated_list  = ordered.collect { entry -> entry.treated }
+                def untreated_all = ordered.collect { entry -> entry.untreated }
+                def denatured_all = ordered.collect { entry -> entry.denatured }
                 def hasUntreated  = untreated_all.any { u -> u }
                 // rf-normfactor needs every treated paired with an untreated for Ding/Siegfried scoring.
                 if (hasUntreated && untreated_all.any { u -> !u }) {
-                    def missing = entries.findAll { entry -> !entry.untreated }.collect { entry -> entry.meta.id }.sort().join(', ')
+                    def missing = ordered.findAll { entry -> !entry.untreated }.collect { entry -> entry.meta.id }.sort().join(', ')
                     error("rf-normfactor for reference '${ref}': not every treated sample has a matched untreated control (missing for: ${missing}). Cross-experiment normalisation requires all-or-none untreated controls; add the missing controls or set --rfnorm_use_normfactor false.")
                 }
                 // AUTO: a reference is worth a shared factor once it has paired untreated controls or

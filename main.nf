@@ -110,6 +110,7 @@ def buildPipelineConfig(all_params) {
         ensembl_base_url                 : all_params.ensembl_base_url,
         ensembl_release                  : all_params.ensembl_release,
         ensembl_species_map              : all_params.ensembl_species_map,
+        ncbi_accessions_map              : all_params.ncbi_accessions_map,
         multiqc_config                   : all_params.multiqc_config,
         multiqc_logo                     : all_params.multiqc_logo,
         multiqc_methods_description      : all_params.multiqc_methods_description,

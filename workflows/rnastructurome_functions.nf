@@ -457,7 +457,7 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
     def principle = principles[0]
     def hasUntreated = conditions.contains('untreated')
     def hasDenatured = conditions.contains('denatured')
-    def scoringMethod = principle == 'map' ? (hasUntreated ? 3 : 4) : (hasUntreated ? 1 : 2)
+    def scoringMethod = resolveRfNormScoreMethod(pipeline_config, principle, hasUntreated)
     def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
     def isDmsOnly = ((sampleMetadata.methods ?: []).collect { method -> method.toLowerCase() }.unique()) == ['dms']
     def isDmsBroad = isDmsOnly && sampleMetadata.pH != null && (sampleMetadata.pH as Double) >= 8.0
@@ -502,6 +502,20 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
 // "MDA-MB-231_MTX" → "MDA-MB-231". Used by fuzzy untreated-pairing to match a shared root.
 def sampleGroupBaseToken(String sample_group) {
     sample_group.tokenize('_')[0]
+}
+
+def resolveRfNormScoreMethod(pipeline_config, principle, hasUntreated) {
+    def defaultMethod = principle == 'map' ? (hasUntreated ? 3 : 4) : (hasUntreated ? 1 : 2)
+    if (pipeline_config.rfnorm_score_method == null) {
+        return defaultMethod
+    }
+
+    def requestedMethod = pipeline_config.rfnorm_score_method as Integer
+    if (!(requestedMethod in [1, 2, 3, 4])) {
+        error("Unsupported rf-norm scoring method '${pipeline_config.rfnorm_score_method}'. Expected one of: 1, 2, 3, 4.")
+    }
+
+    requestedMethod
 }
 
 def resolveRfNormNormMethod(pipeline_config, scoringMethod) {

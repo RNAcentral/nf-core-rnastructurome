@@ -151,6 +151,8 @@ def buildPipelineConfig(all_params) {
         rfnorm_dynamic_window            : all_params.rfnorm_dynamic_window,
         rfnorm_norm_independent          : all_params.rfnorm_norm_independent,
         rfnorm_norm_factor               : all_params.rfnorm_norm_factor,
+        rfnorm_score_method              : all_params.rfnorm_score_method,
+        rfnorm_norm_method               : all_params.rfnorm_norm_method,
         rfnorm_raw                       : all_params.rfnorm_raw,
         rfnorm_pseudocount               : all_params.rfnorm_pseudocount,
         rfnorm_max_score                 : all_params.rfnorm_max_score,

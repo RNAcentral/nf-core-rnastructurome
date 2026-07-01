@@ -15,6 +15,7 @@ _SVG_NS = "http://www.w3.org/2000/svg"
 sys.path.insert(0, str(REPO_ROOT / "bin"))
 from r2dt_colour_svg import (  # noqa: E402
     _parse_rfnorm_xml,
+    _r2dt_svg_tid,
     _shape_colour,
     _svg_nucleotide_stats,
     colour_svg,
@@ -204,6 +205,14 @@ def test_load_reactivities_ignores_non_xml_input_dirs(tmp_path):
     _make_xml(d, "URS001", [0.5])
     result = load_reactivities(tmp_path, {"URS001"})
     assert result == {}
+
+
+def test_r2dt_svg_tid_preserves_hyphenated_transcript_id(tmp_path):
+    svg_path = tmp_path / "URS-001-template-name.colored.svg"
+
+    tid = _r2dt_svg_tid(svg_path, {"URS-001"})
+
+    assert tid == "URS-001"
 
 
 def test_svg_nucleotide_stats_counts_insertions_and_ignores_labels(tmp_path):
@@ -439,3 +448,34 @@ def test_cli_skips_svg_with_no_matching_transcript(tmp_path):
     assert result.returncode == 0
     assert (out_dir / "URS001.svg").exists()
     assert not (out_dir / "UNKNOWN.svg").exists()
+
+
+def test_cli_matches_hyphenated_transcript_id(tmp_path):
+    svg_dir = tmp_path / "svg"
+    svg_dir.mkdir()
+    _make_svg(svg_dir, "URS-001-template.colored.svg", list(range(1, 21)))
+
+    xml_input_dir = tmp_path / "xml_input_rep1"
+    xml_input_dir.mkdir()
+    _make_xml(xml_input_dir, "URS-001", [0.5] * 20)
+
+    out_dir = tmp_path / "coloured"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--svg-dir",
+            str(svg_dir),
+            "--xml-search-dir",
+            str(tmp_path),
+            "--out-dir",
+            str(out_dir),
+        ],
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert (out_dir / "URS-001.svg").exists()

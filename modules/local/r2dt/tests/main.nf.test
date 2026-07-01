@@ -96,7 +96,7 @@ nextflow_process {
         then {
             assertAll(
                 { assert process.success },
-                { assert path("${outputDir}/r2dt/group_publish/2D-structures/r2dt/stub_URS000035F234.svg").exists() }
+                { assert path("${outputDir}/r2dt/group_publish/structures/r2dt/stub_URS000035F234.svg").exists() }
             )
         }
     }

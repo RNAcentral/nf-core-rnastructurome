@@ -6,6 +6,7 @@ include { RNAFRAMEWORK_RFNORMFACTOR   } from '../../../modules/local/rnaframewor
 include { RNAFRAMEWORK_RFRCTOOLS_SPLIT } from '../../../modules/local/rnaframework/rctools/split/main'
 include {
     sampleGroupBaseToken
+    resolveRfNormScoreMethod
     resolveRfNormNormMethod
     resolveReferenceKey
 } from '../../../workflows/rnastructurome_functions.nf'
@@ -146,9 +147,7 @@ workflow NORMALISE_REACTIVITIES {
                 error("rf-norm requires an untreated sample for denatured controls in group '${group}'. No untreated was available (neither an exact sample_group+replicate match nor a fuzzy base-token fallback). Add an untreated sample or set --fuzzy_untreated_pairing false.")
             }
             def principle     = (base_meta.principle ?: '').toLowerCase()
-            def scoringMethod = principle == 'map'
-                ? (hasUntreated ? 3 : 4)
-                : (hasUntreated ? 1 : 2)
+            def scoringMethod = resolveRfNormScoreMethod(pipeline_config, principle, hasUntreated)
             def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
             def gmeta = base_meta + [
                 id                    : group,
@@ -220,9 +219,7 @@ workflow NORMALISE_REACTIVITIES {
                 // only some groups have a denatured control, drop it rather than mispair.
                 def denatured_list = denatured_all.every { d -> d } ? denatured_all : []
                 def principle      = (base_meta.principle ?: '').toLowerCase()
-                def scoringMethod  = principle == 'map'
-                    ? (hasUntreated ? 3 : 4)
-                    : (hasUntreated ? 1 : 2)
+                def scoringMethod  = resolveRfNormScoreMethod(pipeline_config, principle, hasUntreated)
                 def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
                 // Fuzzy pairing can resolve several treated samples to the SAME untreated/denatured control,
                 // so the positional order (with repeats) needed for -t/-u/-d is carried as names in meta,

@@ -544,6 +544,16 @@
                     "description": "rf-normfactor minimum coverage (`-mc`): bases below this coverage are excluded from the normalization factor calculation.",
                     "default": 1000
                 },
+                "rfnorm_score_method": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3,
+                        4
+                    ],
+                    "description": "Override rf-norm scoring method (`-sm`). 1=Ding, 2=Rouskin, 3=Siegfried, 4=Zubradt."
+                },
                 "rfnorm_norm_method": {
                     "type": "integer",
                     "enum": [
@@ -926,6 +936,11 @@
                     "type": "boolean",
                     "description": "Generate template-based 2D RNA structure diagrams using R2DT, coloured by normalised SHAPE/chemical-probing reactivity.",
                     "default": true
+                },
+                "r2dt_container": {
+                    "type": "string",
+                    "description": "Container image used for the local R2DT module. The default pins the Docker Hub image built immediately before the R2DT v2.2 release because Docker Hub does not publish a v2.2 tag.",
+                    "default": "docker.io/rnacentral/r2dt@sha256:5fccdaf3688c50b1f602235e527a78b26bd078d8f1784b2b09d58e204bb5539c"
                 },
                 "rfwiggle_report_zeroes": {
                     "type": "boolean",

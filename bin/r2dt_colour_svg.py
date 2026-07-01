@@ -113,16 +113,43 @@ def _parse_rfnorm_xml(path: Path) -> dict:
     return result
 
 
-def load_reactivities(xml_search_dir: Path, tids_needed: set) -> dict:
+def _index_reactivity_xml(xml_search_dir: Path) -> dict:
+    """Return {transcript_id: [xml_path, ...]} using staged XML file stems."""
+    xml_index: dict = defaultdict(list)
+    for xml_path in xml_search_dir.rglob('xml_input*/*.xml'):
+        xml_index[xml_path.stem].append(xml_path)
+    return xml_index
+
+
+def _r2dt_svg_tid(svg_path: Path, known_tids: Optional[set] = None) -> str:
+    """Return transcript ID for an R2DT SVG, preserving IDs that contain hyphens."""
+    name = svg_path.name
+    for suffix in ('.colored.svg', '.enriched.svg', '.svg'):
+        if name.endswith(suffix):
+            base = name[:-len(suffix)]
+            break
+    else:
+        base = svg_path.stem
+
+    if known_tids:
+        matches = [
+            tid for tid in known_tids
+            if base == tid or base.startswith(f'{tid}-')
+        ]
+        if matches:
+            return max(matches, key=len)
+
+    return base.split('-')[0]
+
+
+def load_reactivities(xml_search_dir: Path, tids_needed: set, xml_index: Optional[dict] = None) -> dict:
     """
     Load rf-norm XML reactivities only for transcripts in tids_needed.
     Builds a filename index first (fast), then parses only the relevant files.
     Multiple XML files for the same transcript are averaged position-by-position.
     """
-    # Index all XML paths by transcript ID (filename stem = transcript ID)
-    xml_index: dict = defaultdict(list)
-    for xml_path in xml_search_dir.rglob('xml_input*/*.xml'):
-        xml_index[xml_path.stem].append(xml_path)
+    if xml_index is None:
+        xml_index = _index_reactivity_xml(xml_search_dir)
 
     if not xml_index:
         print('[WARN] No reactivity data found in xml_input* directories.', file=sys.stderr)
@@ -369,15 +396,20 @@ def main():
                     help='Output directory for reactivity-coloured SVGs')
     args = ap.parse_args()
 
-    tids_needed = {
-        svg_path.stem.split('-')[0]
-        for svg_path in args.svg_dir.glob('*.colored.svg')
-    }
-    if not tids_needed:
+    svg_paths = sorted(args.svg_dir.glob('*.colored.svg'))
+    if not svg_paths:
         print('[R2DT colour] 0 SVGs coloured, 0 skipped (no SVGs found)', file=sys.stderr)
         return
 
-    reactivities = load_reactivities(args.xml_search_dir, tids_needed)
+    xml_index = _index_reactivity_xml(args.xml_search_dir)
+    known_tids = set(xml_index.keys())
+    svg_tids = {
+        svg_path: _r2dt_svg_tid(svg_path, known_tids)
+        for svg_path in svg_paths
+    }
+    tids_needed = set(svg_tids.values())
+
+    reactivities = load_reactivities(args.xml_search_dir, tids_needed, xml_index=xml_index)
     if not reactivities:
         print('[ERROR] No reactivity data loaded — cannot colour SVGs.', file=sys.stderr)
         sys.exit(1)
@@ -386,9 +418,9 @@ def main():
     n_coloured = 0
     n_skipped  = 0
 
-    for svg_path in sorted(args.svg_dir.glob('*.colored.svg')):
-        # R2DT names SVGs as {URS_ID}-{TEMPLATE}.colored.svg; extract the URS ID
-        tid = svg_path.stem.split('-')[0]
+    for svg_path in svg_paths:
+        # R2DT names SVGs as {transcript_id}-{template}.colored.svg.
+        tid = svg_tids[svg_path]
         if tid not in reactivities:
             n_skipped += 1
             continue

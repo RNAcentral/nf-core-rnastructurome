@@ -27,6 +27,24 @@ nextflow_function {
         then { assert function.success; assert function.result == 3 }
     }
 
+    test("resolveRfNormScoreMethod defaults by principle and untreated control") {
+        function "resolveRfNormScoreMethod"
+        when { function { """ input[0] = [:]; input[1] = 'rt-stop'; input[2] = true """ } }
+        then { assert function.success; assert function.result == 1 }
+    }
+
+    test("resolveRfNormScoreMethod allows explicit scoring override") {
+        function "resolveRfNormScoreMethod"
+        when { function { """ input[0] = [ rfnorm_score_method: 2 ]; input[1] = 'rt-stop'; input[2] = true """ } }
+        then { assert function.success; assert function.result == 2 }
+    }
+
+    test("resolveRfNormScoreMethod rejects unsupported scoring override") {
+        function "resolveRfNormScoreMethod"
+        when { function { """ input[0] = [ rfnorm_score_method: 99 ]; input[1] = 'rt-stop'; input[2] = true """ } }
+        then { assert function.failed }
+    }
+
     test("rfNormScoringLabel maps known codes") {
         function "rfNormScoringLabel"
         when { function { """ input[0] = 1 """ } }

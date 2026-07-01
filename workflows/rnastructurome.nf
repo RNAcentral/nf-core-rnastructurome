@@ -449,6 +449,7 @@ def defaultPipelineConfig() {
         rfnorm_dynamic_window             : null,
         rfnorm_norm_independent           : false,
         rfnorm_norm_factor                : null,
+        rfnorm_score_method               : null,
         rfnorm_norm_method                : null,
         rfnorm_raw                        : false,
         rfnorm_pseudocount                : null,

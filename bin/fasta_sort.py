@@ -13,6 +13,8 @@ from pathlib import Path
 YEAST_ISOFORM_PATTERN = re.compile(
     r'^(Y[A-P][LR][0-9]{3}[CW])-([A-Z])(_(?:mRNA|ncRNA|snRNA|snoRNA|rRNA|tRNA))$'
 )
+# Keep in sync with sanitize_gtf_ids.py: strip regex/shell-unsafe chars (e.g. yeast tRNA tK(UUU)K).
+UNSAFE_ID_CHARS = re.compile(r'[^A-Za-z0-9._-]')
 
 
 def open_fasta(path: Path):
@@ -25,6 +27,7 @@ def normalize_header(header: str, organism: str) -> str:
     token, sep, remainder = header.partition(" ")
     if organism == "saccharomyces_cerevisiae":
         token = YEAST_ISOFORM_PATTERN.sub(r'\1_\2\3', token)
+    token = UNSAFE_ID_CHARS.sub("_", token)
     return f"{token}{sep}{remainder}" if sep else token
 
 

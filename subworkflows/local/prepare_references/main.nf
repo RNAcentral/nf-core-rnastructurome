@@ -10,6 +10,7 @@ include { NCBI_GTF              } from '../../../modules/local/ncbi/gtf/main'
 include { FASTA_SORT as FASTA_SORT_LOCAL   } from '../../../modules/local/fasta/sort/main'
 include { FASTA_SORT as FASTA_SORT_ENSEMBL } from '../../../modules/local/fasta/sort/main'
 include { FASTA_SORT as FASTA_SORT_NCBI    } from '../../../modules/local/fasta/sort/main'
+include { GTF_SANITIZE          } from '../../../modules/local/ensembl/gtf/main'
 include { STAR_GENOMEGENERATE   } from '../../../modules/nf-core/star/genomegenerate/main'
 include { BOWTIE_BUILD          } from '../../../modules/nf-core/bowtie/build/main'
 include { BOWTIE2_BUILD         } from '../../../modules/nf-core/bowtie2/build/main'
@@ -160,6 +161,15 @@ workflow PREPARE_REFERENCES {
             .mix(ENSEMBL_GTF.out.gtf)
             .mix(NCBI_GTF.out.gtf)
     }
+
+    // Strip regex/shell-unsafe characters from transcript_id/gene_id (e.g. yeast tRNA IDs like
+    // tK(UUU)K) that hang RNAframework's XML parser; single source feeding ch_reference_gtf_map.
+    GTF_SANITIZE (
+        ch_all_reference_gtf,
+        file("${projectDir}/bin/sanitize_gtf_ids.py", checkIfExists: true)
+    )
+    ch_versions = ch_versions.mix(GTF_SANITIZE.out.versions)
+    ch_all_reference_gtf = GTF_SANITIZE.out.gtf
 
     def ch_fasta_sort_script = file("${projectDir}/bin/fasta_sort.py", checkIfExists: true)
 

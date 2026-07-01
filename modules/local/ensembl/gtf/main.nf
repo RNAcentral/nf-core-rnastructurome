@@ -57,3 +57,38 @@ def defaultEnsemblConfig() {
         ensembl_base_url: 'https://ftp.ensembl.org/pub'
     ]
 }
+
+process GTF_SANITIZE {
+    tag "${meta.id}"
+    label 'process_single'
+
+    conda "${moduleDir}/environment.yml"
+    container 'docker.io/library/python:3.12.11'
+
+    input:
+    tuple val(meta), path(gtf)
+    path sanitize_script
+
+    output:
+    tuple val(meta), path("${meta.id}.sanitized.gtf"), emit: gtf
+    path "versions.yml",                               emit: versions
+
+    script:
+    """
+    python3 "${sanitize_script}" "${gtf}" "${meta.id}.sanitized.gtf"
+
+    printf '"%s":\\n    python: %s\\n' \
+        "${task.process}" \
+        "\$(python3 --version 2>&1 | sed 's/^Python //')" \
+        > versions.yml
+    """
+
+    stub:
+    """
+    touch ${meta.id}.sanitized.gtf
+    printf '"%s":\\n    python: %s\\n' \
+        "${task.process}" \
+        "\$(python3 --version 2>&1 | sed 's/^Python //')" \
+        > versions.yml
+    """
+}

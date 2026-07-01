@@ -41,13 +41,20 @@ END_VERSIONS
     fi
 
     # ── 2. Run R2DT template-based layout ──────────────────────────────────────
+    # Keep R2DT's FULL output + exit status: a bare `grep | tee || true` dropped Tracebacks
+    # and per-transcript Traveler errors, collapsing real crashes into "no template matches".
     mkdir -p r2dt_raw
+    set +e
     r2dt.py draw \\
         --skip_ribovore_filters \\
         $args \\
         r2dt_input.fa \\
         r2dt_raw \\
-        2>&1 | grep -E '^(Analysing|Elapsed time|Traveler crashed|Failed cmalign|[Ee]rror|usage:)' | tee -a ${prefix}_r2dt.log || true
+        > r2dt_draw.out 2>&1
+    r2dt_status=\$?
+    set -e
+    grep -E '^(Analysing|Elapsed time|Visualising|Traveler crashed|Failed cmalign|Traceback|OSError|Errno|[Ee]rror|usage:)' \\
+        r2dt_draw.out | tee -a ${prefix}_r2dt.log || true
 
     # ── 3. Overlay reactivities onto SVGs ──────────────────────────────────────
     if find r2dt_raw/results/svg -maxdepth 1 -name '*.svg' 2>/dev/null | grep -q .; then  # find avoids ARG_MAX with many per-transcript SVGs
@@ -57,8 +64,11 @@ END_VERSIONS
             --xml-search-dir . \\
             --out-dir       ${prefix}_r2dt \\
             2>&1 | tee -a ${prefix}_r2dt.log
+    elif [[ \${r2dt_status} -ne 0 ]] || grep -qE 'Traceback|OSError|Errno' r2dt_draw.out; then
+        echo "[R2DT] r2dt.py draw FAILED (exit \${r2dt_status}), no diagrams produced — full output below:" | tee -a ${prefix}_r2dt.log
+        tail -n 30 r2dt_draw.out | tee -a ${prefix}_r2dt.log >&2
     else
-        echo "[R2DT] No template matches — skipping." | tee -a ${prefix}_r2dt.log
+        echo "[R2DT] No template matches for any transcript — skipping." | tee -a ${prefix}_r2dt.log
     fi
 
     # Write list of transcript IDs that R2DT successfully drew

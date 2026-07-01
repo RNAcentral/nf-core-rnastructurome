@@ -64,9 +64,9 @@ END_VERSIONS
             --xml-search-dir . \\
             --out-dir       ${prefix}_r2dt \\
             2>&1 | tee -a ${prefix}_r2dt.log
-    elif [[ \${r2dt_status} -ne 0 ]] || grep -qE 'Traceback|OSError|Errno' r2dt_draw.out; then
-        echo "[R2DT] r2dt.py draw FAILED (exit \${r2dt_status}), no diagrams produced — full output below:" | tee -a ${prefix}_r2dt.log
-        tail -n 30 r2dt_draw.out | tee -a ${prefix}_r2dt.log >&2
+    elif [[ \${r2dt_status} -ne 0 ]] || grep -qiE 'traceback|oserror|errno|exception|no such|read-only|permission|cannot' r2dt_draw.out; then
+        echo "[R2DT] r2dt.py draw produced no SVGs (exit \${r2dt_status}) — error context:" | tee -a ${prefix}_r2dt.log
+        grep -inE 'traceback|error|errno|exception|no such|read-only|permission|denied|cannot|traveler' r2dt_draw.out | tail -n 40 | tee -a ${prefix}_r2dt.log >&2
     else
         echo "[R2DT] No template matches for any transcript — skipping." | tee -a ${prefix}_r2dt.log
     fi

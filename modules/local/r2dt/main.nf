@@ -3,7 +3,7 @@ process R2DT {
     label 'process_single'
     label 'process_long'
 
-    container 'docker.io/rnacentral/r2dt:2.2'
+    container 'docker.io/rnacentral/r2dt:v2.2'
 
     input:
     tuple val(meta), path(fold_dir), path(xml_files, stageAs: "xml_input*/*"), path(fasta)

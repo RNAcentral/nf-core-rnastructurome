@@ -77,9 +77,11 @@ def fetch_text(url: str, timeout: int = 60) -> str:
             raise urllib.error.URLError(str(fallback_exc)) from fallback_exc
 
 
-def release_path_for_value(release: str) -> str:
+def release_path_for_value(release: str, base_url: str) -> str:
+    # The "current" alias differs by site: main Ensembl serves it at current_fasta/,
+    # while EnsemblGenomes divisions (metazoa/fungi/plants/protists) serve it at current/fasta/.
     if release in ("current", "latest"):
-        return "current_fasta"
+        return "current/fasta" if "ensemblgenomes" in base_url else "current_fasta"
     if release.startswith("release-"):
         return f"{release}/fasta"
     return f"release-{release}/fasta"
@@ -102,16 +104,17 @@ def _find_genome_in_dna_dir(dna_dir: str) -> str | None:
 
 def _find_species_genome(base_url: str, release: str, species: str) -> tuple[str, str]:
     """Return (genome_fasta_url, division_label). Raises EnsemblSpeciesNotFound if absent."""
-    release_path = release_path_for_value(release)
 
     # 1. Primary Ensembl (vertebrates + some others)
+    release_path = release_path_for_value(release, base_url)
     url = _find_genome_in_dna_dir(f"{base_url}/{release_path}/{species}/dna/")
     if url:
         return url, "Ensembl"
 
     # 2. EnsemblGenomes flat divisions (metazoa, fungi, plants, protists)
     for division_name, division_base in _EG_FLAT_DIVISIONS:
-        url = _find_genome_in_dna_dir(f"{division_base}/{release_path}/{species}/dna/")
+        division_release_path = release_path_for_value(release, division_base)
+        url = _find_genome_in_dna_dir(f"{division_base}/{division_release_path}/{species}/dna/")
         if url:
             return url, f"EnsemblGenomes/{division_name}"
 
@@ -121,14 +124,15 @@ def _find_species_genome(base_url: str, release: str, species: str) -> tuple[str
         (f"EnsemblGenomes/{n}", b) for n, b in _EG_FLAT_DIVISIONS
     ]
     for label, src_url in all_sources:
-        root = f"{src_url}/{release_path}/"
+        src_release_path = release_path_for_value(release, src_url)
+        root = f"{src_url}/{src_release_path}/"
         try:
             listing = fetch_text(root, timeout=30)
         except Exception:
             continue
         all_dirs = re.findall(r'href="([a-z][a-z0-9_]+)/"', listing)
         for d in sorted(d for d in all_dirs if d == species or d.startswith(prefix)):
-            url = _find_genome_in_dna_dir(f"{src_url}/{release_path}/{d}/dna/")
+            url = _find_genome_in_dna_dir(f"{src_url}/{src_release_path}/{d}/dna/")
             if url:
                 print(
                     f"[ENSEMBL_GENOME] '{species}' matched '{d}' on {label}.",

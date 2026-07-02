@@ -82,9 +82,11 @@ def find_optional_ensembl_file(listing_url: str, pattern: str) -> str | None:
     return filtered[0] if filtered else None
 
 
-def release_path_for_value(release: str) -> str:
+def release_path_for_value(release: str, base_url: str) -> str:
+    # The "current" alias differs by site: main Ensembl serves it at current_fasta/,
+    # while EnsemblGenomes divisions (metazoa/fungi/plants/protists) serve it at current/fasta/.
     if release in ("current", "latest"):
-        return "current_fasta"
+        return "current/fasta" if "ensemblgenomes" in base_url else "current_fasta"
     if release.startswith("release-"):
         return f"{release}/fasta"
     return f"release-{release}/fasta"
@@ -95,7 +97,7 @@ def _try_flat_division(base_url: str, release: str, species: str) -> tuple[str, 
 
     Raises EnsemblSpeciesNotFound if the species directory does not exist.
     """
-    species_root = f"{base_url}/{release_path_for_value(release)}/{species}"
+    species_root = f"{base_url}/{release_path_for_value(release, base_url)}/{species}"
     cdna_dir = f"{species_root}/cdna/"
     ncrna_dir = f"{species_root}/ncrna/"
     cdna_name = find_ensembl_file(cdna_dir, r"\.cdna\.all\.fa\.gz")
@@ -111,7 +113,7 @@ def _prefix_candidates(base_url: str, release: str, prefix: str) -> list[tuple[s
     prefix should be '{species}_' so that both exact names and
     strain/subspecies-suffixed variants are matched.
     """
-    root = f"{base_url}/{release_path_for_value(release)}/"
+    root = f"{base_url}/{release_path_for_value(release, base_url)}/"
     try:
         listing = fetch_text(root, timeout=30)
     except Exception:
@@ -162,7 +164,7 @@ def _find_species(base_url: str, release: str, species: str) -> tuple[str, str, 
     ]
     for label, src_url in https_sources:
         for subcollection, candidate in _prefix_candidates(src_url, release, prefix):
-            release_path = release_path_for_value(release)
+            release_path = release_path_for_value(release, src_url)
             species_root = (
                 f"{src_url}/{release_path}/{subcollection}/{candidate}"
                 if subcollection

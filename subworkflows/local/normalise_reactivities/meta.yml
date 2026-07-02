@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
 name: "NORMALISE_REACTIVITIES"
-description: Normalise per-base reactivities with rf-norm, optionally computing cross-experiment normalisation factors with rf-normfactor and chunking large RC files for the genome route.
+description: Normalise per-base reactivities with rf-norm, optionally computing cross-experiment normalisation factors with rf-normfactor.
 keywords:
   - normalisation
   - reactivity
@@ -10,7 +10,6 @@ keywords:
 components:
   - rnaframework/rfnorm
   - rnaframework/rfnormfactor
-  - rnaframework/rfrctools/split
 input:
   - ch_rfcount_rc:
       type: channel
@@ -20,10 +19,6 @@ input:
       type: channel
       description: |
         rf-count RC index files. Structure: [ val(meta), path(rci) ]
-  - ch_reference_gtf_map:
-      type: map
-      description: |
-        Value map of reference_key -> [ val(meta), path(gtf) ].
   - pipeline_config:
       type: map
       description: |

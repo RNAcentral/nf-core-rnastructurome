@@ -159,7 +159,6 @@ workflow RNASTRUCTUROME {
     NORMALISE_REACTIVITIES (
         ch_rfcount_rc,
         ch_rfcount_rci,
-        ch_reference_gtf_map,
         pipeline_config
     )
     ch_versions = ch_versions.mix(NORMALISE_REACTIVITIES.out.versions)
@@ -461,7 +460,6 @@ def defaultPipelineConfig() {
         rfnorm_mean_coverage              : 0,
         rfnorm_median_coverage            : 0,
         rfnorm_nan                        : 1000,
-        rfnorm_chunk_size                 : params.rfnorm_chunk_size,
         rnaframework_r_path               : '/usr/bin/R'
     ]
 }

@@ -3,7 +3,6 @@
 
 include { RNAFRAMEWORK_RFNORM         } from '../../../modules/local/rnaframework/norm/main'
 include { RNAFRAMEWORK_RFNORMFACTOR   } from '../../../modules/local/rnaframework/normfactor/main'
-include { RNAFRAMEWORK_RFRCTOOLS_SPLIT } from '../../../modules/local/rnaframework/rctools/split/main'
 include {
     sampleGroupBaseToken
     resolveRfNormScoreMethod
@@ -16,7 +15,6 @@ workflow NORMALISE_REACTIVITIES {
     take:
     ch_rfcount_rc        // channel: [ val(meta), path(rc) ]
     ch_rfcount_rci       // channel: [ val(meta), path(rci) ]
-    ch_reference_gtf_map // value:   map of reference_key -> [meta, gtf]
     pipeline_config      // map
 
     main:
@@ -205,17 +203,13 @@ workflow NORMALISE_REACTIVITIES {
     // reference, fed to every group's rf-norm via -nf for a common scale (vs. per-sample box-plot).
     // Enablement is per reference: true=always on, false=always off, null=AUTO (on only when the reference
     // has >1 treated sample to cross-normalise). References that stay off normalise independently.
-    def nfRaw          = pipeline_config.rfnorm_use_normfactor
-    def nfForceOn      = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['true', '1', 'yes'])
-    def nfForceOff     = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['false', '0', 'no'])
-    def chunkingActive = pipeline_config.rfnorm_chunk_size && !pipeline_config.transcriptome
-    if (nfForceOn && chunkingActive) {
-        error("--rfnorm_use_normfactor true is incompatible with --rfnorm_chunk_size: chunking would fragment the cross-experiment factor calculation. Disable one of them.")
-    }
+    def nfRaw      = pipeline_config.rfnorm_use_normfactor
+    def nfForceOn  = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['true', '1', 'yes'])
+    def nfForceOff = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['false', '0', 'no'])
 
     def ch_norm_input_final
-    if (nfForceOff || chunkingActive) {
-        // rf-normfactor disabled (explicit off, or the chunking path owns normalisation).
+    if (nfForceOff) {
+        // rf-normfactor explicitly disabled.
         ch_norm_input_final = ch_norm_input
             .map { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ->
                 [ gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, [] ]
@@ -309,96 +303,11 @@ workflow NORMALISE_REACTIVITIES {
             }
     }
 
-    def ch_xml
-    def ch_plots
-    def ch_rfnorm_log
-
-    if (pipeline_config.rfnorm_chunk_size && !pipeline_config.transcriptome) {
-        // Scatter: split the treated RC into transcript chunks (only the first treated RC per group);
-        // fan out an RFNORM job per chunk. Both treated and untreated go to SPLIT so matching transcript
-        // names are extracted from both. Resolve the GTF up front: SPLIT derives per-transcript lengths
-        // from it (rf-rctools stats doesn't report lengths) to build the 4-column extraction BEDs.
-        def ch_norm_input_with_gtf = ch_norm_input
-            .combine(ch_reference_gtf_map)
-            .map { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, gtf_map ->
-                def reference_key = resolveReferenceKey(gmeta, pipeline_config.organism)
-                def gtf_tuple     = gtf_map[reference_key]
-                if (!gtf_tuple) {
-                    error("No GTF resolved for reference '${reference_key}' (group '${gmeta.id}') — required to chunk RC files for rf-norm.")
-                }
-                [ gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, gtf_tuple[1] ]
-            }
-
-        def ch_norm_branched = ch_norm_input_with_gtf.multiMap { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, gtf ->
-            for_split:    [ gmeta, treated_rcs instanceof List ? treated_rcs[0] : treated_rcs, untreated_rc ?: [], gtf ]
-            for_controls: [ gmeta.id.toString(), denatured_rc, rci_files ]
-        }
-
-        RNAFRAMEWORK_RFRCTOOLS_SPLIT(ch_norm_branched.for_split)
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFRCTOOLS_SPLIT.out.versions.first())
-
-        // Flatten treated chunk RC files; pair each with its matching untreated chunk by chunk index.
-        def ch_treated_transposed = RNAFRAMEWORK_RFRCTOOLS_SPLIT.out.treated_chunks
-            .transpose()
-            .map { gmeta, chunk_rc ->
-                def chunk_id    = (chunk_rc.name =~ /_chunk_(\d+)\.rc$/)[0][1]
-                def chunk_gmeta = gmeta + [id: "${gmeta.id}_chunk_${chunk_id}".toString()]
-                [ gmeta.id.toString(), chunk_id, chunk_gmeta, chunk_rc ]
-            }
-
-        def ch_untreated_transposed = RNAFRAMEWORK_RFRCTOOLS_SPLIT.out.untreated_chunks
-            .transpose()
-            .map { gmeta, chunk_rc ->
-                def chunk_id = (chunk_rc.name =~ /_chunk_(\d+)_untreated\.rc$/)[0][1]
-                [ gmeta.id.toString(), chunk_id, chunk_rc ]
-            }
-
-        def ch_chunked_inputs = ch_treated_transposed
-            .join(ch_untreated_transposed, by: [0, 1], remainder: true)
-            .combine(ch_norm_branched.for_controls, by: 0)
-            .map { _group_key, _chunk_id, chunk_gmeta, treated_chunk, untreated_chunk, denatured_rc, rci_files ->
-                // Chunking is mutually exclusive with --rfnorm_use_normfactor (guarded above), so the
-                // factor slot is always empty on this path.
-                [ chunk_gmeta, [treated_chunk], untreated_chunk ? [untreated_chunk] : [], denatured_rc ?: [], rci_files ?: [], [] ]
-            }
-
-        RNAFRAMEWORK_RFNORM(ch_chunked_inputs)
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
-
-        // Gather: re-collect outputs from all chunks back into one item per original group.
-        ch_xml = RNAFRAMEWORK_RFNORM.out.xml
-            .map { gmeta, xmls ->
-                def orig_id = gmeta.id.replaceAll(/_chunk_\d+$/, '')
-                [ orig_id, gmeta + [id: orig_id], xmls instanceof List ? xmls : [xmls] ]
-            }
-            .groupTuple(by: 0)
-            .map { _orig_id, gmetas, xml_lists -> [ gmetas[0], xml_lists.flatten() ] }
-
-        // Collect logs per original group — only the first chunk log is retained since
-        // rf-norm's "covered" count is per-chunk; a proper aggregate would need summing.
-        ch_rfnorm_log = RNAFRAMEWORK_RFNORM.out.log
-            .map { gmeta, log ->
-                def orig_id = gmeta.id.replaceAll(/_chunk_\d+$/, '')
-                [ orig_id, gmeta + [id: orig_id], log ]
-            }
-            .groupTuple(by: 0)
-            .map { _orig_id, gmetas, logs -> [ gmetas[0], logs[0] ] }
-
-        ch_plots = RNAFRAMEWORK_RFNORM.out.plots
-            .map { gmeta, plots ->
-                def orig_id = gmeta.id.replaceAll(/_chunk_\d+$/, '')
-                [ orig_id, gmeta + [id: orig_id], plots instanceof List ? plots : [plots] ]
-            }
-            .groupTuple(by: 0)
-            .map { _orig_id, gmetas, plot_lists -> [ gmetas[0], plot_lists.flatten() ] }
-
-    } else {
-        RNAFRAMEWORK_RFNORM(ch_norm_input_final)
-        ch_versions   = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
-        ch_xml        = RNAFRAMEWORK_RFNORM.out.xml
-        ch_plots      = RNAFRAMEWORK_RFNORM.out.plots
-        ch_rfnorm_log = RNAFRAMEWORK_RFNORM.out.log
-    }
+    RNAFRAMEWORK_RFNORM(ch_norm_input_final)
+    ch_versions   = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
+    def ch_xml        = RNAFRAMEWORK_RFNORM.out.xml
+    def ch_plots      = RNAFRAMEWORK_RFNORM.out.plots
+    def ch_rfnorm_log = RNAFRAMEWORK_RFNORM.out.log
 
     emit:
     xml         = ch_xml          // channel: [ val(meta), path(xml) ]

@@ -549,7 +549,7 @@
                 },
                 "rfnorm_use_normfactor": {
                     "type": "boolean",
-                    "description": "Cross-experiment normalization via rf-normfactor (one factor set per reference, fed to rf-norm via `-nf`), putting reactivities on a common scale. Leave unset for auto (enabled only for a reference with more than one treated sample to cross-normalise); set `true` to force on, `false` to force off (per-sample box-plot). Auto is disabled when `--rfnorm_chunk_size` is set."
+                    "description": "Cross-experiment normalization via rf-normfactor (one factor set per reference, fed to rf-norm via `-nf`), putting reactivities on a common scale. Leave unset for auto (enabled only for a reference with more than one treated sample to cross-normalise); set `true` to force on, `false` to force off (per-sample box-plot)."
                 },
                 "rfnorm_normfactor_min_coverage": {
                     "type": "integer",
@@ -627,11 +627,6 @@
                     "minimum": 0,
                     "description": "Genome route only: after rf-rctools extract, keep transcripts with at least one position at this coverage or higher before rf-norm. Set to 0 to keep the full annotation RC.",
                     "default": 1
-                },
-                "rfnorm_chunk_size": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "Genome route only: split transcript RC files into chunks of this many transcripts before rf-norm. Usually unnecessary because the coverage prefilter shrinks the RC first. Incompatible with `--rfnorm_use_normfactor true`."
                 },
                 "rfnorm_img": {
                     "type": "boolean",

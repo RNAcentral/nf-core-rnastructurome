@@ -1,6 +1,0 @@
-name: rnaframework_count
-channels:
-  - conda-forge
-  - bioconda
-dependencies:
-  - bioconda::rnaframework=2.9.7

@@ -440,6 +440,11 @@
                     "description": "MaP only: also evaluate quality of \u00b11 nt surrounding each mutation (`-es`).",
                     "default": true
                 },
+                "rfcount_map_discard_pair": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "MaP paired-end only: discard non-overlapping mate pairs with insert size greater than this value (`--mm-discard-pair`)."
+                },
                 "rfcount_trim_5prime": {
                     "type": "integer",
                     "minimum": 0,
@@ -461,6 +466,14 @@
                     "type": "boolean",
                     "description": "Discard reads with excessive 5' or 3' end clipping in rf-count / rf-count-genome (`--discard-clipped-reads`).",
                     "default": false
+                },
+                "rfcount_keep_mate": {
+                    "type": "string",
+                    "enum": [
+                        "5p",
+                        "3p"
+                    ],
+                    "description": "Paired-end rf-count option: forcefully retain the `5p` or `3p` mate when the pair threshold is triggered (`--keep-mate`)."
                 },
                 "rfcount_paired_only": {
                     "type": "boolean",
@@ -614,6 +627,11 @@
                     "minimum": 0,
                     "description": "Genome route only: after rf-rctools extract, keep transcripts with at least one position at this coverage or higher before rf-norm. Set to 0 to keep the full annotation RC.",
                     "default": 1
+                },
+                "rfnorm_chunk_size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Genome route only: split transcript RC files into chunks of this many transcripts before rf-norm. Usually unnecessary because the coverage prefilter shrinks the RC first. Incompatible with `--rfnorm_use_normfactor true`."
                 },
                 "rfnorm_img": {
                     "type": "boolean",
@@ -829,6 +847,11 @@
                     "type": "boolean",
                     "description": "rf-structextract preserves dinucleotide frequencies when shuffling for energy evaluation (`-ds`).",
                     "default": false
+                },
+                "structextract_plot": {
+                    "type": "boolean",
+                    "description": "Render an SVG diagram per extracted rf-structextract motif via ViennaRNA RNAplot.",
+                    "default": true
                 },
                 "correlate_replicates": {
                     "type": "boolean",

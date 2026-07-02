@@ -41,8 +41,8 @@ END_VERSIONS
     fi
 
     # ── 2. Run R2DT template-based layout ──────────────────────────────────────
-    # Keep R2DT's FULL output + exit status: a bare `grep | tee || true` dropped Tracebacks
-    # and per-transcript Traveler errors, collapsing real crashes into "no template matches".
+    # Keep R2DT's FULL output + exit status: r2dt_status below is the authoritative
+    # success/failure signal (see step 3) — the log itself is for diagnostics only.
     mkdir -p r2dt_raw
     set +e
     r2dt.py draw \\
@@ -57,15 +57,32 @@ END_VERSIONS
         r2dt_draw.out | tee -a ${prefix}_r2dt.log || true
 
     # ── 3. Overlay reactivities onto SVGs ──────────────────────────────────────
-    if find r2dt_raw/results/svg -maxdepth 1 -name '*.svg' 2>/dev/null | grep -q .; then  # find avoids ARG_MAX with many per-transcript SVGs
+    # R2DT logs Tracebacks/"error" text to stderr for individual sequences that briefly
+    # mismatch a template (e.g. depaired Infernal mapping, see r2dt-bio/R2DT#93) — this is
+    # routine noise from a successful run, NOT proof of failure. r2dt_status (the process's
+    # own exit code) is the only reliable fatal signal; grepping for error keywords in the
+    # full log previously caused runs with hundreds of good SVGs to be marked as failed.
+    # The `find` below also retries briefly: on this filesystem, results/svg can take a
+    # moment to become visible right after r2dt.py exits (same lag `scratch = false` was
+    # meant to fix — it resurfaced here).
+    svg_found=""
+    for _attempt in 1 2 3 4 5; do
+        if find r2dt_raw/results/svg -maxdepth 1 -name '*.svg' 2>/dev/null | grep -q .; then  # find avoids ARG_MAX with many per-transcript SVGs
+            svg_found=1
+            break
+        fi
+        sleep 2
+    done
+
+    if [[ -n "\${svg_found}" ]]; then
         mkdir -p ${prefix}_r2dt
         python3 ${colour_script} \\
             --svg-dir       r2dt_raw/results/svg \\
             --xml-search-dir . \\
             --out-dir       ${prefix}_r2dt \\
             2>&1 | tee -a ${prefix}_r2dt.log
-    elif [[ \${r2dt_status} -ne 0 ]] || grep -qiE 'traceback|oserror|errno|exception|no such|read-only|permission|cannot' r2dt_draw.out; then
-        echo "[R2DT] r2dt.py draw produced no SVGs (exit \${r2dt_status}) — error context:" | tee -a ${prefix}_r2dt.log
+    elif [[ \${r2dt_status} -ne 0 ]]; then
+        echo "[R2DT] r2dt.py draw FAILED (exit \${r2dt_status}) — error context:" | tee -a ${prefix}_r2dt.log
         grep -inE 'traceback|error|errno|exception|no such|read-only|permission|denied|cannot|traveler' r2dt_draw.out | tail -n 40 | tee -a ${prefix}_r2dt.log >&2
         exit 1
     else

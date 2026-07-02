@@ -185,8 +185,12 @@ def parseInferExperiment(txtFile) {
         m = line =~ /Fraction of reads explained by "(?:1\+-,1-\+,2\+\+,2--|\\+-,-\+)": (.+)/
         if (m) reverse = m[0][1].trim() as double
     }
-    if (forward > 0.7) return 'first'
-    if (reverse > 0.7) return 'second'
+    // rf-count-genome's "second-strand" assigns transcript strand from read1's own mapped orientation
+    // (read1=sense); "first-strand" uses read2's orientation (read2=sense, e.g. dUTP/TruSeq-directional).
+    // RSeQC's "forward" fraction ("1++,1--,2+-,2-+") is read1=sense, so it maps to 'second' here; its
+    // "reverse" fraction ("1+-,1-+,2++,2--", the common dUTP pattern) is read2=sense, mapping to 'first'.
+    if (forward > 0.7) return 'second'
+    if (reverse > 0.7) return 'first'
     return 'unstranded'
 }
 

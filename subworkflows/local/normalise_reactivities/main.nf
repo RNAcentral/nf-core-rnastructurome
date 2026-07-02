@@ -159,6 +159,48 @@ workflow NORMALISE_REACTIVITIES {
             [ gmeta, treated_rcs, untreated_rc ?: [], denatured_rc ?: [], rci_files ?: [] ]
         }
 
+    // Reference-wide fallback: if a reference has exactly one untreated control, reuse it for every
+    // treated group with none of its own (e.g. one shared control, several treated replicates).
+    // Ambiguous cases (2+ distinct controls) fall through to the all-or-none check below.
+    if (pipeline_config.fuzzy_untreated_pairing as Boolean) {
+        ch_norm_input = ch_norm_input
+            .map { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ->
+                def ref = resolveReferenceKey(gmeta, pipeline_config.organism)
+                [ ref, [ meta: gmeta, treated: treated_rcs, untreated: untreated_rc, denatured: denatured_rc, rci: rci_files ] ]
+            }
+            .groupTuple()
+            .flatMap { ref, entries ->
+                // untreated may arrive as a bare Path or a single-element List (glob-typed process
+                // output) — normalise to a bare Path (or null) before comparing/reusing.
+                def untreatedFiles = entries.collect { entry ->
+                    def u = entry.untreated
+                    (u instanceof List ? (u ? u[0] : null) : u) ?: null
+                }
+                def distinct       = untreatedFiles.findAll { u -> u }.unique { u -> u.name }
+                def missingIdx     = (0..<entries.size()).findAll { i -> !untreatedFiles[i] }
+                if (distinct.size() == 1 && missingIdx) {
+                    def missingIds = missingIdx.collect { i -> entries[i].meta.id }.sort()
+                    log.warn "rf-norm reference '${ref}': only one untreated control ('${distinct[0].name}') is available — reusing it for treated group(s) with no untreated of their own: ${missingIds.join(', ')}. Set --fuzzy_untreated_pairing false to disable this fallback."
+                }
+                entries.withIndex().collect { entry, i ->
+                    def gmeta        = entry.meta
+                    def untreated_rc = untreatedFiles[i]
+                    if (!untreated_rc && distinct.size() == 1) {
+                        untreated_rc      = distinct[0]
+                        def principle     = (gmeta.principle ?: '').toLowerCase()
+                        def scoringMethod = resolveRfNormScoreMethod(pipeline_config, principle, true)
+                        def normMethod    = resolveRfNormNormMethod(pipeline_config, scoringMethod)
+                        gmeta = gmeta + [
+                            rfnorm_has_untreated  : true,
+                            rfnorm_scoring_method : scoringMethod,
+                            rfnorm_norm_method    : normMethod
+                        ]
+                    }
+                    [ gmeta, entry.treated, untreated_rc ?: [], entry.denatured, entry.rci ]
+                }
+            }
+    }
+
     // Cross-experiment normalisation via rf-normfactor: derives one set of transcriptome-wide factors per
     // reference, fed to every group's rf-norm via -nf for a common scale (vs. per-sample box-plot).
     // Enablement is per reference: true=always on, false=always off, null=AUTO (on only when the reference

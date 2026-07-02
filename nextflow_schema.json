@@ -144,7 +144,7 @@
                 "fuzzy_untreated_pairing": {
                     "type": "boolean",
                     "default": true,
-                    "description": "When true (default), a treated group with no exact `sample_group`+`replicate` untreated match falls back to the untreated sample sharing the same sample_group base token (portion before the first `_`) at the same replicate — e.g. `MDA-MB-231_untreated_r1` can serve as control for `MDA-MB-231_MTX_treated_r1`. Set false to require exact matches; unmatched treated groups then proceed without an untreated control (scoring method 2 or 4)."
+                    "description": "When true (default), a treated group with no exact `sample_group`+`replicate` untreated match falls back to the untreated sample sharing the same sample_group base token (portion before the first `_`) at the same replicate — e.g. `MDA-MB-231_untreated_r1` can serve as control for `MDA-MB-231_MTX_treated_r1`. If a treated group still has no untreated after that, and exactly one untreated control exists anywhere else in the same reference, that single control is reused for it (with a warning) — e.g. one shared untreated backing several treated replicates. Set false to require exact matches; unmatched treated groups then proceed without an untreated control (scoring method 2 or 4)."
                 }
             }
         },

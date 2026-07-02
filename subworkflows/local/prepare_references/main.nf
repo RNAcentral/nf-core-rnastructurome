@@ -20,6 +20,13 @@ include { uniqueReferenceResolution  } from '../../../workflows/rnastructurome_f
 include { collectToMap               } from '../../../workflows/rnastructurome_functions.nf'
 include { resolveReferenceKey        } from '../../../workflows/rnastructurome_functions.nf'
 
+// Organisms known to have transcript/gene IDs (e.g. parenthesised yeast tRNA IDs like tK(UUU)K)
+// that hang RNAframework's XML parser — see GTF_SANITIZE below. Extend as new offenders are found;
+// other organisms skip the process entirely rather than pay for a no-op sanitize pass.
+def gtfSanitizeOrganisms() {
+    ['saccharomyces_cerevisiae']
+}
+
 workflow PREPARE_REFERENCES {
 
     take:
@@ -164,12 +171,18 @@ workflow PREPARE_REFERENCES {
 
     // Strip regex/shell-unsafe characters from transcript_id/gene_id (e.g. yeast tRNA IDs like
     // tK(UUU)K) that hang RNAframework's XML parser; single source feeding ch_reference_gtf_map.
+    // Only organisms in gtfSanitizeOrganisms() actually need this — skip it for everything else.
+    def gtf_sanitize_branches = ch_all_reference_gtf.branch { meta, _gtf ->
+        needs_sanitize: meta.organism in gtfSanitizeOrganisms()
+        clean:          true
+    }
+
     GTF_SANITIZE (
-        ch_all_reference_gtf,
+        gtf_sanitize_branches.needs_sanitize,
         file("${projectDir}/bin/sanitize_gtf_ids.py", checkIfExists: true)
     )
     ch_versions = ch_versions.mix(GTF_SANITIZE.out.versions)
-    ch_all_reference_gtf = GTF_SANITIZE.out.gtf
+    ch_all_reference_gtf = GTF_SANITIZE.out.gtf.mix(gtf_sanitize_branches.clean)
 
     def ch_fasta_sort_script = file("${projectDir}/bin/fasta_sort.py", checkIfExists: true)
 

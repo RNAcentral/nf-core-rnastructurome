@@ -17,7 +17,12 @@ input:
   - ch_markdup_bam_bai:
       type: channel
       description: |
-        Deduplicated, indexed BAM. Structure: [ val(meta), path(bam), path(bai) ]
+        Deduplicated, indexed genome-coordinate BAM. Structure: [ val(meta), path(bam), path(bai) ]
+  - ch_transcript_bam_bai:
+      type: channel
+      description: |
+        Dedup-reconciled, calmd-corrected transcript-coordinate BAM (genome route, count_genome=false
+        only). Structure: [ val(meta), path(bam), path(bai) ]
   - ch_strandedness_by_id:
       type: channel
       description: |
@@ -34,6 +39,11 @@ input:
       type: map
       description: |
         Value map of reference_key -> [ val(meta), path(fasta) ].
+  - ch_genome_transcript_fasta_map:
+      type: map
+      description: |
+        Value map of reference_key -> [ val(meta), path(fasta) ]. Genome-derived transcript FASTA
+        (genome route, count_genome=false only).
   - pipeline_config:
       type: map
       description: |

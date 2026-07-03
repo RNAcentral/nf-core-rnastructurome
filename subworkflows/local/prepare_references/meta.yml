@@ -16,10 +16,12 @@ components:
   - ensembl/gtf
   - ensembl/transcriptome
   - fasta/sort
+  - gffread
   - ncbi/fasta
   - ncbi/gtf
   - resolvereferencekey
   - resolvereferenceresolution
+  - samtools/faidx
   - star/genomegenerate
   - uniquereferenceresolution
 input:
@@ -48,6 +50,16 @@ output:
       type: channel
       description: |
         Genome FASTA keyed by reference. Structure: [ key, [ val(meta), path(fasta) ] ]
+  - genome_transcript_fasta_map:
+      type: map
+      description: |
+        Value map of reference_key -> [ val(meta), path(fasta) ]. Spliced transcript FASTA extracted
+        from the genome FASTA + GTF via gffread (genome route, count_genome=false only).
+  - genome_transcript_fasta_fai_map:
+      type: map
+      description: |
+        Value map of reference_key -> [ val(meta), path(fasta), path(fai) ]. Same transcript FASTA as
+        genome_transcript_fasta_map, plus its samtools faidx index (genome route, count_genome=false only).
   - star_index:
       type: channel
       description: |

@@ -11,6 +11,11 @@ include { SAMTOOLS_SORT as SAMTOOLS_SORT_NAME        } from '../../../modules/nf
 include { SAMTOOLS_FIXMATE      } from '../../../modules/nf-core/samtools/fixmate/main'
 include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_SORT  } from '../../../modules/nf-core/samtools/index/main'
 include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_FINAL } from '../../../modules/nf-core/samtools/index/main'
+include { SAMTOOLS_INDEX as SAMTOOLS_INDEX_TRANSCRIPT } from '../../../modules/nf-core/samtools/index/main'
+include { SAMTOOLS_SORT as SAMTOOLS_SORT_TRANSCRIPT   } from '../../../modules/nf-core/samtools/sort/main'
+include { SAMTOOLS_VIEW         } from '../../../modules/nf-core/samtools/view/main'
+include { SAMTOOLS_CALMD        } from '../../../modules/nf-core/samtools/calmd/main'
+include { SAMTOOLS_QNAMES       } from '../../../modules/local/samtools/qnames/main'
 include { SAMTOOLS_MARKDUP      } from '../../../modules/nf-core/samtools/markdup/main'
 include { SAMTOOLS_STATS        } from '../../../modules/nf-core/samtools/stats/main'
 include { SAMTOOLS_FLAGSTAT     } from '../../../modules/nf-core/samtools/flagstat/main'
@@ -35,6 +40,7 @@ workflow ALIGN_READS {
     ch_bowtie_index_map         // value:   map ref_key -> [meta, index]
     ch_bowtie2_index_map        // value:   map ref_key -> [meta, index]
     ch_reference_fasta_map      // value:   map ref_key -> [meta, fasta]
+    ch_genome_transcript_fasta_fai_map // value: map ref_key -> [meta, fasta, fai] (genome route, count_genome=false)
     pipeline_config             // map
 
     main:
@@ -42,6 +48,7 @@ workflow ALIGN_READS {
 
     // RT-STOP ALIGNMENT
     def ch_rtstop_aligned_bam      = channel.empty()
+    def ch_rtstop_transcript_bam   = channel.empty()
 
     if (!pipeline_config.transcriptome) {
         def ch_rtstop_star_split = buildStarAlignInputs(
@@ -59,6 +66,7 @@ workflow ALIGN_READS {
             ch_rtstop_star_split.ignore_gtf
         )
         ch_rtstop_aligned_bam    = STAR_ALIGN_RTSTOP.out.bam
+        ch_rtstop_transcript_bam = STAR_ALIGN_RTSTOP.out.bam_transcript
         ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_RTSTOP.out.log_final.collect { _meta, log -> log })
     } else {
         def ch_rtstop_bowtie_inputs = ch_rtstop_trimmed_for_align
@@ -83,6 +91,7 @@ workflow ALIGN_READS {
 
     // MAP ALIGNMENT
     def ch_map_aligned_bam    = channel.empty()
+    def ch_map_transcript_bam = channel.empty()
 
     if (!pipeline_config.transcriptome) {
         def ch_map_star_split = buildStarAlignInputs(
@@ -100,6 +109,7 @@ workflow ALIGN_READS {
             ch_map_star_split.ignore_gtf
         )
         ch_map_aligned_bam    = STAR_ALIGN_MAP.out.bam
+        ch_map_transcript_bam = STAR_ALIGN_MAP.out.bam_transcript
         ch_multiqc_files = ch_multiqc_files.mix(STAR_ALIGN_MAP.out.log_final.collect { _meta, log -> log })
     } else {
         def ch_map_bowtie2_inputs = ch_map_trimmed_for_align
@@ -138,6 +148,11 @@ workflow ALIGN_READS {
         SAMTOOLS_SORT_NAME.out.bam
     )
     ch_mapped_bam = ch_rtstop_aligned_bam.mix(SAMTOOLS_FIXMATE.out.bam)
+
+    // STAR's --quantMode TranscriptomeSAM output (genome route, count_genome=false only): projects each
+    // spliced genomic alignment onto transcript coordinates. Produced at alignment time, so it still
+    // contains PCR duplicates — reconciled against the deduped genome BAM further down.
+    ch_transcript_bam_raw = ch_rtstop_transcript_bam.mix(ch_map_transcript_bam)
 
     // MODULE: samtools sort — coordinate-sort mapped (genome) BAMs.
     // FASTA/FAI not needed for BAM output (only required for CRAM); pass empty.
@@ -202,6 +217,62 @@ workflow ALIGN_READS {
             [ bam_tuple[0], bam_tuple[1], bai_tuple[1] ]
         }
 
+    // Reconcile STAR's --quantMode TranscriptomeSAM output with genome-level dedup, then tag-correct
+    // with calmd against the transcript FASTA (genome route, count_genome=false only). STAR emits the
+    // transcript BAM at alignment time, before dedup runs on the genome BAM, so it still contains PCR
+    // duplicates — filter it down to only the read names (QNAMEs) that survived dedup.
+    def ch_transcript_bam_bai = channel.empty()
+    if (!pipeline_config.transcriptome && !pipeline_config.count_genome) {
+        SAMTOOLS_QNAMES(ch_dedup_bam)
+
+        def ch_view_split = ch_transcript_bam_raw
+            .map { meta, bam -> [ meta.id.toString(), meta, bam ] }
+            .join(SAMTOOLS_QNAMES.out.qnames.map { meta, qnames -> [ meta.id.toString(), qnames ] })
+            .map { _sample_id, meta, bam, qnames -> [ [meta, bam, []], [meta, qnames] ] }
+            .multiMap { entry ->
+                bam:   entry[0]
+                qname: entry[1]
+            }
+
+        SAMTOOLS_VIEW(
+            ch_view_split.bam,
+            channel.value([ [], [], [] ]),
+            ch_view_split.qname,
+            channel.value([ [], [] ]),
+            false
+        )
+
+        SAMTOOLS_SORT_TRANSCRIPT(
+            SAMTOOLS_VIEW.out.bam,
+            channel.value([ [], [], [] ]),
+            false
+        )
+
+        def ch_calmd_split = SAMTOOLS_SORT_TRANSCRIPT.out.bam
+            .combine(ch_genome_transcript_fasta_fai_map)
+            .map { meta, bam, fasta_fai_map ->
+                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
+                def ref_entry = fasta_fai_map[ref_key]
+                if (!ref_entry) error("No transcript FASTA/FAI resolved for reference '${ref_key}' in SAMTOOLS_CALMD.")
+                [ [meta, bam], ref_entry ]
+            }
+            .multiMap { entry ->
+                bam:       entry[0]
+                fasta_fai: entry[1]
+            }
+
+        SAMTOOLS_CALMD(ch_calmd_split.bam, ch_calmd_split.fasta_fai)
+
+        SAMTOOLS_INDEX_TRANSCRIPT(SAMTOOLS_CALMD.out.bam)
+
+        ch_transcript_bam_bai = SAMTOOLS_CALMD.out.bam
+            .map { meta, bam -> [ meta.id.toString(), [meta, bam] ] }
+            .join(SAMTOOLS_INDEX_TRANSCRIPT.out.index.map { meta, bai -> [ meta.id.toString(), [meta, bai] ] })
+            .map { _sample_id, bam_tuple, bai_tuple ->
+                [ bam_tuple[0], bam_tuple[1], bai_tuple[1] ]
+            }
+    }
+
     // MODULE: samtools stats — collect alignment statistics. FASTA/FAI not needed for transcript BAMs; pass empty.
     SAMTOOLS_STATS (
         ch_markdup_bam_bai,
@@ -263,6 +334,7 @@ workflow ALIGN_READS {
     emit:
     markdup_bam_bai    = ch_markdup_bam_bai               // channel: [ val(meta), path(bam), path(bai) ]
     dedup_bam          = ch_dedup_bam                     // channel: [ val(meta), path(bam) ]
+    transcript_bam_bai = ch_transcript_bam_bai            // channel: [ val(meta), path(bam), path(bai) ] (genome route, count_genome=false)
     strandedness_by_id = ch_strandedness_by_id            // channel: [ id, strandedness ]
     flagstat_pre       = SAMTOOLS_FLAGSTAT_PRE.out.flagstat  // channel: [ val(meta), path(flagstat) ]
     flagstat_post      = SAMTOOLS_FLAGSTAT.out.flagstat      // channel: [ val(meta), path(flagstat) ]

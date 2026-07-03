@@ -14,6 +14,8 @@ include { GTF_SANITIZE          } from '../../../modules/local/ensembl/gtf/main'
 include { STAR_GENOMEGENERATE   } from '../../../modules/nf-core/star/genomegenerate/main'
 include { BOWTIE_BUILD          } from '../../../modules/nf-core/bowtie/build/main'
 include { BOWTIE2_BUILD         } from '../../../modules/nf-core/bowtie2/build/main'
+include { SAMTOOLS_FAIDX        } from '../../../modules/nf-core/samtools/faidx/main'
+include { GFFREAD               } from '../../../modules/nf-core/gffread/main'
 
 include { resolveReferenceResolution } from '../../../workflows/rnastructurome_functions.nf'
 include { uniqueReferenceResolution  } from '../../../workflows/rnastructurome_functions.nf'
@@ -241,6 +243,38 @@ workflow PREPARE_REFERENCES {
             .mix(ch_reference_genome_ncbi_keyed)
     }
 
+    // MODULE: gffread + samtools faidx — extract a spliced transcript FASTA from the genome FASTA
+    // + GTF (genome route, default count_genome=false only). ALIGN_READS runs SAMTOOLS_CALMD against
+    // this transcript FASTA on STAR's --quantMode TranscriptomeSAM output, so rf-count can run
+    // directly on transcript-coordinate BAMs instead of rf-count-genome + rf-rctools extract.
+    def ch_genome_transcript_fasta_fai_map = channel.value([:])
+    def ch_genome_transcript_fasta_map     = channel.value([:])
+    if (!pipeline_config.transcriptome && !pipeline_config.count_genome) {
+        def ch_gffread_split = ch_reference_genome_fasta_keyed
+            .join(ch_reference_gtf_keyed)
+            .map { _key, fasta_entry, gtf_entry -> [ gtf_entry, fasta_entry[1] ] }
+            .multiMap { gtf_entry, fasta ->
+                gtf:   gtf_entry
+                fasta: fasta
+            }
+        GFFREAD(ch_gffread_split.gtf, ch_gffread_split.fasta)
+
+        SAMTOOLS_FAIDX(
+            GFFREAD.out.gffread_fasta.map { meta, fasta -> [ meta, fasta, [] ] },
+            false
+        )
+
+        def ch_genome_transcript_fasta_fai_keyed = GFFREAD.out.gffread_fasta
+            .map { meta, fasta -> [ meta.id.toString(), meta, fasta ] }
+            .join(SAMTOOLS_FAIDX.out.fai.map { meta, fai -> [ meta.id.toString(), fai ] })
+            .map { key, meta, fasta, fai -> [ key, [ meta, fasta, fai ] ] }
+        ch_genome_transcript_fasta_fai_map = collectToMap(ch_genome_transcript_fasta_fai_keyed)
+
+        ch_genome_transcript_fasta_map = collectToMap(
+            GFFREAD.out.gffread_fasta.map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
+        )
+    }
+
     def ch_rtstop_reference_fasta = principle_branches.rtstop
         .combine(ch_reference_fasta_map)
         .map { combined ->
@@ -318,6 +352,8 @@ workflow PREPARE_REFERENCES {
     gtf_map                 = ch_reference_gtf_map            // value: map ref_key -> [meta, gtf]
     all_gtf                 = ch_all_reference_gtf            // channel: [ val(meta), path(gtf) ]
     genome_fasta_keyed      = ch_reference_genome_fasta_keyed // channel: [ key, [meta, fasta] ]
+    genome_transcript_fasta_map     = ch_genome_transcript_fasta_map     // value: map ref_key -> [meta, fasta] (genome route, count_genome=false)
+    genome_transcript_fasta_fai_map = ch_genome_transcript_fasta_fai_map // value: map ref_key -> [meta, fasta, fai] (genome route, count_genome=false)
     star_index              = ch_star_index                  // channel: [ val(meta), path(index) ] (genome route)
     bowtie_index_map        = ch_bowtie_index_map            // value: map ref_key -> [meta, index]
     bowtie2_index_map       = ch_bowtie2_index_map           // value: map ref_key -> [meta, index]

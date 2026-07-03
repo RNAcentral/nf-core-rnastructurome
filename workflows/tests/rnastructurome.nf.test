@@ -39,4 +39,38 @@ nextflow_workflow {
             )
         }
     }
+
+    test("Runs the legacy count_genome route") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'workflow_rtstop', sample_id:'workflow_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'workflow_line', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [
+                    outdir: "$outputDir",
+                    fasta : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString(),
+                    count_genome: true
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.mapped_bam.size() == 1 },
+                { assert workflow.out.mapped_bam[0][0].id == 'workflow_rtstop' }
+            )
+        }
+    }
 }

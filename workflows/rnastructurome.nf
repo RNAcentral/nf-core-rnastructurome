@@ -71,6 +71,8 @@ workflow RNASTRUCTUROME {
     def ch_reference_gtf_map            = PREPARE_REFERENCES.out.gtf_map
     def ch_all_reference_gtf            = PREPARE_REFERENCES.out.all_gtf
     def ch_reference_genome_fasta_keyed = PREPARE_REFERENCES.out.genome_fasta_keyed
+    def ch_genome_transcript_fasta_map     = PREPARE_REFERENCES.out.genome_transcript_fasta_map
+    def ch_genome_transcript_fasta_fai_map = PREPARE_REFERENCES.out.genome_transcript_fasta_fai_map
     def ch_star_index                   = PREPARE_REFERENCES.out.star_index
     def ch_bowtie_index_map             = PREPARE_REFERENCES.out.bowtie_index_map
     def ch_bowtie2_index_map            = PREPARE_REFERENCES.out.bowtie2_index_map
@@ -84,6 +86,7 @@ workflow RNASTRUCTUROME {
         ch_bowtie_index_map,
         ch_bowtie2_index_map,
         ch_reference_fasta_map,
+        ch_genome_transcript_fasta_fai_map,
         pipeline_config
     )
     ch_multiqc_files = ch_multiqc_files.mix(ALIGN_READS.out.multiqc_files)
@@ -91,14 +94,17 @@ workflow RNASTRUCTUROME {
     def ch_markdup_bam_bai    = ALIGN_READS.out.markdup_bam_bai
     def ch_dedup_bam          = ALIGN_READS.out.dedup_bam
     def ch_strandedness_by_id = ALIGN_READS.out.strandedness_by_id
+    def ch_transcript_bam_bai = ALIGN_READS.out.transcript_bam_bai
 
     // SUBWORKFLOW: QUANTIFY_REACTIVITY — rf-count(-genome) → rf-rctools → RC files
     QUANTIFY_REACTIVITY (
         ch_markdup_bam_bai,
+        ch_transcript_bam_bai,
         ch_strandedness_by_id,
         ch_reference_genome_fasta_keyed,
         ch_reference_gtf_map,
         ch_reference_fasta_map,
+        ch_genome_transcript_fasta_map,
         pipeline_config
     )
     ch_versions = ch_versions.mix(QUANTIFY_REACTIVITY.out.versions)
@@ -396,6 +402,7 @@ def defaultPipelineConfig() {
         fasta                             : null,
         gtf                               : null,
         transcriptome                     : false,
+        count_genome                      : false,
         genomes                           : null,
         ensembl_species_map               : [
             'human': 'homo_sapiens',

@@ -1,8 +1,13 @@
-// QUANTIFY_REACTIVITY — per-base RT-stop/mutation counts as RNAFramework RC files. Genome route (STAR):
-// rf-count-genome on the genome BAM, then rf-rctools extract redistributes counts to transcripts via the
-// GTF (more accurate than STAR TranscriptomeSAM). Transcriptome route: rf-count directly on the transcript BAM.
+// QUANTIFY_REACTIVITY — per-base RT-stop/mutation counts as RNAFramework RC files.
+// Genome route (STAR), default (count_genome=false): rf-count runs directly on STAR's
+// --quantMode TranscriptomeSAM output (dedup-reconciled and tag-corrected with calmd in ALIGN_READS) —
+// no rf-rctools extract needed, since STAR already resolved the exon-splicing onto transcript coordinates.
+// Genome route, count_genome=true (legacy): rf-count-genome on the genome BAM, then rf-rctools extract
+// redistributes counts to transcripts via the GTF.
+// Transcriptome route (Bowtie/Bowtie2, --transcriptome): rf-count directly on the transcript BAM.
 
 include { RNAFRAMEWORK_RFCOUNT           } from '../../../modules/local/rnaframework/count/main'
+include { RNAFRAMEWORK_RFCOUNT as RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT } from '../../../modules/local/rnaframework/count/main'
 include { RNAFRAMEWORK_RFCOUNT_GENOME    } from '../../../modules/local/rnaframework/count_genome/main'
 include { RNAFRAMEWORK_RFRCTOOLS_EXTRACT } from '../../../modules/local/rnaframework/rctools/extract/main'
 
@@ -13,10 +18,12 @@ workflow QUANTIFY_REACTIVITY {
 
     take:
     ch_markdup_bam_bai             // channel: [ val(meta), path(bam), path(bai) ]
+    ch_transcript_bam_bai          // channel: [ val(meta), path(bam), path(bai) ] (genome route, count_genome=false)
     ch_strandedness_by_id          // channel: [ id, strandedness ]
     ch_reference_genome_fasta_keyed // channel: [ key, [meta, fasta] ]
     ch_reference_gtf_map           // value:   map ref_key -> [meta, gtf]
     ch_reference_fasta_map         // value:   map ref_key -> [meta, fasta]
+    ch_genome_transcript_fasta_map // value:   map ref_key -> [meta, fasta] (genome route, count_genome=false)
     pipeline_config                // map
 
     main:
@@ -27,16 +34,17 @@ workflow QUANTIFY_REACTIVITY {
     def ch_rfcount_summary   = channel.empty()
     def ch_rfcount_plots     = channel.empty()
 
-    // STAR route: genome BAM → rf-count-genome → rf-rctools extract → transcript RC files.
-    // Bowtie route (--transcriptome): transcript-coordinate BAM → rf-count → transcript RC files.
-    if (!pipeline_config.transcriptome) {
+    // Annotate each BAM with the per-sample strandedness inferred by RSeQC. remainder: true keeps
+    // samples with no BED (e.g. viral) at strandedness = null, falling back to params.rfcount_strandedness.
+    // Used by both genome-route branches below (rf-count-genome and rf-count-direct).
+    def ch_stranded_meta_by_id = ch_strandedness_by_id
+
+    if (!pipeline_config.transcriptome && pipeline_config.count_genome) {
         def ch_genome_fasta_map = collectToMap(ch_reference_genome_fasta_keyed)
 
-        // Annotate each BAM with the per-sample strandedness inferred by RSeQC. remainder: true keeps
-        // samples with no BED (e.g. viral) at strandedness = null, falling back to params.rfcount_strandedness.
         def ch_bam_stranded = ch_markdup_bam_bai
             .map { meta, bam, bai -> [ meta.id.toString(), meta, bam, bai ] }
-            .join(ch_strandedness_by_id, remainder: true)
+            .join(ch_stranded_meta_by_id, remainder: true)
             .map { _id, meta, bam, bai, strandedness ->
                 [ meta + [strandedness: strandedness], bam, bai ]
             }
@@ -90,6 +98,38 @@ workflow QUANTIFY_REACTIVITY {
         ch_rfcount_rci     = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rci
         ch_rfcount_summary = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.summary
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.versions)
+    } else if (!pipeline_config.transcriptome) {
+        // Default genome route: rf-count directly on the dedup-reconciled, calmd-corrected
+        // transcript-coordinate BAM from ALIGN_READS — no rf-rctools extract needed.
+        def ch_transcript_bam_stranded = ch_transcript_bam_bai
+            .map { meta, bam, bai -> [ meta.id.toString(), meta, bam, bai ] }
+            .join(ch_stranded_meta_by_id, remainder: true)
+            .map { _id, meta, bam, bai, strandedness ->
+                [ meta + [strandedness: strandedness], bam, bai ]
+            }
+
+        def ch_rfcount_direct_inputs = ch_transcript_bam_stranded
+            .combine(ch_genome_transcript_fasta_map)
+            .map { combined ->
+                def meta    = combined[0]
+                def bam     = combined[1]
+                def bai     = combined[2]
+                def ref_map = combined[3]
+                def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def fasta_t = ref_map[ref_key]
+                if (!fasta_t) error("No transcript FASTA resolved for reference '${ref_key}' for rf-count.")
+                [ [meta, bam, bai], fasta_t ]
+            }
+        def ch_rd_split = ch_rfcount_direct_inputs.multiMap { entry ->
+            bam:   entry[0]
+            fasta: entry[1]
+        }
+        RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT(ch_rd_split.bam, ch_rd_split.fasta)
+        ch_rfcount_rc      = RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT.out.rc
+        ch_rfcount_rci     = RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT.out.rci
+        ch_rfcount_summary = RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT.out.summary
+        ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT.out.plots
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT.out.versions)
     } else {
         def ch_rfcount_inputs = ch_markdup_bam_bai
             .combine(ch_reference_fasta_map)

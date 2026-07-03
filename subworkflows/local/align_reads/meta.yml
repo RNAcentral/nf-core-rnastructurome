@@ -16,13 +16,16 @@ components:
   - parseinferexperiment
   - resolvereferencekey
   - rseqc/inferexperiment
+  - samtools/calmd
   - samtools/fixmate
   - samtools/flagstat
   - samtools/idxstats
   - samtools/index
   - samtools/markdup
+  - samtools/qnames
   - samtools/sort
   - samtools/stats
+  - samtools/view
   - star/align
   - umitools/dedup
 input:
@@ -54,6 +57,11 @@ input:
       type: map
       description: |
         Value map of reference_key -> [ val(meta), path(fasta) ].
+  - ch_genome_transcript_fasta_fai_map:
+      type: map
+      description: |
+        Value map of reference_key -> [ val(meta), path(fasta), path(fai) ]. Transcript FASTA + index
+        for SAMTOOLS_CALMD on STAR's TranscriptomeSAM output (genome route, count_genome=false only).
   - pipeline_config:
       type: map
       description: |
@@ -67,6 +75,11 @@ output:
       type: channel
       description: |
         Deduplicated BAM (no index). Structure: [ val(meta), path(bam) ]
+  - transcript_bam_bai:
+      type: channel
+      description: |
+        Dedup-reconciled, calmd-corrected transcript-coordinate BAM from STAR's TranscriptomeSAM output
+        (genome route, count_genome=false only). Structure: [ val(meta), path(bam), path(bai) ]
   - strandedness_by_id:
       type: channel
       description: |

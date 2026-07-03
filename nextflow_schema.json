@@ -206,6 +206,12 @@
                     "default": false,
                     "fa_icon": "fas fa-sitemap"
                 },
+                "count_genome": {
+                    "type": "boolean",
+                    "description": "Genome route (STAR) quantification method. Default (false) uses STAR --quantMode TranscriptomeSAM projected onto transcripts, tag-corrected with samtools calmd, counted with rf-count. Set true for the legacy rf-count-genome + rf-rctools extract path.",
+                    "default": false,
+                    "fa_icon": "fas fa-dna"
+                },
                 "star_multimap_nmax": {
                     "type": "integer",
                     "minimum": 1,

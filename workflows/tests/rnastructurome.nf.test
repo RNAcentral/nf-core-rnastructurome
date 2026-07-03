@@ -16,6 +16,7 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+                params.count_genome = false
 
                 input[0] = Channel.of(
                     [
@@ -25,7 +26,8 @@ nextflow_workflow {
                 )
                 input[1] = [
                     outdir: "$outputDir",
-                    fasta : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+                    fasta : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString(),
+                    count_genome: false
                 ]
                 """
             }
@@ -49,6 +51,7 @@ nextflow_workflow {
                 """
                 params.outdir = "$outputDir"
                 params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+                params.count_genome = true
 
                 input[0] = Channel.of(
                     [

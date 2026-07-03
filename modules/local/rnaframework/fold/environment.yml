@@ -6,3 +6,4 @@ dependencies:
   - bioconda::rnaframework=2.9.7
   - bioconda::viennarna=2.7.2
   - conda-forge::perl
+  - conda-forge::llvm-openmp

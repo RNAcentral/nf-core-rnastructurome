@@ -185,7 +185,7 @@
                 "cutadapt_min_align": {
                     "type": "integer",
                     "description": "Minimum adapter overlap required for trimming.",
-                    "default": 10
+                    "default": 3
                 },
                 "cutadapt_trim_n": {
                     "type": "boolean",
@@ -291,22 +291,6 @@
                     "type": "string",
                     "default": "--very-sensitive-local",
                     "description": "Bowtie2 alignment preset. Default is equivalent to `--local -N 0 -D 20 -R 3 -L 20 -i S,1,0.50`."
-                },
-                "bowtie2_N": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 1,
-                    "description": "Bowtie2 `-N` seed mismatches. Ignored when `bowtie2_preset` is set."
-                },
-                "bowtie2_D": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Bowtie2 `-D` max seed extension attempts. Ignored when `bowtie2_preset` is set."
-                },
-                "bowtie2_R": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Bowtie2 `-R` max re-seeding attempts. Ignored when `bowtie2_preset` is set."
                 },
                 "bowtie2_mp": {
                     "type": "string",
@@ -435,7 +419,7 @@
                 "rfcount_map_no_insertions": {
                     "type": "boolean",
                     "description": "MaP only: ignore insertion events during mutation counting (`-ni`).",
-                    "default": true
+                    "default": false
                 },
                 "rfcount_map_discard_consecutive": {
                     "type": "integer",
@@ -493,8 +477,8 @@
                 },
                 "rfcount_map_sort_by_read_name": {
                     "type": "boolean",
-                    "description": "In mutation mode (`-m`), pre-sort paired-end reads by read name (`--sort-by-read-name`).",
-                    "default": false
+                    "description": "In mutation mode (`-m`), pre-sort paired-end reads by read name (`--sort-by-read-name`). No effect on single-end data.",
+                    "default": true
                 },
                 "rfcount_map_discard_shorter": {
                     "type": "integer",

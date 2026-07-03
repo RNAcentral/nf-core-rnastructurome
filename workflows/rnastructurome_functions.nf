@@ -116,6 +116,7 @@ def collectToMap(ch_keyed) {
 
 // Build STAR_ALIGN inputs for a set of trimmed reads: pair each sample with its reference's STAR index +
 // GTF (combine by:0) and emit [ [meta,reads], [idx_meta,index], [gtf_meta,gtf], ignore_gtf ].
+// ignore_gtf skips --sjdbGTFfile at align time only when no GTF was resolved for that reference.
 def buildStarAlignInputs(ch_trimmed, ch_star_index, ch_gtf, cfg) {
     def ch_keyed = ch_trimmed
         .map { meta, reads -> [ resolveReferenceKey(meta, cfg.organism), meta, reads ] }
@@ -413,13 +414,17 @@ def renderBowtie2Args(pipeline_config) {
         return manualParams ?: 'none'
     }
     def args = []
+    def preset = pipeline_config.bowtie2_preset?.toString()?.trim() ?: ''
     if (pipeline_config.bowtie_all as Boolean) {
         args << '-a'
-    } else if (pipeline_config.bowtie_k != null) {
+    } else if (!preset && pipeline_config.bowtie_k != null) {
         args << "-k ${pipeline_config.bowtie_k as Integer}"
     }
     if (pipeline_config.bowtie_norc as Boolean) {
         args << '--norc'
+    }
+    if (pipeline_config.bowtie_nofw as Boolean) {
+        args << '--nofw'
     }
     if ((pipeline_config.bowtie_trim5 as Integer) > 0) {
         args << "--trim5 ${pipeline_config.bowtie_trim5 as Integer}"
@@ -427,19 +432,23 @@ def renderBowtie2Args(pipeline_config) {
     if ((pipeline_config.bowtie_trim3 as Integer) > 0) {
         args << "--trim3 ${pipeline_config.bowtie_trim3 as Integer}"
     }
-    def seedlen = pipeline_config.bowtie_seedlen != null ? pipeline_config.bowtie_seedlen as Integer : 22
-    args << "-L ${seedlen}"
-    args << "-N ${pipeline_config.bowtie2_N as Integer}"
-    args << "-D ${pipeline_config.bowtie2_D as Integer}"
-    args << "-R ${pipeline_config.bowtie2_R as Integer}"
+    if (preset) {
+        args << preset
+        if (pipeline_config.bowtie2_softclip as Boolean) {
+            args << "--ma ${pipeline_config.bowtie2_ma as Integer}"
+        }
+    } else {
+        def seedlen = pipeline_config.bowtie_seedlen != null ? pipeline_config.bowtie_seedlen as Integer : 22
+        args << "-L ${seedlen}"
+        if (pipeline_config.bowtie2_softclip as Boolean) {
+            args << '--local'
+            args << "--ma ${pipeline_config.bowtie2_ma as Integer}"
+        }
+    }
     args << "--mp ${pipeline_config.bowtie2_mp}"
     args << "--dpad ${pipeline_config.bowtie2_dpad as Integer}"
     args << "--rdg ${pipeline_config.bowtie2_rdg}"
     args << "--rfg ${pipeline_config.bowtie2_rfg}"
-    if (pipeline_config.bowtie2_softclip as Boolean) {
-        args << '--local'
-        args << "--ma ${pipeline_config.bowtie2_ma as Integer}"
-    }
     if (pipeline_config.bowtie2_dovetail as Boolean) {
         args << '--dovetail'
     }

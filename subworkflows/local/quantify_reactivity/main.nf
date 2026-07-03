@@ -1,13 +1,9 @@
 // QUANTIFY_REACTIVITY — per-base RT-stop/mutation counts as RNAFramework RC files.
-// Genome route (STAR), default (count_genome=false): rf-count runs directly on STAR's
-// --quantMode TranscriptomeSAM output (dedup-reconciled and tag-corrected with calmd in ALIGN_READS) —
-// no rf-rctools extract needed, since STAR already resolved the exon-splicing onto transcript coordinates.
-// Genome route, count_genome=true (legacy): rf-count-genome on the genome BAM, then rf-rctools extract
-// redistributes counts to transcripts via the GTF.
-// Transcriptome route (Bowtie/Bowtie2, --transcriptome): rf-count directly on the transcript BAM.
+// Genome route: rf-count on STAR's TranscriptomeSAM output (default) or rf-count-genome + rf-rctools
+// extract (count_genome=true). Transcriptome route: rf-count directly on the transcript BAM.
 
 include { RNAFRAMEWORK_RFCOUNT           } from '../../../modules/local/rnaframework/count/main'
-include { RNAFRAMEWORK_RFCOUNT as RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT } from '../../../modules/local/rnaframework/count/main'
+include { RNAFRAMEWORK_RFCOUNT as RNAFRAMEWORK_RFCOUNT_STAR } from '../../../modules/local/rnaframework/count/main'
 include { RNAFRAMEWORK_RFCOUNT_GENOME    } from '../../../modules/local/rnaframework/count_genome/main'
 include { RNAFRAMEWORK_RFRCTOOLS_EXTRACT } from '../../../modules/local/rnaframework/rctools/extract/main'
 
@@ -124,12 +120,12 @@ workflow QUANTIFY_REACTIVITY {
             bam:   entry[0]
             fasta: entry[1]
         }
-        RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT(ch_rd_split.bam, ch_rd_split.fasta)
-        ch_rfcount_rc      = RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT.out.rc
-        ch_rfcount_rci     = RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT.out.rci
-        ch_rfcount_summary = RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT.out.summary
-        ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT.out.plots
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT_GENOME_DIRECT.out.versions)
+        RNAFRAMEWORK_RFCOUNT_STAR(ch_rd_split.bam, ch_rd_split.fasta)
+        ch_rfcount_rc      = RNAFRAMEWORK_RFCOUNT_STAR.out.rc
+        ch_rfcount_rci     = RNAFRAMEWORK_RFCOUNT_STAR.out.rci
+        ch_rfcount_summary = RNAFRAMEWORK_RFCOUNT_STAR.out.summary
+        ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT_STAR.out.plots
+        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT_STAR.out.versions)
     } else {
         def ch_rfcount_inputs = ch_markdup_bam_bai
             .combine(ch_reference_fasta_map)

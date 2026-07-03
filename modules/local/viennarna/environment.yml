@@ -5,3 +5,4 @@ channels:
 dependencies:
   - bioconda::viennarna=2.7.2
   - python=3.12
+  - conda-forge::llvm-openmp

@@ -41,6 +41,10 @@ process STAR_GENOMEGENERATE {
         """
         samtools faidx $fasta
         NUM_BASES=`gawk '{sum = sum + \$2}END{if ((log(sum)/log(2))/2 - 1 > 14) {printf "%.0f", 14} else {printf "%.0f", (log(sum)/log(2))/2 - 1}}' ${fasta}.fai`
+        # STAR's own recommendation for small/few-contig genomes (e.g. a single MT chromosome): scale
+        # down --genomeChrBinNbits too, or it stays at its default (18) and can corrupt downstream
+        # lookups quantMode TranscriptomeSAM depends on (geneInfo.tab/transcriptInfo.tab).
+        CHR_BIN_BITS=`gawk '{sum = sum + \$2; n++}END{v = (log(sum/n)/log(2)); if (v > 18) {printf "%.0f", 18} else {printf "%.0f", v}}' ${fasta}.fai`
 
         mkdir star
         STAR \\
@@ -50,6 +54,7 @@ process STAR_GENOMEGENERATE {
             $include_gtf \\
             --runThreadN $task.cpus \\
             --genomeSAindexNbases \$NUM_BASES \\
+            --genomeChrBinNbits \$CHR_BIN_BITS \\
             $memory \\
             $args
         """

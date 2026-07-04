@@ -487,13 +487,9 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
     if (pipeline_config.rfnorm_window_offset != null) args << "--window-offset ${pipeline_config.rfnorm_window_offset as Integer}"
     if (dynamicWindow != null) args << "--dynamic-window ${dynamicWindow}"
     if (pipeline_config.rfnorm_norm_independent as Boolean) args << '--norm-independent'
-    if (pipeline_config.rfnorm_norm_factor) args << "--norm-factor ${pipeline_config.rfnorm_norm_factor}"
     if (pipeline_config.rfnorm_raw as Boolean) args << '--raw'
     if (pipeline_config.rfnorm_pseudocount != null) args << "--pseudocount ${pipeline_config.rfnorm_pseudocount}"
-    if (pipeline_config.rfnorm_max_score != null) args << "--max-score ${pipeline_config.rfnorm_max_score}"
     if (pipeline_config.rfnorm_ignore_lower_than_untreated as Boolean) args << '--ignore-lower-than-untreated'
-    if (pipeline_config.rfnorm_max_untreated_mut != null) args << "--max-untreated-mut ${pipeline_config.rfnorm_max_untreated_mut}"
-    if (pipeline_config.rfnorm_max_mutation_rate != null) args << "--max-mutation-rate ${pipeline_config.rfnorm_max_mutation_rate}"
     def meanCoverage = pipeline_config.rfnorm_mean_coverage != null ? pipeline_config.rfnorm_mean_coverage as BigDecimal : 0
     if (meanCoverage > 0) args << "--mean-coverage ${pipeline_config.rfnorm_mean_coverage}"
     def medianCoverage = pipeline_config.rfnorm_median_coverage != null ? pipeline_config.rfnorm_median_coverage as BigDecimal : 0
@@ -751,16 +747,16 @@ def parseRfcorrelateMatrix(matrixFile) {
     ]
 }
 
-def rfCorrelateMultiqc(rows) {
+def rfCorrelateMultiqc(rows, method) {
     def normalised = normaliseMqcRows(rows)
     if (!normalised) {
         return ''
     }
     buildSimpleMultiqcTable(
         normalised,
-        'nf-core-rnastructurome-rfcorrelate',
-        'nf-core/rnastructurome Replicate Correlation',
-        'Pairwise reactivity-profile correlation between replicates from rf-correlate (per sample group). Higher is more reproducible.',
+        "nf-core-rnastructurome-rfcorrelate-${method.toLowerCase()}",
+        "nf-core/rnastructurome Replicate Correlation (${method})",
+        "Pairwise reactivity-profile correlation between replicates from rf-correlate (${method}, per sample group). Higher is more reproducible.",
         [
             replicates: [title: 'Replicates',    description: 'Number of replicates compared', scale: 'Blues',  format: '{:,.0f}'],
             mean_corr : [title: 'Mean Corr.',     description: 'Mean pairwise replicate correlation (overall, transcriptome-wide)', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}'],

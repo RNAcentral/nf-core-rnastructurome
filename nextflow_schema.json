@@ -23,7 +23,7 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample`, `fastq_1`, `sample_group`, `condition`, and `replicate` columns, with optional `fastq_2` for paired-end data. `sample_id`, `method`, `principle`, `organism`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
+                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample`, `fastq_1`, `sample_group`, `condition`, and `replicate` columns, with optional `fastq_2` for paired-end data. `sample_id`, `method`, `principle`, `organism`, `chemical`, `RT_enzyme`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {
@@ -136,6 +136,14 @@
                 "organism": {
                     "type": "string",
                     "description": "Fallback organism for rows missing `organism`, typically a Latin binomial such as `Homo sapiens`."
+                },
+                "chemical": {
+                    "type": "string",
+                    "description": "Fallback chemical probing reagent for rows missing `chemical` (e.g. `1M7`)."
+                },
+                "RT_enzyme": {
+                    "type": "string",
+                    "description": "Fallback reverse transcriptase enzyme for rows missing `RT_enzyme` (e.g. `M-MLV`)."
                 },
                 "umi_pattern": {
                     "type": "string",
@@ -392,9 +400,6 @@
                     "description": "SAMtools working threads per processor instance in rf-count-genome (`-wt`); total threads = `-p` \u00d7 `-wt`.",
                     "default": 1
                 },
-                "rfcount_map_max_edit_distance": {
-                    "description": "MaP only: discard reads whose edit-distance frequency exceeds this threshold (`-me`), value in range (0, 1]."
-                },
                 "rfcount_map_median_quality": {
                     "type": "integer",
                     "minimum": 0,
@@ -408,32 +413,24 @@
                 },
                 "rfcount_map_no_ambiguous": {
                     "type": "boolean",
-                    "description": "MaP only: ignore ambiguously aligned deletion events (`-na`). Recommended for DMS-MaP.",
-                    "default": false
-                },
-                "rfcount_map_max_deletion_length": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "MaP only: ignore deletions longer than this many nucleotides (`-md N`). Set to 1 to discard all multi-nt deletions, as in the Spitale DMS-MaP protocol."
+                    "description": "MaP only: ignore ambiguously aligned deletion events (`-na`). Auto: off for M-MLV, on for Group II Intron (e.g. TGIRT); leave unset to use the auto default."
                 },
                 "rfcount_map_no_insertions": {
                     "type": "boolean",
-                    "description": "MaP only: ignore insertion events during mutation counting (`-ni`).",
-                    "default": false
+                    "description": "MaP only: ignore insertion events during mutation counting (`-ni`). Auto: off for M-MLV, on for Group II Intron (e.g. TGIRT); leave unset to use the auto default."
+                },
+                "rfcount_map_right_deletion": {
+                    "type": "boolean",
+                    "description": "MaP only: mark only the right-most base of a deletion as mutated (`--right-deletion`). Auto: on for M-MLV, off for Group II Intron (e.g. TGIRT); leave unset to use the auto default."
                 },
                 "rfcount_map_discard_consecutive": {
                     "type": "integer",
-                    "description": "MaP only: discard mutations within N nt of each other (`-dc N`). Filters clustered artefact mutations. Null = no filter."
+                    "description": "MaP only: discard mutations within N nt of each other (`-dc N`). Auto: 3 when `RT_enzyme` is a Group II Intron RT (e.g. TGIRT), off for M-MLV; leave unset to use the auto default."
                 },
                 "rfcount_map_eval_surrounding": {
                     "type": "boolean",
                     "description": "MaP only: also evaluate quality of \u00b11 nt surrounding each mutation (`-es`).",
                     "default": true
-                },
-                "rfcount_map_discard_pair": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "MaP paired-end only: discard non-overlapping mate pairs with insert size greater than this value (`--mm-discard-pair`)."
                 },
                 "rfcount_trim_5prime": {
                     "type": "integer",
@@ -456,14 +453,6 @@
                     "type": "boolean",
                     "description": "Discard reads with excessive 5' or 3' end clipping in rf-count / rf-count-genome (`--discard-clipped-reads`).",
                     "default": false
-                },
-                "rfcount_keep_mate": {
-                    "type": "string",
-                    "enum": [
-                        "5p",
-                        "3p"
-                    ],
-                    "description": "Paired-end rf-count option: forcefully retain the `5p` or `3p` mate when the pair threshold is triggered (`--keep-mate`)."
                 },
                 "rfcount_paired_only": {
                     "type": "boolean",
@@ -494,8 +483,7 @@
                 },
                 "rfcount_map_collapse_consecutive": {
                     "type": "boolean",
-                    "description": "In mutation mode (`-m`), collapse consecutive mutations/indels (`--collapse-consecutive`).",
-                    "default": true
+                    "description": "In mutation mode (`-m`), collapse consecutive mutations/indels (`--collapse-consecutive`). Auto: on unless `RT_enzyme` is a Group II Intron RT (e.g. TGIRT); leave unset to use the auto default."
                 },
                 "rfcount_map_max_collapse_distance": {
                     "type": "integer",
@@ -516,7 +504,7 @@
                 "rfnorm_norm_window": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "Normalization window size (`--norm-window`)."
+                    "description": "Normalization window size (`--norm-window`). Auto: 50 for DMS or RT-stop, unset otherwise; leave unset to use the auto default."
                 },
                 "rfnorm_window_offset": {
                     "type": "integer",
@@ -533,10 +521,6 @@
                     "description": "Normalize each reactive base independently (`--norm-independent`).",
                     "default": false
                 },
-                "rfnorm_norm_factor": {
-                    "type": "string",
-                    "description": "Use a fixed normalization factor for all transcripts (`--norm-factor`). For 90% Winsorizing provide two comma-separated values for the 5th and 95th percentiles."
-                },
                 "rfnorm_use_normfactor": {
                     "type": "boolean",
                     "description": "Cross-experiment normalization via rf-normfactor (one factor set per reference, fed to rf-norm via `-nf`), putting reactivities on a common scale. Leave unset for auto (enabled only for a reference with more than one treated sample to cross-normalise); set `true` to force on, `false` to force off (per-sample box-plot)."
@@ -544,8 +528,7 @@
                 "rfnorm_normfactor_min_coverage": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "rf-normfactor minimum coverage (`-mc`): bases below this coverage are excluded from the normalization factor calculation.",
-                    "default": 1000
+                    "description": "rf-normfactor minimum coverage (`-mc`): bases below this coverage are excluded from the normalization factor calculation. Auto: 1000 for MaP, 50 for RT-stop; leave unset to use the auto default."
                 },
                 "rfnorm_score_method": {
                     "type": "integer",
@@ -577,25 +560,10 @@
                     "minimum": 0,
                     "description": "Pseudocount used by Ding scoring (`--pseudocount`)."
                 },
-                "rfnorm_max_score": {
-                    "type": "number",
-                    "minimum": 0,
-                    "description": "Maximum score used by Ding scoring (`--max-score`)."
-                },
                 "rfnorm_ignore_lower_than_untreated": {
                     "type": "boolean",
                     "description": "Set reactivities lower than untreated to zero for Ding or Siegfried scoring (`--ignore-lower-than-untreated`).",
                     "default": false
-                },
-                "rfnorm_max_untreated_mut": {
-                    "type": "number",
-                    "minimum": 0,
-                    "description": "Maximum untreated mutation rate threshold for Siegfried scoring (`--max-untreated-mut`)."
-                },
-                "rfnorm_max_mutation_rate": {
-                    "type": "number",
-                    "minimum": 0,
-                    "description": "Maximum mutation rate threshold for MaP scoring methods (`--max-mutation-rate`)."
                 },
                 "rfnorm_mean_coverage": {
                     "type": "number",
@@ -610,7 +578,7 @@
                     "default": 0
                 },
                 "rfnorm_nan": {
-                    "description": "Positions with read coverage below this threshold are reported as NaN (`--nan`). Set to 0 to disable NaN masking."
+                    "description": "Positions with read coverage below this threshold are reported as NaN (`--nan`). Auto: 1000 for MaP, 50 for RT-stop. Set to 0 to disable NaN masking."
                 },
                 "rfnorm_prefilter_min_coverage": {
                     "type": "integer",
@@ -656,11 +624,13 @@
                 },
                 "rfjackknife_mfmi": {
                     "type": "boolean",
-                    "description": "Use modified FMI (Lan et al. 2022) instead of standard FMI in rf-jackknife (`-m`)."
+                    "description": "Use modified FMI (Lan et al. 2022) instead of standard FMI in rf-jackknife (`-m`).",
+                    "default": true
                 },
                 "rfjackknife_relaxed": {
                     "type": "boolean",
-                    "description": "Use relaxed FMI criteria (Deigan et al. 2009) in rf-jackknife (`-x`)."
+                    "description": "Use relaxed FMI criteria (Deigan et al. 2009) in rf-jackknife (`-x`).",
+                    "default": true
                 },
                 "rfjackknife_keep_lonelypairs": {
                     "type": "boolean",
@@ -719,17 +689,22 @@
                 "rfeval_ignore_terminal": {
                     "type": "boolean",
                     "description": "Exclude terminal base-pairs from rf-eval calculations (`-it`).",
+                    "default": true
+                },
+                "rfeval_terminal_as_unpaired": {
+                    "type": "boolean",
+                    "description": "Treat terminal base-pairs as unpaired in rf-eval (`-tu`).",
                     "default": false
                 },
                 "rfeval_keep_pseudoknots": {
                     "type": "boolean",
                     "description": "Retain pseudoknotted base-pairs in rf-eval (`-kp`).",
-                    "default": false
+                    "default": true
                 },
                 "rfeval_keep_lonelypairs": {
                     "type": "boolean",
                     "description": "Retain lonely/isolated base-pairs in rf-eval (`-kl`).",
-                    "default": false
+                    "default": true
                 },
                 "rfeval_img": {
                     "type": "boolean",
@@ -793,12 +768,12 @@
                 "structextract_ignore_react": {
                     "type": "boolean",
                     "description": "rf-structextract skips low-reactivity evaluation (`-ir`).",
-                    "default": false
+                    "default": true
                 },
                 "structextract_ignore_shannon": {
                     "type": "boolean",
                     "description": "rf-structextract skips low-Shannon evaluation (`-is`).",
-                    "default": false
+                    "default": true
                 },
                 "structextract_multiway_only": {
                     "type": "boolean",
@@ -843,10 +818,11 @@
                     "description": "Run rf-correlate to compute pairwise reactivity-profile correlations between replicates of each sample group (a replicate-reproducibility QC surfaced in MultiQC). Only runs for sample groups with more than one replicate; a no-op otherwise.",
                     "default": true
                 },
-                "correlate_spearman": {
-                    "type": "boolean",
-                    "description": "Use Spearman instead of Pearson correlation in rf-correlate (`-S`).",
-                    "default": false
+                "rfcorrelate_cap_react": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Cap reactivities to this value before Pearson correlation in rf-correlate (`--cap-react`). Not applied to the Spearman run, which is rank-based.",
+                    "default": 1.5
                 },
                 "correlate_min_values": {
                     "type": "number",
@@ -869,9 +845,16 @@
                     "default": false
                 },
                 "rffold_window": {
-                    "type": "boolean",
-                    "description": "Enable windowed folding in rf-fold (`-w`).",
-                    "default": true
+                    "type": "integer",
+                    "minimum": 50,
+                    "description": "Enable windowed MFE folding in rf-fold with this window size (`-w -fw N`). Set null/unset to fold the whole transcript instead.",
+                    "default": 1000
+                },
+                "rffold_partition_window": {
+                    "type": "integer",
+                    "minimum": 50,
+                    "description": "Partition-function window size in rf-fold (`-pw N`).",
+                    "default": 1000
                 },
                 "rffold_unconstrained": {
                     "type": "boolean",
@@ -927,13 +910,11 @@
                 },
                 "rffold_slope": {
                     "type": "number",
-                    "default": 4.2,
-                    "description": "Slope for reactivity-to-folding-constraint conversion in rf-fold (`-sl`). Overridden automatically when `--rfjackknife_pool_all` is used."
+                    "description": "Slope for reactivity-to-folding-constraint conversion in rf-fold (`-sl`). Auto by `chemical`: DMS 4.6, NAI 2.2, 2A3 1, other/unset 1.8. Overridden by jackknife calibration when available."
                 },
                 "rffold_intercept": {
                     "type": "number",
-                    "default": -1.4,
-                    "description": "Intercept for reactivity-to-folding-constraint conversion in rf-fold (`-in`). Overridden automatically when `--rfjackknife_pool_all` is used."
+                    "description": "Intercept for reactivity-to-folding-constraint conversion in rf-fold (`-in`). Auto by `chemical`: DMS -2, NAI -0.8, 2A3 -0.4, other/unset -0.6. Overridden by jackknife calibration when available."
                 },
                 "rffold_vienna_rnaplot": {
                     "type": "string",

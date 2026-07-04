@@ -71,6 +71,10 @@ HEK293T_untreated_rep1,HEK293T_untreated_rep1.fastq.gz,,HEK293T,untreated,1
 
 Each row is one sample. `fastq_2` is optional (leave empty for single-end). `sample_group`, `condition`, and `replicate` are used to pair treated/untreated/denatured controls for `rf-norm`.
 
+Optional `chemical` (e.g. `1M7`) and `RT_enzyme` (e.g. `M-MLV`) columns record the probing reagent and reverse transcriptase used; set per sample in the samplesheet or globally via `--chemical`/`--RT_enzyme`.
+
+For MaP samples, `RT_enzyme` also drives several rf-count defaults (each overridable via its `--rfcount_map_*` flag): M-MLV (or unset) enables `--collapse-consecutive` and `--right-deletion`; a Group II Intron RT (e.g. TGIRT) instead enables `-dc 3`, `-ni` (no-insertions), and `-na` (no-ambiguous). `--sort-by-read-name` is applied only for paired-end reads regardless of `RT_enzyme`.
+
 Supported `condition` values: `treated`, `untreated`, `denatured`.
 
 If you omit `--fasta` and `--gtf`, add an `organism` column to your samplesheet (e.g. `Homo sapiens`) and the pipeline will download the reference from Ensembl automatically.

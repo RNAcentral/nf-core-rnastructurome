@@ -39,6 +39,16 @@
                 "type": "string",
                 "meta": ["principle"]
             },
+            "chemical": {
+                "type": "string",
+                "meta": ["chemical"],
+                "description": "Chemical probing reagent used (e.g. '1M7')."
+            },
+            "RT_enzyme": {
+                "type": "string",
+                "meta": ["RT_enzyme"],
+                "description": "Reverse transcriptase enzyme used (e.g. 'M-MLV')."
+            },
             "organism": {
                 "type": "string",
                 "meta": ["organism"],

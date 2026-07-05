@@ -747,24 +747,15 @@ def parseRfcorrelateMatrix(matrixFile) {
     ]
 }
 
-def rfCorrelateMultiqc(pearsonRows, spearmanRows) {
-    def pearson  = normaliseMqcRows(pearsonRows).collectEntries { row -> [(row[0]): row[1]] }
-    def spearman = normaliseMqcRows(spearmanRows).collectEntries { row -> [(row[0]): row[1]] }
-    def ids = (pearson.keySet() + spearman.keySet()) as Set
-    if (!ids) {
+// rows: per sample_group [id, [replicates, mean_pearson, mean_spearman]], already merged across
+// both correlation methods in the CORRELATE_REPLICATES subworkflow (flattened by .collect()).
+def rfCorrelateMultiqc(rows) {
+    def normalised = normaliseMqcRows(rows)
+    if (!normalised) {
         return ''
     }
-    def combined = ids.collect { id ->
-        def p = pearson[id]
-        def s = spearman[id]
-        [ id, [
-            replicates    : p?.replicates ?: s?.replicates ?: 0,
-            mean_pearson  : p?.mean_corr,
-            mean_spearman : s?.mean_corr
-        ] ]
-    }
     buildSimpleMultiqcTable(
-        combined,
+        normalised,
         'nf-core-rnastructurome-rfcorrelate',
         'nf-core/rnastructurome Replicate Correlation',
         'Pairwise reactivity-profile correlation between replicates from rf-correlate (per sample group). Higher is more reproducible.',

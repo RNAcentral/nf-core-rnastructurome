@@ -36,18 +36,24 @@ workflow CORRELATE_REPLICATES {
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCORRELATE_PEARSON.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCORRELATE_SPEARMAN.out.versions.first())
 
-    // Summarise both methods' overall pairwise correlations into one combined MultiQC table
-    // (replicates, mean Pearson, mean Spearman per sample group).
-    def ch_pearson_rows = RNAFRAMEWORK_RFCORRELATE_PEARSON.out.matrix
+    // Summarise both methods' overall pairwise correlations into one combined MultiQC table.
+    // Join per sample_group so each row carries mean Pearson + mean Spearman side by side.
+    def ch_pearson_by_id = RNAFRAMEWORK_RFCORRELATE_PEARSON.out.matrix
         .map { meta, matrix -> [ meta.id.toString(), parseRfcorrelateMatrix(matrix) ] }
-        .collect()
-    def ch_spearman_rows = RNAFRAMEWORK_RFCORRELATE_SPEARMAN.out.matrix
+    def ch_spearman_by_id = RNAFRAMEWORK_RFCORRELATE_SPEARMAN.out.matrix
         .map { meta, matrix -> [ meta.id.toString(), parseRfcorrelateMatrix(matrix) ] }
-        .collect()
 
-    def ch_multiqc = ch_pearson_rows
-        .combine(ch_spearman_rows)
-        .map { pearsonRows, spearmanRows -> rfCorrelateMultiqc(pearsonRows, spearmanRows) }
+    def ch_multiqc = ch_pearson_by_id
+        .join(ch_spearman_by_id)
+        .map { id, pearson, spearman ->
+            [ id, [
+                replicates    : pearson.replicates ?: spearman.replicates ?: 0,
+                mean_pearson  : pearson.mean_corr,
+                mean_spearman : spearman.mean_corr
+            ] ]
+        }
+        .collect()
+        .map { rows -> rfCorrelateMultiqc(rows) }
         .collectFile(name: 'rfcorrelate_mqc.yaml', sort: true)
 
     emit:

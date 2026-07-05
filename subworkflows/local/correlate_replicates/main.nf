@@ -1,6 +1,6 @@
 // CORRELATE_REPLICATES — rf-correlate replicate-reproducibility QC. Reuses FOLD_STRUCTURES' per-sample_group
 // XML grouping, runs only for groups with >1 replicate, and reports both Pearson (reactivity-capped) and
-// Spearman correlations for MultiQC.
+// Spearman correlations in a single combined MultiQC table.
 
 include { RNAFRAMEWORK_RFCORRELATE as RNAFRAMEWORK_RFCORRELATE_PEARSON  } from '../../../modules/local/rnaframework/correlate/main'
 include { RNAFRAMEWORK_RFCORRELATE as RNAFRAMEWORK_RFCORRELATE_SPEARMAN } from '../../../modules/local/rnaframework/correlate/main'
@@ -36,22 +36,23 @@ workflow CORRELATE_REPLICATES {
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCORRELATE_PEARSON.out.versions.first())
     ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCORRELATE_SPEARMAN.out.versions.first())
 
-    // Summarise the overall pairwise correlations into one MultiQC table per method (mean/min per group).
-    def ch_multiqc_pearson = RNAFRAMEWORK_RFCORRELATE_PEARSON.out.matrix
+    // Summarise both methods' overall pairwise correlations into one combined MultiQC table
+    // (replicates, mean Pearson, mean Spearman per sample group).
+    def ch_pearson_rows = RNAFRAMEWORK_RFCORRELATE_PEARSON.out.matrix
         .map { meta, matrix -> [ meta.id.toString(), parseRfcorrelateMatrix(matrix) ] }
         .collect()
-        .map { rows -> rfCorrelateMultiqc(rows, 'Pearson') }
-        .collectFile(name: 'rfcorrelate_pearson_mqc.yaml', sort: true)
+    def ch_spearman_rows = RNAFRAMEWORK_RFCORRELATE_SPEARMAN.out.matrix
+        .map { meta, matrix -> [ meta.id.toString(), parseRfcorrelateMatrix(matrix) ] }
+        .collect()
 
-    def ch_multiqc_spearman = RNAFRAMEWORK_RFCORRELATE_SPEARMAN.out.matrix
-        .map { meta, matrix -> [ meta.id.toString(), parseRfcorrelateMatrix(matrix) ] }
-        .collect()
-        .map { rows -> rfCorrelateMultiqc(rows, 'Spearman') }
-        .collectFile(name: 'rfcorrelate_spearman_mqc.yaml', sort: true)
+    def ch_multiqc = ch_pearson_rows
+        .combine(ch_spearman_rows)
+        .map { pearsonRows, spearmanRows -> rfCorrelateMultiqc(pearsonRows, spearmanRows) }
+        .collectFile(name: 'rfcorrelate_mqc.yaml', sort: true)
 
     emit:
     matrix_pearson  = RNAFRAMEWORK_RFCORRELATE_PEARSON.out.matrix  // channel: [ val(meta), path(matrix.csv) ]
     matrix_spearman = RNAFRAMEWORK_RFCORRELATE_SPEARMAN.out.matrix // channel: [ val(meta), path(matrix.csv) ]
-    multiqc  = ch_multiqc_pearson.mix(ch_multiqc_spearman)         // channel: path(*_mqc.yaml)
+    multiqc  = ch_multiqc                                          // channel: path(rfcorrelate_mqc.yaml)
     versions = ch_versions                                        // channel: [ path(versions.yml) ]
 }

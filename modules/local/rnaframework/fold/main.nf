@@ -98,8 +98,14 @@ process RNAFRAMEWORK_RFFOLD {
         ${args} \\
         experiment*/ 2>&1 | tee -a "\${log_tmp}"
 
+    # Strip ANSI colour codes and collapse \\r-terminated progress-bar updates into real newlines,
+    # so parseRffoldLog's line-based regex can find the folding-statistics summary reliably.
+    cleaned_log="${prefix}_fold.clean.log"
+    sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' "\${log_tmp}" | tr '\\r' '\\n' > "\${cleaned_log}"
+
     mkdir -p ${prefix}_fold
-    mv "\${log_tmp}" ${prefix}_fold/rffold.log
+    mv "\${cleaned_log}" ${prefix}_fold/rffold.log
+    rm -f "\${log_tmp}"
 
     if [[ -s ${prefix}_fold/error.out ]]; then
         exception_count=\$(grep -Fc "[!] Exception" ${prefix}_fold/error.out || true)

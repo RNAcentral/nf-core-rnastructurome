@@ -58,39 +58,51 @@ END_VERSIONS
 
     # ── 3. Overlay reactivities onto SVGs ──────────────────────────────────────
     # R2DT logs Tracebacks/"error" text to stderr for individual sequences that briefly
-    # mismatch a template (e.g. depaired Infernal mapping, see r2dt-bio/R2DT#93) — this is
-    # routine noise from a successful run, NOT proof of failure. r2dt_status (the process's
-    # own exit code) is the only reliable fatal signal.
-    #
-    # Don't pre-check `find results/svg` in bash to decide whether to run the colour step:
-    # that was racy — results/svg can exist with hundreds of real SVGs (confirmed on this
-    # cluster) yet still read as empty to a `find` run immediately afterwards, even with a
-    # multi-second retry loop. r2dt_colour_svg.py already globs --svg-dir itself and exits
-    # cleanly with "0 SVGs coloured" if nothing is there, so just always run it when R2DT
-    # succeeded and let the empty-dir cleanup below discard it if genuinely nothing matched.
-    if [[ \${r2dt_status} -eq 0 ]]; then
-        mkdir -p ${prefix}_r2dt
-        python3 ${colour_script} \\
-            --svg-dir       r2dt_raw/results/svg \\
-            --xml-search-dir . \\
-            --out-dir       ${prefix}_r2dt \\
-            2>&1 | tee -a ${prefix}_r2dt.log
-    else
-        echo "[R2DT] r2dt.py draw FAILED (exit \${r2dt_status}) — error context:" | tee -a ${prefix}_r2dt.log
+    # mismatch a template (e.g. depaired Infernal mapping, see r2dt-bio/R2DT#93) — routine
+    # noise from a successful run. More importantly, r2dt.py returns a NON-ZERO exit when a
+    # SINGLE sequence fails (e.g. Failed esl-sfetch, traveler json2svg NoneType) even after
+    # drawing hundreds of others, so a non-zero status is NOT proof that nothing usable was
+    # produced. Salvage whatever R2DT drew rather than discarding it all.
+    if [[ \${r2dt_status} -ne 0 ]]; then
+        echo "[R2DT] r2dt.py draw exited \${r2dt_status} — keeping any structures it did draw; error context:" | tee -a ${prefix}_r2dt.log
         grep -inE 'traceback|error|errno|exception|no such|read-only|permission|denied|cannot|traveler' r2dt_draw.out | tail -n 40 | tee -a ${prefix}_r2dt.log >&2
-        exit 1
     fi
 
-    # Write list of transcript IDs that R2DT successfully drew
-    # Remove output directory if empty so optional: true suppresses publishing
+    # Always run the colour step over whatever SVGs R2DT produced. Don't pre-check
+    # `find results/svg` in bash: that was racy — results/svg can hold hundreds of real SVGs
+    # (confirmed on this cluster) yet read as empty to a `find` immediately afterwards, even
+    # with a retry loop. r2dt_colour_svg.py globs --svg-dir itself (reliable) and no-ops
+    # cleanly with "0 SVGs coloured" if nothing is there.
+    mkdir -p ${prefix}_r2dt
+    python3 ${colour_script} \\
+        --svg-dir       r2dt_raw/results/svg \\
+        --xml-search-dir . \\
+        --out-dir       ${prefix}_r2dt \\
+        2>&1 | tee -a ${prefix}_r2dt.log
+
+    # Write list of transcript IDs coloured, and record whether we produced any.
+    # Remove output directory if empty so optional: true suppresses publishing.
+    drew_any=0
     if [[ -d ${prefix}_r2dt ]]; then
         for _f in ${prefix}_r2dt/*.svg; do
             [[ -f "\$_f" ]] || continue
             basename "\$_f" .svg
         done > r2dt_drawn_ids.txt
-        find ${prefix}_r2dt -maxdepth 1 -name '*.svg' | grep -q . || rm -rf ${prefix}_r2dt
+        if find ${prefix}_r2dt -maxdepth 1 -name '*.svg' | grep -q .; then
+            drew_any=1
+        else
+            rm -rf ${prefix}_r2dt
+        fi
     else
         touch r2dt_drawn_ids.txt
+    fi
+
+    # Only a genuine total failure — R2DT crashed AND left no usable structures — is fatal.
+    # (A clean run that colours zero SVGs, e.g. all-NaN reactivity, stays non-fatal: ViennaRNA
+    # is the fallback renderer for anything R2DT doesn't cover.)
+    if [[ \${r2dt_status} -ne 0 && \${drew_any} -eq 0 ]]; then
+        echo "[R2DT] r2dt.py draw FAILED (exit \${r2dt_status}) and produced no structures." | tee -a ${prefix}_r2dt.log >&2
+        exit 1
     fi
 
     cat <<END_VERSIONS > versions.yml

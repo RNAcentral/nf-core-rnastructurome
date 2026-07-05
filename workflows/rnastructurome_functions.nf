@@ -747,20 +747,31 @@ def parseRfcorrelateMatrix(matrixFile) {
     ]
 }
 
-def rfCorrelateMultiqc(rows, method) {
-    def normalised = normaliseMqcRows(rows)
-    if (!normalised) {
+def rfCorrelateMultiqc(pearsonRows, spearmanRows) {
+    def pearson  = normaliseMqcRows(pearsonRows).collectEntries { row -> [(row[0]): row[1]] }
+    def spearman = normaliseMqcRows(spearmanRows).collectEntries { row -> [(row[0]): row[1]] }
+    def ids = (pearson.keySet() + spearman.keySet()) as Set
+    if (!ids) {
         return ''
     }
+    def combined = ids.collect { id ->
+        def p = pearson[id]
+        def s = spearman[id]
+        [ id, [
+            replicates    : p?.replicates ?: s?.replicates ?: 0,
+            mean_pearson  : p?.mean_corr,
+            mean_spearman : s?.mean_corr
+        ] ]
+    }
     buildSimpleMultiqcTable(
-        normalised,
-        "nf-core-rnastructurome-rfcorrelate-${method.toLowerCase()}",
-        "nf-core/rnastructurome Replicate Correlation (${method})",
-        "Pairwise reactivity-profile correlation between replicates from rf-correlate (${method}, per sample group). Higher is more reproducible.",
+        combined,
+        'nf-core-rnastructurome-rfcorrelate',
+        'nf-core/rnastructurome Replicate Correlation',
+        'Pairwise reactivity-profile correlation between replicates from rf-correlate (per sample group). Higher is more reproducible.',
         [
-            replicates: [title: 'Replicates',    description: 'Number of replicates compared', scale: 'Blues',  format: '{:,.0f}'],
-            mean_corr : [title: 'Mean Corr.',     description: 'Mean pairwise replicate correlation (overall, transcriptome-wide)', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}'],
-            min_corr  : [title: 'Min Corr.',      description: 'Minimum pairwise replicate correlation (worst replicate pair)', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}']
+            replicates    : [title: 'Replicates',      description: 'Number of replicates compared', scale: 'Blues',  format: '{:,.0f}'],
+            mean_pearson  : [title: 'Mean Pearson',     description: 'Mean pairwise replicate Pearson correlation (reactivity-capped, overall, transcriptome-wide)', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}'],
+            mean_spearman : [title: 'Mean Spearman',    description: 'Mean pairwise replicate Spearman correlation (overall, transcriptome-wide)', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}']
         ]
     )
 }

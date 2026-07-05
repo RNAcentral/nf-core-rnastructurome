@@ -52,9 +52,15 @@ process RNAFRAMEWORK_RFNORM {
         ${untreated_arg} \\
         ${denatured_arg} 2>&1 | tee "\${rfnorm_log_tmp}"
 
+    # Strip ANSI colour codes and collapse \\r-terminated progress-bar updates into real newlines,
+    # so parseRfnormLog's line-based regex can find the covered/discarded summary reliably.
+    cleaned_log="${prefix}.rfnorm.clean.log"
+    sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' "\${rfnorm_log_tmp}" | tr '\\r' '\\n' > "\${cleaned_log}"
+
     if [[ -d ${prefix}_norm ]]; then
-        mv "\${rfnorm_log_tmp}" ${prefix}_norm/rfnorm.log
+        mv "\${cleaned_log}" ${prefix}_norm/rfnorm.log
     fi
+    rm -f "\${rfnorm_log_tmp}"
 
     if [[ -d "${prefix}_norm/plots" ]]; then
         find "${prefix}_norm/plots" -maxdepth 1 -type f -name '*.pdf' | while IFS= read -r plot; do

@@ -223,9 +223,17 @@ workflow ALIGN_READS {
     // duplicates — filter it down to only the read names (QNAMEs) that survived dedup.
     def ch_transcript_bam_bai = channel.empty()
     if (!pipeline_config.transcriptome && !pipeline_config.count_genome) {
-        SAMTOOLS_QNAMES(ch_dedup_bam)
+        // QNAME reconciliation only matters when the genome BAM lost reads to dedup: UMI samples
+        // (UMITOOLS_DEDUP) or non-UMI samples with markdup enabled. Non-UMI + skip_markdup keeps every
+        // read, so filtering the transcript BAM by the full QNAME set is a costly no-op — bypass it.
+        def ch_transcript_branches = ch_transcript_bam_raw.branch { meta, _bam ->
+            recon:    (meta.umi_pattern ?: '').toString().trim() || !params.skip_markdup
+            passthru: !((meta.umi_pattern ?: '').toString().trim() || !params.skip_markdup)
+        }
 
-        def ch_view_split = ch_transcript_bam_raw
+        SAMTOOLS_QNAMES(ch_dedup_bam.filter { meta, _bam -> (meta.umi_pattern ?: '').toString().trim() || !params.skip_markdup })
+
+        def ch_view_split = ch_transcript_branches.recon
             .map { meta, bam -> [ meta.id.toString(), meta, bam ] }
             .join(SAMTOOLS_QNAMES.out.qnames.map { meta, qnames -> [ meta.id.toString(), qnames ] })
             .map { _sample_id, meta, bam, qnames -> [ [meta, bam, []], [meta, qnames] ] }
@@ -242,8 +250,9 @@ workflow ALIGN_READS {
             false
         )
 
+        // Reconciled BAMs rejoin the bypassed (pass-through) transcript BAMs before coordinate sorting.
         SAMTOOLS_SORT_TRANSCRIPT(
-            SAMTOOLS_VIEW.out.bam,
+            SAMTOOLS_VIEW.out.bam.mix(ch_transcript_branches.passthru),
             channel.value([ [], [], [] ]),
             false
         )

@@ -90,12 +90,16 @@ Adapter precedence: per-sample columns (`adapter_5p`, `adapter_3p`) → global f
 
 Set `--cutadapt_quality_only` to skip adapter trimming and perform quality/length filtering only.
 
-### UMI handling (optional)
+### Deduplication and UMI handling (optional)
 
-By default the pipeline uses SAMtools markdup for deduplicating reads but UMI-tagged samples can be run through this pipeline by enabling `umi_pattern` (per-sample column or `--umi_pattern` if the pattern is the same for all samples).
+By default the pipeline does **not** deduplicate reads (`--skip_markdup true`). Position-based deduplication is not valid for chemical-probing data without UMIs — reads that start at the same coordinate are independent molecules, not PCR duplicates. Set `--skip_markdup false` to enable SAMtools markdup if you know position-based dedup is appropriate for your library.
+
+UMI-tagged samples are deduplicated with `umi_tools` regardless of `--skip_markdup`, enabled via `umi_pattern` (per-sample column or `--umi_pattern` if the pattern is the same for all samples).
 
 - Patterns containing only `N/C/X` use `umi_tools --bc-pattern` mode directly.
 - Patterns that contain IUPAC (e.g. containing `D`) are converted to `--extract-method=regex` mode automatically. Each IUPAC character is expanded to a regex character class (`D` → `[AGT]`, `N` → `[ACGT]`, etc.) and the pattern is anchored to the read start as a named capture group. For example, `DNNN` becomes `^(?P<umi_1>[AGT][ACGT][ACGT][ACGT])`.
+
+On the genome (STAR) route, STAR's transcriptome-coordinate BAM is produced at alignment time, before dedup. When dedup removes reads (UMI samples, or `--skip_markdup false`), the pipeline reconciles the transcript BAM against the surviving read names so transcript-level counts match the deduplicated genome BAM. Samples that undergo no read removal (non-UMI with the default `--skip_markdup true`) skip this reconciliation entirely.
 
 ### Reference resolution
 

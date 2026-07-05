@@ -24,6 +24,9 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     def args   = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def outdir = "${prefix}_rfcount_genome"
+    // Mirrors the -m (mutation mode) decision in conf/modules.config, so the summary parser knows
+    // which rf-count-genome table layout to expect (MaP has a Mutated-alignments column; RT-stop does not).
+    def is_map = ((meta.principle ?: '').toLowerCase() == 'map') ? '1' : '0'
     """
     FASTA_PATH="${fasta}"
 
@@ -69,13 +72,20 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     {
         printf 'sample\\tcovered\\tmutated_alignments\\tpct_mutated\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
         # Sample column carries the staged BAM's filename suffix (e.g. "${prefix}.sorted"), so match by prefix.
-        awk -v sample="${prefix}" '
+        awk -v sample="${prefix}" -v is_map="${is_map}" '
             index(\$1, sample) == 1 {
-                if (index(\$3, "/") > 0 && substr(\$4, 1, 1) == "(") {
-                    pct_mut = \$4; gsub("[()%]", "", pct_mut)
-                    print sample "\\t" \$2 "\\t" \$3 "\\t" pct_mut "\\t" \$5 "\\t" \$6 "\\t" \$7 "\\t" \$8
+                if (is_map == "1") {
+                    if (index(\$3, "/") > 0) {
+                        # MaP: "<mutated>/<total> (<pct>%)" — \$3=mutated/total, \$4=(pct%), \$5-\$8=%A/C/G/U
+                        pct_mut = \$4; gsub("[()%]", "", pct_mut)
+                        print sample "\\t" \$2 "\\t" \$3 "\\t" pct_mut "\\t" \$5 "\\t" \$6 "\\t" \$7 "\\t" \$8
+                    } else {
+                        # MaP with zero counted alignments: rf-count prints "-" (\$3), bases at \$4-\$7
+                        print sample "\\t" \$2 "\\t" \$3 "\\t" "NA" "\\t" \$4 "\\t" \$5 "\\t" \$6 "\\t" \$7
+                    }
                 } else {
-                    print sample "\\t" \$2 "\\t" "" "\\t" "" "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
+                    # RT-stop: no Mutated-alignments column; \$3-\$6 = per-base stop percentages
+                    print sample "\\t" \$2 "\\t" "NA" "\\t" "NA" "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
                 }
             }
         ' "\${cleaned_log}" | tail -n 1

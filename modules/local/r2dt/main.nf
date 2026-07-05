@@ -80,29 +80,23 @@ END_VERSIONS
         --out-dir       ${prefix}_r2dt \\
         2>&1 | tee -a ${prefix}_r2dt.log
 
-    # Write list of transcript IDs coloured, and record whether we produced any.
-    # Remove output directory if empty so optional: true suppresses publishing.
+    # Write the list of transcript IDs coloured, and record whether we produced any.
+    # Remove the output directory if empty so optional: true suppresses publishing.
+    : > r2dt_drawn_ids.txt
     drew_any=0
-    if [[ -d ${prefix}_r2dt ]]; then
-        for _f in ${prefix}_r2dt/*.svg; do
-            [[ -f "\$_f" ]] || continue
-            basename "\$_f" .svg
-        done > r2dt_drawn_ids.txt
-        if find ${prefix}_r2dt -maxdepth 1 -name '*.svg' | grep -q .; then
-            drew_any=1
-        else
-            rm -rf ${prefix}_r2dt
-        fi
-    else
-        touch r2dt_drawn_ids.txt
-    fi
+    for _f in ${prefix}_r2dt/*.svg; do
+        [[ -f "\$_f" ]] || continue
+        basename "\$_f" .svg >> r2dt_drawn_ids.txt
+        drew_any=1
+    done
+    [[ \${drew_any} -eq 1 ]] || rm -rf ${prefix}_r2dt
 
-    # Only a genuine total failure — R2DT crashed AND left no usable structures — is fatal.
-    # (A clean run that colours zero SVGs, e.g. all-NaN reactivity, stays non-fatal: ViennaRNA
-    # is the fallback renderer for anything R2DT doesn't cover.)
+    # R2DT is a best-effort template renderer and is NEVER fatal to the pipeline: ViennaRNA
+    # renders every transcript R2DT does not cover. r2dt.py returns non-zero if it crashes on a
+    # single sequence (e.g. traveler failing on one tRNA), and on such a crash it may leave
+    # results/svg empty (nothing to salvage). Warn loudly but let the run finish via ViennaRNA.
     if [[ \${r2dt_status} -ne 0 && \${drew_any} -eq 0 ]]; then
-        echo "[R2DT] r2dt.py draw FAILED (exit \${r2dt_status}) and produced no structures." | tee -a ${prefix}_r2dt.log >&2
-        exit 1
+        echo "[R2DT] r2dt.py draw FAILED (exit \${r2dt_status}) and produced no usable structures — falling back to ViennaRNA for this group." | tee -a ${prefix}_r2dt.log >&2
     fi
 
     cat <<END_VERSIONS > versions.yml

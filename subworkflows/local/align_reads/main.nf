@@ -305,11 +305,13 @@ workflow ALIGN_READS {
     // Software versions are collected later via ch_versions (old-style emit: versions)
     // and channel.topic("versions") (new-style topic-based modules)
 
-    // MODULES: BEDOPS_GTF2BED + RSEQC_INFEREXPERIMENT (STAR route only). Convert each reference GTF to
-    // BED12 once, then run infer_experiment on every final BAM to determine strandedness automatically.
+    // MODULES: BEDOPS_GTF2BED + RSEQC_INFEREXPERIMENT (count_genome route only). Convert each reference
+    // GTF to BED12 once, then run infer_experiment to determine strandedness automatically. Only the
+    // rf-count-genome path consumes it (--library-strandedness); the default STAR/rf-count route ignores
+    // strandedness, so skip the inference there.
     def ch_strandedness_by_id = channel.empty()
 
-    if (!pipeline_config.transcriptome) {
+    if (!pipeline_config.transcriptome && pipeline_config.count_genome) {
         BEDOPS_GTF2BED(ch_all_reference_gtf)
 
         def ch_reference_bed_map = collectToMap(

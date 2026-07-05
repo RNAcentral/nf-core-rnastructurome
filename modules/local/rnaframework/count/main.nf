@@ -70,7 +70,12 @@ process RNAFRAMEWORK_RFCOUNT {
 
     summary_tsv="${outdir}/${prefix}.rfcount_summary.tsv"
     {
-        printf 'sample\\tcovered\\tmutated_alignments\\tpct_mutated\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
+        # MaP has Mutated-alignments/pct_mutated columns; RT-stop does not, so omit them entirely there.
+        if [[ "${is_map}" == "1" ]]; then
+            printf 'sample\\tcovered\\tmutated_alignments\\tpct_mutated\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
+        else
+            printf 'sample\\tcovered\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
+        fi
         awk -v sample="${prefix}" -v is_map="${is_map}" '
             \$1 == sample {
                 if (is_map == "1") {
@@ -84,7 +89,7 @@ process RNAFRAMEWORK_RFCOUNT {
                     }
                 } else {
                     # RT-stop: no Mutated-alignments column; \$3-\$6 = per-base stop percentages
-                    print \$1 "\\t" \$2 "\\t" "NA" "\\t" "NA" "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
+                    print \$1 "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
                 }
             }
         ' "\${cleaned_log}" | tail -n 1

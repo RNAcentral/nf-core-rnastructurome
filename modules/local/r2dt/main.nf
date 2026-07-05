@@ -68,6 +68,14 @@ END_VERSIONS
         grep -inE 'traceback|error|errno|exception|no such|read-only|permission|denied|cannot|traveler' r2dt_draw.out | tail -n 40 | tee -a ${prefix}_r2dt.log >&2
     fi
 
+    # R2DT assembles results/svg only on a clean exit; a fatal crash on a single sequence (e.g. the
+    # esl-sfetch failure above) aborts before assembly, stranding the per-template *.colored.svg it
+    # already drew. Backfill results/svg from those so a late crash doesn't discard good diagrams.
+    # No-op on a clean run: cp -n keeps R2DT's own assembled results/svg.
+    mkdir -p r2dt_raw/results/svg
+    find r2dt_raw -path r2dt_raw/results -prune -o -name '*.colored.svg' -print0 \\
+        | xargs -0 -r -I{} cp -n {} r2dt_raw/results/svg/ || true
+
     # Always run the colour step over whatever SVGs R2DT produced. Don't pre-check
     # `find results/svg` in bash: that was racy — results/svg can hold hundreds of real SVGs
     # (confirmed on this cluster) yet read as empty to a `find` immediately afterwards, even

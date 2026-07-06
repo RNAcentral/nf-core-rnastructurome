@@ -23,7 +23,7 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample`, `fastq_1`, `sample_group`, `condition`, and `replicate` columns, with optional `fastq_2` for paired-end data. `sample_id`, `method`, `principle`, `organism`, `chemical`, `RT_enzyme`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
+                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. At minimum it must include `sample`, `fastq_1`, `sample_group`, `condition`, and `replicate` columns, with optional `fastq_2` for paired-end data. `sample_id`, `method`, `principle`, `organism`, `chemical`, `RT_enzyme`, `pH`, `adapter_3p`, `adapter_5p`, and `umi_pattern` can be optionally specified in the samplesheet or as flags.",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {
@@ -144,6 +144,10 @@
                 "RT_enzyme": {
                     "type": "string",
                     "description": "Fallback reverse transcriptase enzyme for rows missing `RT_enzyme` (e.g. `M-MLV`)."
+                },
+                "pH": {
+                    "type": "number",
+                    "description": "Fallback DMS reaction pH for rows missing `pH`."
                 },
                 "umi_pattern": {
                     "type": "string",

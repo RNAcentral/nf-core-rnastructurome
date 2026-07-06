@@ -102,6 +102,7 @@ def buildPipelineConfig(all_params) {
         principle                        : all_params.principle,
         chemical                         : all_params.chemical,
         RT_enzyme                        : all_params.RT_enzyme,
+        pH                               : all_params.pH,
         organism                         : all_params.organism,
         fasta                            : all_params.fasta,
         transcriptome                    : all_params.transcriptome,

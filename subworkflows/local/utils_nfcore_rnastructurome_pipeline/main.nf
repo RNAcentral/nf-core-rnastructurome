@@ -103,6 +103,7 @@ workflow PIPELINE_INITIALISATION {
                     principle     : meta.principle ?: pipeline_config.principle,
                     chemical      : meta.chemical ?: pipeline_config.chemical,
                     RT_enzyme     : meta.RT_enzyme ?: pipeline_config.RT_enzyme,
+                    pH            : hasMetadataValue(meta.pH) ? meta.pH : pipeline_config.pH,
                     organism      : meta.organism ?: pipeline_config.organism,
                     adapter_3p    : meta.adapter_3p,
                     adapter_5p    : meta.adapter_5p,
@@ -190,6 +191,7 @@ def defaultPipelineConfig() {
         principle  : null,
         chemical   : null,
         RT_enzyme  : null,
+        pH         : null,
         organism   : null,
         umi_pattern: null,
         genomes    : null,
@@ -199,6 +201,16 @@ def defaultPipelineConfig() {
 
 def validateInputParameters(pipeline_config) {
     genomeExistsError(pipeline_config)
+}
+
+def hasMetadataValue(value) {
+    if (value == null) {
+        return false
+    }
+    if (value instanceof Collection) {
+        return !value.isEmpty()
+    }
+    return value.toString().trim()
 }
 
 def validateRequiredPaths(input, outdir) {

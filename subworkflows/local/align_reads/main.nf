@@ -137,17 +137,22 @@ workflow ALIGN_READS {
         ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_ALIGN.out.log.collect { _meta, log -> log })
     }
 
-    // MaP (PE) BAMs need name-sort → fixmate → coordinate-sort to add the MC tag for samtools markdup.
-    // RT-stop (SE) BAMs skip this step.
-    SAMTOOLS_SORT_NAME (
-        ch_map_aligned_bam,
-        channel.value([ [], [], [] ]),
-        false
-    )
-    SAMTOOLS_FIXMATE (
-        SAMTOOLS_SORT_NAME.out.bam
-    )
-    ch_mapped_bam = ch_rtstop_aligned_bam.mix(SAMTOOLS_FIXMATE.out.bam)
+    // MaP (PE) BAMs need name-sort → fixmate → coordinate-sort to add the MC tag samtools markdup needs
+    // to mark paired-end duplicates. markdup is the only consumer of that tag, so skip the whole chain
+    // when markdup is disabled (rf-count MaP does its own read-name sorting via --sort-by-read-name).
+    // RT-stop (SE) BAMs skip this step regardless.
+    def ch_mapped_bam = ch_rtstop_aligned_bam.mix(ch_map_aligned_bam)
+    if (!params.skip_markdup) {
+        SAMTOOLS_SORT_NAME (
+            ch_map_aligned_bam,
+            channel.value([ [], [], [] ]),
+            false
+        )
+        SAMTOOLS_FIXMATE (
+            SAMTOOLS_SORT_NAME.out.bam
+        )
+        ch_mapped_bam = ch_rtstop_aligned_bam.mix(SAMTOOLS_FIXMATE.out.bam)
+    }
 
     // STAR's --quantMode TranscriptomeSAM output (genome route, count_genome=false only): projects each
     // spliced genomic alignment onto transcript coordinates. Produced at alignment time, so it still

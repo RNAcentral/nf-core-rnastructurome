@@ -699,7 +699,7 @@ def rfnormStatsMultiqc(rows) {
         'Transcript coverage statistics from RF-count and RF-norm (per normalisation group).',
         [
             rfcount_covered: [title: 'RF-count Covered', description: 'Transcripts covered by RF-count (input to RF-norm)', scale: 'Blues',  format: '{:,.0f}'],
-            covered        : [title: 'RF-norm Covered',  description: 'Transcripts passing RF-norm normalisation (sufficient coverage)', scale: 'Greens', format: '{:,.0f}']
+            covered        : [title: 'RF-norm Good Coverage',  description: 'Transcripts passing RF-norm normalisation (sufficient coverage)', scale: 'Greens', format: '{:,.0f}']
         ]
     )
 }
@@ -709,10 +709,10 @@ def rffoldStatsMultiqc(rows) {
         rows,
         'nf-core-rnastructurome-rffold-stats',
         'nf-core/rnastructurome RF-fold Statistics',
-        'Folded and discarded transcript counts from rf-fold (per fold group).',
+        'Folded transcripts per fold group, and transcripts dropped from the consensus fold because they were not covered in every replicate.',
         [
             folded   : [title: 'Folded Transcripts',   description: 'Transcripts successfully folded by rf-fold', scale: 'Purples', format: '{:,.0f}'],
-            discarded: [title: 'Discarded Transcripts', description: 'Transcripts discarded by rf-fold (XML parse errors or folding failures)', scale: 'Reds', format: '{:,.0f}']
+            discarded: [title: 'Discarded Transcripts', description: 'Transcripts normalised in a replicate but excluded from the consensus fold (not present in all replicates)', scale: 'Reds', format: '{:,.0f}']
         ]
     )
 }

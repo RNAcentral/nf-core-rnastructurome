@@ -184,6 +184,7 @@ workflow RNASTRUCTUROME {
             FOLD_STRUCTURES.out.structures,
             FOLD_STRUCTURES.out.fold_input,
             ch_reference_fasta_map,
+            ch_reference_gtf_map,
             pipeline_config
         )
         ch_versions = ch_versions.mix(VISUALISE_STRUCTURES.out.versions)
@@ -291,8 +292,21 @@ workflow RNASTRUCTUROME {
     // RF-fold summary table: one row per fold group (sample_group; may span replicates).
     // Skipped when stop_after_jackknife is true (rffold_log is empty).
     if (!params.stop_after_jackknife) {
+        // Sum of per-replicate rf-norm covered transcripts, keyed by fold group (sample_group).
+        def ch_norm_covered_by_foldgroup = NORMALISE_REACTIVITIES.out.rfnorm_log
+            .map { meta, log -> [ meta.sample_group.toString(), parseRfnormLog(log).covered as long ] }
+            .groupTuple()
+            .map { sample_group, covered_list -> [ sample_group, covered_list.sum() as long ] }
+
+        // "discarded" = transcripts normalised in some replicate but dropped from the consensus fold
+        // because they were not present in every replicate: sum(per-rep covered) - n_reps * folded.
         def ch_rffold_stats_mqc = FOLD_STRUCTURES.out.rffold_log
-            .map { meta, log -> [ meta.id.toString(), parseRffoldLog(log) ] }
+            .map { meta, log -> [ meta.id.toString(), (meta.fold_experiment_count ?: 1) as long, parseRffoldLog(log).folded as long ] }
+            .join(ch_norm_covered_by_foldgroup)
+            .map { group_id, n_reps, folded, norm_covered_sum ->
+                def discarded = Math.max(0L, (norm_covered_sum as long) - (n_reps * folded))
+                [ group_id, [ folded: folded, discarded: discarded ] ]
+            }
             .collect()
             .map { rows -> rffoldStatsMultiqc(rows) }
 

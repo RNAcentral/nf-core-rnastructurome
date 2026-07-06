@@ -12,6 +12,7 @@ workflow VISUALISE_STRUCTURES {
     ch_fold_structures     // channel: [ val(meta), path(dir) ]
     ch_fold_input          // channel: [ val(meta), path(xmls) ]
     ch_reference_fasta_map // value:   map of reference_key -> [meta, fasta]
+    ch_reference_gtf_map   // value:   map of reference_key -> [meta, gtf]
     pipeline_config        // map
 
     main:
@@ -51,18 +52,22 @@ workflow VISUALISE_STRUCTURES {
             .join(ch_r2dt_xml)
             .map { _fg, meta, dir, xmls -> [ meta, dir, xmls ] }
             .combine(ch_reference_fasta_map)
+            .combine(ch_reference_gtf_map)
             .flatMap { combined ->
                 def meta      = combined[0]
                 def fold_dir  = combined[1]
                 def xmls      = combined[2]
                 def fasta_map = combined[3]
+                def gtf_map   = combined[4]
                 def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
                 def fasta_t   = fasta_map[ref_key]
                 if (!fasta_t) {
                     log.warn("Skipping R2DT for '${meta.id}': no FASTA for '${ref_key}'")
                     return []
                 }
-                return [ [ meta, fold_dir, xmls, fasta_t[1] ] ]
+                // No GTF (e.g. viral synthetic reference): draw all — the module skips biotype filtering.
+                def gtf_t = gtf_map[ref_key]
+                return [ [ meta, fold_dir, xmls, fasta_t[1], gtf_t ? gtf_t[1] : [] ] ]
             }
 
         R2DT(

@@ -767,8 +767,8 @@
                 },
                 "structextract_ignore_react": {
                     "type": "boolean",
-                    "description": "rf-structextract skips low-reactivity evaluation (`-ir`).",
-                    "default": true
+                    "description": "rf-structextract skips low-reactivity evaluation (`-ir`). When false (default), reactivity is evaluated so only regions with probing support are extracted.",
+                    "default": false
                 },
                 "structextract_ignore_shannon": {
                     "type": "boolean",
@@ -930,6 +930,11 @@
                     "type": "string",
                     "description": "Container image used for the local R2DT module. The default pins the Docker Hub image built immediately before the R2DT v2.2 release because Docker Hub does not publish a v2.2 tag.",
                     "default": "docker.io/rnacentral/r2dt@sha256:5fccdaf3688c50b1f602235e527a78b26bd078d8f1784b2b09d58e204bb5539c"
+                },
+                "r2dt_templatable_biotypes": {
+                    "type": "string",
+                    "description": "Comma-separated GTF biotypes sent to R2DT. R2DT only has templates for structured ncRNA classes; transcripts of other biotypes (mRNA, lncRNA, ...) are excluded so R2DT never force-fits them to the wrong template, and are drawn by ViennaRNA instead. Matched case-insensitively against transcript/gene biotype.",
+                    "default": "rRNA,Mt_rRNA,tRNA,Mt_tRNA,snoRNA,scaRNA,snRNA,SRP_RNA,RNase_P_RNA,RNase_MRP_RNA,tmRNA"
                 },
                 "rfwiggle_report_zeroes": {
                     "type": "boolean",

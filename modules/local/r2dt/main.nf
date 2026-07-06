@@ -6,7 +6,7 @@ process R2DT {
     container params.r2dt_container
 
     input:
-    tuple val(meta), path(fold_dir), path(xml_files, stageAs: "xml_input*/*"), path(fasta)
+    tuple val(meta), path(fold_dir), path(xml_files, stageAs: "xml_input*/*"), path(fasta), path(gtf)
     path colour_script
     path extract_script
 
@@ -22,11 +22,16 @@ process R2DT {
     script:
     def args = task.ext.args ?: ''
     prefix   = task.ext.prefix ?: "${meta.id}"
+    // Restrict template search to transcripts R2DT actually models (by GTF biotype); without a GTF
+    // (e.g. viral synthetic references) fall back to drawing everything.
+    def biotypes = task.ext.templatable_biotypes ?: ''
+    def gtf_arg  = gtf ? "--gtf ${gtf} --allowed-biotypes \"${biotypes}\"" : ''
     """
     # ── 1. Extract sequences for transcripts present in fold dotbracket output ──
     python3 ${extract_script} \\
         --fold-dir ${fold_dir} \\
         --fasta    ${fasta} \\
+        ${gtf_arg} \\
         --out      r2dt_input.fa \\
         2>&1 | tee ${prefix}_r2dt.log
 

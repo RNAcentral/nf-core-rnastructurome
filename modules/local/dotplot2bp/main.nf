@@ -16,12 +16,14 @@ process RNAFRAMEWORK_DOTPLOT2BP {
 
     script:
     def args = task.ext.args ?: ''
+    // Transcript-coordinate conversion (--transcript-coords) needs no GTF; genome-coordinate does.
+    def gtf_arg = gtf ? "--gtf \"${gtf}\"" : ''
     """
     python "${dotplot2bp_script}" \
         --organism "${meta.organism ?: meta.id}" \
         --prefix "${meta.id}" \
         --fold-dir "${fold_dir}" \
-        --gtf "${gtf}" \
+        ${gtf_arg} \
         ${args}
 
     printf '"%s":\n    python: %s\n' \

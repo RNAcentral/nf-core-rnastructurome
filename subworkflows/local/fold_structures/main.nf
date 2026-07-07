@@ -175,28 +175,29 @@ workflow FOLD_STRUCTURES {
             ch_structextract = RNAFRAMEWORK_RFSTRUCTEXTRACT.out.motifs
         }
 
-        def ch_dotplot_bp_input = RNAFRAMEWORK_RFFOLD.out.structures
+        // Resolve each fold group's GTF (absent for NCBI/viral references). The genome-coordinate
+        // conversion needs it; the transcript-coordinate one does not — so only the genome variant is
+        // gated on GTF presence, while the transcript variant runs for every reference (gtf = []).
+        def ch_dotplot_bp_resolved = RNAFRAMEWORK_RFFOLD.out.structures
             .combine(ch_reference_gtf_map)
-            .flatMap { combined ->
-                def meta      = combined[0]
-                def fold_dir  = combined[1]
-                def gtf_map   = combined[2]
+            .map { meta, fold_dir, gtf_map ->
                 def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
                 def gtf_tuple = gtf_map[reference_key]
                 if (!gtf_tuple) {
-                    log.warn("Skipping dotplot-to-bp conversion for '${reference_key}': no GTF available (expected for NCBI/viral references).")
-                    return []
+                    log.warn("No GTF for '${reference_key}': skipping genome-coordinate bp (transcript-coordinate bp still produced).")
                 }
-                return [ [ meta, fold_dir, gtf_tuple[1] ] ]
+                [ meta, fold_dir, gtf_tuple ? gtf_tuple[1] : [] ]
             }
 
+        def ch_dotplot_bp_genome = ch_dotplot_bp_resolved.filter { _meta, _fold_dir, gtf -> gtf }
+
         RNAFRAMEWORK_DOTPLOT2BP (
-            ch_dotplot_bp_input,
+            ch_dotplot_bp_genome,
             file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
         )
 
         RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT (
-            ch_dotplot_bp_input,
+            ch_dotplot_bp_resolved,
             file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
         )
 

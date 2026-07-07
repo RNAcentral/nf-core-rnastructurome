@@ -184,9 +184,12 @@ workflow ALIGN_READS {
         non_umi: !((meta.umi_pattern ?: '').toString().trim())
     }
 
-    // MODULE: samtools flagstat — collect pre-dedup flag statistics
+    // MODULE: samtools flagstat — pre-dedup counts, only for samples that actually undergo read-removing
+    // dedup (UMI always; non-UMI only with markdup on). For the rest pre == post, so skip the redundant
+    // flagstat; the count-progression table falls back to pre = post for these.
+    def ch_flagstat_pre_input = params.skip_markdup ? dedup_branches.umi : ch_sorted_bam_bai
     SAMTOOLS_FLAGSTAT_PRE (
-        ch_sorted_bam_bai
+        ch_flagstat_pre_input
     )
 
     // MODULE: umi_tools dedup — deduplicate UMI-tagged BAMs

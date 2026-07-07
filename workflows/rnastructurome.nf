@@ -133,12 +133,15 @@ workflow RNASTRUCTUROME {
     def ch_rfcount_covered_transcripts = ch_rfcount_summary
         .map { meta, summary_tsv -> [ meta.id.toString(), parseRfcountCoveredTranscripts(summary_tsv) ] }
 
-    def ch_count_progression_mqc = ch_pre_dedup_mapped_reads
-        .join(ch_post_dedup_mapped_reads)
+    // Anchor on post-dedup + covered (present for every counted sample); pre-dedup counts exist only for
+    // samples that were deduplicated (others skip the redundant flagstat), so fall back pre = post.
+    def ch_count_progression_mqc = ch_post_dedup_mapped_reads
         .join(ch_rfcount_covered_transcripts)
-        .map { sample_id, mapped_pre, mapped_post, covered_transcripts ->
-            def mappedPreLong = mapped_pre as long
+        .join(ch_pre_dedup_mapped_reads, remainder: true)
+        .filter { entry -> entry[1] != null }
+        .map { sample_id, mapped_post, covered_transcripts, mapped_pre ->
             def mappedPostLong = mapped_post as long
+            def mappedPreLong = (mapped_pre != null ? mapped_pre : mapped_post) as long
             def removed = Math.max(mappedPreLong - mappedPostLong, 0L)
             def pctRemoved = mappedPreLong ? ((removed as double) / (mappedPreLong as double)) * 100.0d : 0.0d
             [

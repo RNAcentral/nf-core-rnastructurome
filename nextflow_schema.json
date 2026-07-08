@@ -230,14 +230,6 @@
                     "default": 10,
                     "description": "Maximum number of loci a read is allowed to map to in STAR (`--outFilterMultimapNmax`). Reads mapping to more loci than this are discarded. Increase when studying repetitive non-coding RNAs."
                 },
-                "bowtie_mapping_params": {
-                    "type": "string",
-                    "description": "Additional aligner options appended to Bowtie/Bowtie2 commands."
-                },
-                "bowtie_manual_only": {
-                    "type": "boolean",
-                    "description": "Use only options from `--bowtie_mapping_params` and ignore other Bowtie/Bowtie2 tuning flags."
-                },
                 "bowtie_k": {
                     "type": "integer",
                     "minimum": 1,
@@ -249,14 +241,6 @@
                         "string"
                     ],
                     "description": "Report all valid alignments (`-a`)."
-                },
-                "bowtie_norc": {
-                    "type": "boolean",
-                    "description": "Only align to forward strand (`--norc`). Use when reads are known to be sense-strand."
-                },
-                "bowtie_nofw": {
-                    "type": "boolean",
-                    "description": "Only align to reverse strand (`--nofw`). Use when reads are cDNA antisense to the RNA (e.g. DMS-MaP-seq single-end)."
                 },
                 "bowtie_trim5": {
                     "type": "integer",
@@ -271,11 +255,6 @@
                 "bowtie_index": {
                     "type": "string",
                     "description": "Optional path to a prebuilt Bowtie index (currently not consumed by workflow logic)."
-                },
-                "bowtie_seedlen": {
-                    "type": "integer",
-                    "minimum": 3,
-                    "description": "Seed length (`-l`/`-L`) used by Bowtie/Bowtie2."
                 },
                 "bowtie_n": {
                     "type": "integer",

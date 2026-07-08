@@ -370,19 +370,11 @@ def buildModuleOptionsSummary(pipeline_config, sampleMetadata) {
 }
 
 def renderBowtie1Args(pipeline_config) {
-    def manualOnly = pipeline_config.bowtie_manual_only as Boolean ?: false
-    def manualParams = (pipeline_config.bowtie_mapping_params ?: '').toString().trim()
-    if (manualOnly) {
-        return manualParams ?: 'none'
-    }
     def args = []
     if (pipeline_config.bowtie_all as Boolean) {
         args << '-a'
     } else if (pipeline_config.bowtie_k != null) {
         args << "-k ${pipeline_config.bowtie_k as Integer}"
-    }
-    if (pipeline_config.bowtie_norc as Boolean) {
-        args << '--norc'
     }
     if ((pipeline_config.bowtie_trim5 as Integer) > 0) {
         args << "--trim5 ${pipeline_config.bowtie_trim5 as Integer}"
@@ -390,8 +382,7 @@ def renderBowtie1Args(pipeline_config) {
     if ((pipeline_config.bowtie_trim3 as Integer) > 0) {
         args << "--trim3 ${pipeline_config.bowtie_trim3 as Integer}"
     }
-    def seedlen = pipeline_config.bowtie_seedlen != null ? pipeline_config.bowtie_seedlen as Integer : 28
-    args << "-l ${seedlen}"
+    args << '-l 28'
     if (pipeline_config.bowtie_v != null) {
         args << "-v ${pipeline_config.bowtie_v as Integer}"
     } else {
@@ -399,32 +390,23 @@ def renderBowtie1Args(pipeline_config) {
     }
     if (!(pipeline_config.bowtie_all as Boolean) && pipeline_config.bowtie_k == null && pipeline_config.bowtie_max != null) {
         args << "-m ${pipeline_config.bowtie_max as Integer}"
+        if ((pipeline_config.bowtie_max as Integer) > 1) {
+            args << '-a'
+        }
     }
+    args << '--best'
+    args << '--strata'
     args << "--chunkmbs ${pipeline_config.bowtie_chunkmbs as Integer}"
-    if (manualParams) {
-        args << manualParams
-    }
     args.join(' ').trim()
 }
 
 def renderBowtie2Args(pipeline_config) {
-    def manualOnly = pipeline_config.bowtie_manual_only as Boolean ?: false
-    def manualParams = (pipeline_config.bowtie_mapping_params ?: '').toString().trim()
-    if (manualOnly) {
-        return manualParams ?: 'none'
-    }
     def args = []
     def preset = pipeline_config.bowtie2_preset?.toString()?.trim() ?: ''
     if (pipeline_config.bowtie_all as Boolean) {
         args << '-a'
     } else if (!preset && pipeline_config.bowtie_k != null) {
         args << "-k ${pipeline_config.bowtie_k as Integer}"
-    }
-    if (pipeline_config.bowtie_norc as Boolean) {
-        args << '--norc'
-    }
-    if (pipeline_config.bowtie_nofw as Boolean) {
-        args << '--nofw'
     }
     if ((pipeline_config.bowtie_trim5 as Integer) > 0) {
         args << "--trim5 ${pipeline_config.bowtie_trim5 as Integer}"
@@ -438,8 +420,7 @@ def renderBowtie2Args(pipeline_config) {
             args << "--ma ${pipeline_config.bowtie2_ma as Integer}"
         }
     } else {
-        def seedlen = pipeline_config.bowtie_seedlen != null ? pipeline_config.bowtie_seedlen as Integer : 22
-        args << "-L ${seedlen}"
+        args << '-L 22'
         if (pipeline_config.bowtie2_softclip as Boolean) {
             args << '--local'
             args << "--ma ${pipeline_config.bowtie2_ma as Integer}"
@@ -451,9 +432,6 @@ def renderBowtie2Args(pipeline_config) {
     args << "--rfg ${pipeline_config.bowtie2_rfg}"
     if (pipeline_config.bowtie2_dovetail as Boolean) {
         args << '--dovetail'
-    }
-    if (manualParams) {
-        args << manualParams
     }
     args.join(' ').trim()
 }

@@ -97,15 +97,14 @@ nextflow_function {
         function "renderBowtie1Args"
         when { function { """
             input[0] = [
-                bowtie_manual_only: false, bowtie_mapping_params: null,
-                bowtie_all: false, bowtie_k: null, bowtie_norc: false,
-                bowtie_trim5: 0, bowtie_trim3: 0, bowtie_seedlen: null,
-                bowtie_v: null, bowtie_n: 2, bowtie_max: 1, bowtie_chunkmbs: 128
+                bowtie_all: true, bowtie_k: 1,
+                bowtie_trim5: 0, bowtie_trim3: 0,
+                bowtie_v: null, bowtie_n: 2, bowtie_max: 1, bowtie_chunkmbs: 512
             ]
         """ } }
         then {
             assert function.success
-            assert function.result == '-l 28 -n 2 -m 1 --chunkmbs 128'
+            assert function.result == '-a -l 28 -n 2 --best --strata --chunkmbs 512'
         }
     }
 }

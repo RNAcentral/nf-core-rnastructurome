@@ -140,41 +140,6 @@ nextflow_workflow {
         }
     }
 
-    test("Accepts manual Bowtie/Bowtie2 mapping params") {
-
-        options "-stub"
-
-        when {
-            workflow {
-                """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-                params.bowtie_manual_only = true
-                params.bowtie_mapping_params = '-k 1'
-
-                input[0] = Channel.of(
-                    [
-                        [ id:'rtstop_manual', sample_id:'rtstop_manual', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'rtstop_manual_line', replicate:'rep1', condition:'treated' ],
-                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
-                    ],
-                    [
-                        [ id:'map_manual', sample_id:'map_manual', principle:'MaP', organism:'Mus musculus', single_end:true, sample_group:'map_manual_line', replicate:'rep1', condition:'treated' ],
-                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
-                    ]
-                )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
-                """
-            }
-        }
-
-        then {
-            assertAll(
-                { assert workflow.success },
-                { assert workflow.out.mapped_bam.size() == 2 }
-            )
-        }
-    }
-
     test("Accepts rf-count parameter overrides") {
 
         options "-stub"

@@ -16,8 +16,10 @@ process SAMTOOLS_QNAMES {
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
+    // Bound sort's RAM below the request and spill to the work dir (-T .), not the node's small $TMPDIR.
+    def sort_mem = task.memory ? Math.max(1, task.memory.toGiga().intValue() - 2) : 4
     """
-    samtools view ${bam} | cut -f1 | sort -u > ${prefix}.qnames.txt
+    samtools view -@ ${task.cpus} ${bam} | cut -f1 | LC_ALL=C sort -u -T . -S ${sort_mem}G > ${prefix}.qnames.txt
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

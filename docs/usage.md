@@ -13,9 +13,9 @@ Please provide pipeline parameters via the CLI or Nextflow `-params-file` option
 The easiest way to run this pipeline is to create a full samplesheet that contains all of the information about each sample in a comma-separated file, including the header row shown below and pass it as `--input '[path to samplesheet file]'`:
 
 ```csv title="full_samplesheet.csv"
-sample,sample_id,fastq_1,fastq_2,method,principle,sample_group,condition,replicate,organism,pH,adapter_3p,adapter_5p,umi_pattern
-HEK293T_treated_r1,GSM000001,/data/treated_r1.fastq.gz,,SHAPE,RT-stop,HEK293T,treated,1,Homo sapiens,7.5,,,
-HEK293T_untreated_r1,GSM000002,/data/untreated_r1.fastq.gz,,SHAPE,RT-stop,HEK293T,untreated,1,Homo sapiens,7.5,,,
+sample,sample_id,fastq_1,fastq_2,method,principle,chemical,RT_enzyme,sample_group,condition,replicate,organism,pH,adapter_3p,adapter_5p,umi_pattern
+HEK293T_treated_r1,GSM000001,/data/treated_r1.fastq.gz,,SHAPE,RT-stop,NAI,M-MLV,HEK293T,treated,1,Homo sapiens,7.5,,,
+HEK293T_untreated_r1,GSM000002,/data/untreated_r1.fastq.gz,,SHAPE,RT-stop,NAI,M-MLV,HEK293T,untreated,1,Homo sapiens,7.5,,,
 ```
 
 An [example samplesheet](../assets/samplesheet.csv) is provided.
@@ -36,22 +36,24 @@ then pass essential but uniform options like this:
 
 ### Column reference
 
-| Column        | Required | Description                                                                                           |
-| ------------- | -------- | ----------------------------------------------------------------------------------------------------- |
-| `sample`      | yes      | Sample identifier. Re-use the same name to concatenate re-sequenced samples (multi-lane support).     |
-| `sample_id`   | no       | Unique identifier for an individual sequencing run.                                                   |
-| `fastq_1`     | yes      | Read 1 FASTQ path (`.fastq.gz` / `.fq.gz`).                                                           |
-| `fastq_2`     | no       | Read 2 FASTQ path for paired-end data.                                                                |
-| `sample_group` | yes      | Group key used for control pairing in `rf-norm`.                                                      |
-| `condition`   | yes      | One of `treated`, `untreated`, `denatured`.                                                           |
-| `replicate`   | yes      | Replicate key used for control pairing in `rf-norm`.                                                  |
-| `method`      | no       | Probing chemistry: `SHAPE` or `DMS`. Controls chemistry-specific defaults. Falls back to `--method`.  |
-| `principle`   | no       | Readout principle: `rt-stop` or `map`. Controls alignment, rf-count, and rf-norm defaults. Falls back to `--principle`. |
-| `organism`    | no       | Used for automatic genome/transcriptome download from Ensembl/NCBI (e.g. `Homo sapiens`). Falls back to `--organism`. |
-| `pH`          | no       | DMS reaction pH. `pH >= 8.0` sets reactive bases to `ACGU`; otherwise defaults to `AC`.              |
-| `adapter_3p`  | no       | 3′ adapter sequence passed to Cutadapt.                                                               |
-| `adapter_5p`  | no       | 5′ adapter sequence passed to Cutadapt.                                                               |
-| `umi_pattern` | no       | UMI pattern passed to umi_tools. Supplying this enables UMI extraction before trimming.               |
+| Column         | Required | Required in samplesheet | Description                                                                                           |
+| -------------- | -------- | ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| `sample`       | yes      | yes                     | Sample identifier. Re-use the same name to concatenate re-sequenced samples (multi-lane support).     |
+| `sample_id`    | no       | no                      | Unique identifier for an individual sequencing run.                                                   |
+| `fastq_1`      | yes      | yes                     | Read 1 FASTQ path (`.fastq.gz` / `.fq.gz`).                                                           |
+| `fastq_2`      | no       | no                      | Read 2 FASTQ path for paired-end data.                                                                |
+| `sample_group` | yes      | yes                     | Group key used for control pairing in `rf-norm`.                                                      |
+| `condition`    | yes      | yes                     | One of `treated`, `untreated`, `denatured`.                                                           |
+| `replicate`    | yes      | yes                     | Replicate key used for control pairing in `rf-norm`.                                                  |
+| `method`       | yes      | no                      | Probing chemistry: `SHAPE` or `DMS`. Controls chemistry-specific defaults. Falls back to `--method`.  |
+| `principle`    | yes      | no                      | Readout principle: `rt-stop` or `map`. Controls alignment, rf-count, and rf-norm defaults. Falls back to `--principle`. |
+| `chemical`     | no       | no                      | Probing reagent. Falls back to `--chemical`; if unset, rf-fold uses generic slope/intercept defaults. |
+| `RT_enzyme`    | no       | no                      | Reverse transcriptase enzyme. Falls back to `--RT_enzyme`; if unset, rf-count MaP settings use M-MLV defaults. |
+| `organism`     | yes      | no                      | Used for automatic genome/transcriptome download from Ensembl/NCBI (e.g. `Homo sapiens`). Falls back to `--organism`. |
+| `pH`           | no       | no                      | DMS reaction pH. Falls back to `--pH`; `pH >= 8.0` sets reactive bases to `ACGU`, otherwise DMS defaults to `AC`. |
+| `adapter_3p`   | no       | no                      | 3′ adapter sequence passed to Cutadapt. Falls back to `--cutadapt_adapter_3p`, then `AGATCGGAAGAGC`. |
+| `adapter_5p`   | no       | no                      | 5′ adapter sequence passed to Cutadapt. Falls back to `--cutadapt_adapter_5p`, then `AGATCGGAAGAGC`. |
+| `umi_pattern`  | no       | no                      | UMI pattern passed to umi_tools. Falls back to `--umi_pattern`; if unset, UMI extraction is skipped. |
 
 
 ## Other considerations and parameters
@@ -72,7 +74,7 @@ By default the pipeline aligns to the genome with STAR and extracts transcript-l
 
 Two optional RNAframework modules are available:
 
-1. **rf-jackknife** — tunes folding parameters against reference RNA structures. Pass `--jackknife_reference` with a path to a `.db` file of known structures. When provided, rf-jackknife runs between rf-norm and rf-fold and calibrates the slope and intercept parameters passed to rf-fold.
+1. **rf-jackknife** — tunes folding parameters against reference RNA structures. Pass `--jackknife_reference` with a path to a `.db` file of known structures. When provided, rf-jackknife runs between rf-norm and rf-fold and calibrates the slope and intercept parameters passed to rf-fold. Add `--stop_after_jackknife` to run calibration only and skip rf-fold and downstream structure outputs.
 2. **rf-eval** — evaluates the agreement between your reactivity data and a set of reference RNA structures, computing metrics such as AUROC and DSCI that can be used as quality control. Pass `--rfeval_reference` with a path to a `.db` file of known structures to enable it.
 
 ## More details for key steps
@@ -94,7 +96,7 @@ Set `--cutadapt_quality_only` to skip adapter trimming and perform quality/lengt
 
 By default the pipeline does **not** deduplicate reads (`--skip_markdup true`). Position-based deduplication is not valid for chemical-probing data without UMIs — reads that start at the same coordinate are independent molecules, not PCR duplicates. Set `--skip_markdup false` to enable SAMtools markdup if you know position-based dedup is appropriate for your library.
 
-UMI-tagged samples are deduplicated with `umi_tools` regardless of `--skip_markdup`, enabled via `umi_pattern` (per-sample column or `--umi_pattern` if the pattern is the same for all samples).
+UMI-tagged samples are deduplicated with `umi_tools`, enabled via `umi_pattern` (per-sample column or `--umi_pattern` if the pattern is the same for all samples).
 
 - Patterns containing only `N/C/X` use `umi_tools --bc-pattern` mode directly.
 - Patterns that contain IUPAC (e.g. containing `D`) are converted to `--extract-method=regex` mode automatically. Each IUPAC character is expanded to a regex character class (`D` → `[AGT]`, `N` → `[ACGT]`, etc.) and the pattern is anchored to the read start as a named capture group. For example, `DNNN` becomes `^(?P<umi_1>[AGT][ACGT][ACGT][ACGT])`.
@@ -120,33 +122,43 @@ Resolution order for each file type:
 
 **Default: genome alignment with STAR**
 
-The pipeline downloads a soft-masked genome FASTA (`dna_sm.toplevel.fa.gz`) and GTF from Ensembl, builds a STAR index, and aligns with splice-junction awareness. Genome-coordinate counts from `rf-count-genome` are then converted to transcript-level RC files by `rf-rctools extract` using the GTF before passing to `rf-norm`. This is the recommended route for most experiments: STAR handles spliced reads correctly, the soft-masked genome reduces spurious multi-mappers from repetitive elements, and aligning to the genome avoids the need to choose between competing transcript isoforms. 
+The pipeline downloads a soft-masked genome FASTA (`dna_sm.toplevel.fa.gz`) and GTF from Ensembl, builds a STAR index, and aligns with splice-junction awareness. By default, STAR also emits transcript-coordinate alignments with `--quantMode TranscriptomeSAM`; these BAM files are reconciled with the deduplicated genome BAMs, corrected with `samtools calmd`, and counted directly with `rf-count` before passing to `rf-norm`. This is the recommended route for most experiments: STAR handles spliced reads correctly, the soft-masked genome reduces spurious multi-mappers from repetitive elements, and counting in transcript coordinates avoids known `rf-count-genome` edge cases at exon/intron boundaries.
 
-`--star_multimap_nmax` (default `10`) sets the maximum number of genome locations a read is allowed to map to — reads exceeding this are discarded. The default of 10 is appropriate for most protein-coding genes. If you are probing highly repetitive RNAs such as rRNA or snRNA you may want to increase this (e.g. `--star_multimap_nmax 50`), though be aware that allowing too many multimappers can introduce noise if reads are assigned ambiguously. Additional STAR flags can be passed via `ext.args` in a custom config.
+If you prefer to use the genome-coordinate counting path, set `--count_genome true`. This runs `rf-count-genome` on the genome BAM and then converts the genome-coordinate RC files to transcript-level RC files with `rf-rctools extract` using the GTF.
+
+`--star_multimap_nmax` (default `10`) sets the maximum number of genome locations a read is allowed to map to — reads exceeding this are discarded. The default of 10 is appropriate for most protein-coding genes. If you are probing highly repetitive RNAs such as rRNA or snRNA you may want to increase this (e.g. `--star_multimap_nmax 50`), though be aware that allowing too many multimappers can introduce noise if reads are assigned ambiguously.
+
+The STAR preset also differs by readout principle. RT-stop uses `--alignEndsType Extend5pOfRead1`, `--outFilterMismatchNoverReadLmax 0.04`, and `--outSAMattributes NH HI AS NM MD` to preserve stop positions while retaining the tags needed downstream. MaP uses `--alignEndsType Local`, `--outFilterMismatchNoverReadLmax 0.15`, `--outSAMprimaryFlag AllBestScore`, `--outSAMattributes All`, and `--sjdbOverhang` (default `200`) for mutation-tolerant alignment. For additional available STAR flags check out the parameters page.
 
 **Optional: transcriptome alignment with Bowtie**
 
-Add `--transcriptome` to align directly to a transcript FASTA instead of the genome. In this option, the pipeline downloads Ensembl cDNA + ncRNA FASTA files; for bacteria and viruses not in Ensembl it falls back to NCBI and builds a transcript FASTA from the genome assembly automatically. The aligner used depends on the probing principle: Bowtie for RT-stop and Bowtie2 for MaP. This route works well for bacteria and viruses where genome annotation is sparse or absent, or when you prefer to map directly to a curated set of transcripts.
+Add `--transcriptome` to align directly to a transcript FASTA instead of the genome. In this option, the pipeline downloads Ensembl cDNA + ncRNA FASTA files or for bacteria and viruses not in Ensembl it falls back to NCBI and builds a transcript FASTA from the genome assembly automatically. The aligner used depends on the probing principle: Bowtie for RT-stop and Bowtie2 for MaP.
 
-> **Automatic for NCBI references.** Bacteria and viruses are fetched from NCBI and have no introns, so the genome (STAR) route offers no benefit. When _every_ reference in the samplesheet resolves to the NCBI route, the pipeline enables the transcriptome (Bowtie) route automatically — you do not need to pass `--transcriptome`. A log line reports when this happens. Pass `--transcriptome` explicitly to make the choice visible in your command.
+This route works well for bacteria and viruses since they lack introns and often their genome annotation is sparse or absent, or when you prefer to map directly to a curated set of transcripts. For bacteria and viruses, the pipeline enables the transcriptome (Bowtie) route automatically, so you do not need to pass `--transcriptome` explicitly.
 
-`--bowtie_k` (default `1`) sets the maximum number of alignments to report per read — the equivalent of `--star_multimap_nmax` for the transcriptome route. Setting it to `1` means only uniquely mapping reads are kept. Increase it if you want to retain reads that map to multiple transcripts (e.g. paralogs or transcript isoforms), though the same caveats about ambiguous assignment apply. Use `--bowtie_all` instead to report all valid alignments which is useful if you want various isoforms to be reported. Additional flags can be passed via `ext.args` in a custom config.
+The transcriptome aligners are configured to retain isoform-compatible mappings by default, but Bowtie v1 and Bowtie2 handle this slightly differently. For RT-stop, Bowtie v1 uses `-a --best --strata`, so it reports all alignments in the best alignment stratum rather than lower-scoring valid hits. For MaP, Bowtie2 uses `-a` with the `--very-sensitive-local` preset by default, reporting all alignments it finds under that local, mutation-tolerant search mode.
+
+Set `--bowtie_all false` if you want more restrictive reporting. For RT-stop/Bowtie v1, `--bowtie_k 1` reports at most one best-stratum alignment per read; increasing `--bowtie_k` reports up to that many. For MaP/Bowtie2, setting `--bowtie_all false` with the default `--bowtie2_preset '--very-sensitive-local'` uses Bowtie2's single-alignment reporting. To apply `--bowtie_k` to Bowtie2 or control lower-level Bowtie2 search settings, first clear or replace `--bowtie2_preset` (for example, set it to an empty string in a params file). Other exposed Bowtie/Bowtie2 parameters are listed on the parameter page.
 
 ### rf-count
 
-`rf-count` (transcriptome route) or `rf-count-genome` (genome route) quantifies chemical probing signal from the aligned BAM files. What exactly is counted depends on the principle: for RT-stop experiments it tallies read 3′ ends that accumulate at modified bases; for MaP it measures per-position mutation rates.
+`rf-count` quantifies chemical probing signal from the aligned transcript-coordinate BAM files produced either by the transcriptome route or by STAR `--quantMode TranscriptomeSAM` on the default genome route. If `--count_genome true` is set, the genome route instead uses `rf-count-genome` followed by `rf-rctools extract`. What exactly is counted depends on the principle: for RT-stop experiments it tallies read 3′ ends that accumulate at modified bases; for MaP it measures per-position mutation rates.
+
+When `--count_genome true` is used, strandedness is handled automatically for `rf-count-genome`: RT-stop libraries are always treated as second-strand (this is fixed by experimental design), while for MaP the pipeline infers strandedness per sample using `RSeQC infer_experiment`. If inference is ambiguous you can override it with `--rfcount_strandedness first|second|unstranded`. After genome-coordinate counting, `rf-rctools extract` converts the genome-coordinate RC files to transcript-level RC files using the GTF before passing to `rf-norm`.
+
+For MaP samples, `RT_enzyme` controls several mutation-cleanup defaults. Set it per sample with the `RT_enzyme` samplesheet column, or globally with `--RT_enzyme` when the same enzyme was used for all rows. The pipeline currently distinguishes Group II Intron RTs, including TGIRT, from all other or unset enzymes; non-Group-II values use M-MLV-like defaults.
+
+With M-MLV-like defaults, consecutive mutations/indels are collapsed (`--rfcount_map_collapse_consecutive true`, with `--rfcount_map_max_collapse_distance 2`) and deletion calls are assigned to the right-most deleted base (`--rfcount_map_right_deletion true`). With Group II Intron RTs, consecutive events are not collapsed by default; instead, insertion calls and ambiguously aligned deletions are ignored (`--rfcount_map_no_insertions true`, `--rfcount_map_no_ambiguous true`) and nearby mutations are filtered with `--rfcount_map_discard_consecutive 3`. Each of these automatic choices can be overridden explicitly with its corresponding `--rfcount_map_*` parameter.
+
+Other parameters worth knowing about:
 
 Per-transcript coverage plots are disabled by default (`--rfcount_img false`) because they are slow to generate at transcriptome scale. Enable with `--rfcount_img true` if you want them.
-
-On the genome route, strandedness is handled automatically — RT-stop libraries are always treated as second-strand (this is fixed by experimental design), while for MaP the pipeline infers strandedness per sample using `RSeQC infer_experiment`. If inference is ambiguous you can override it with `--rfcount_strandedness first|second|unstranded`. After counting, `rf-rctools extract` automatically converts the genome-coordinate RC files to transcript-level RC files using the GTF before passing to `rf-norm`.
-
-A few parameters worth knowing about:
 
 `--rfcount_trim_5prime` trims a fixed number of bases from the 5′ end of each read before counting. This is useful for RT-stop experiments where the first few bases after the adapter can carry sequence-context bias that inflates apparent stop rates.
 
 `--rfcount_mask_file` accepts a BED file of regions to exclude from counting entirely — handy for masking rRNA or other highly-expressed contaminating transcripts that would otherwise dominate the output.
 
-`--rfcount_primary_only` restricts counting to primary alignments. If you have increased `--star_multimap_nmax` or `--bowtie_k` to allow multimappers, you may want to pair this with `--rfcount_primary_only` to avoid double-counting reads that aligned to multiple loci.
+`--rfcount_primary_only` restricts counting to alignments marked as primary. This is most relevant when the aligner emits multiple records per read, such as STAR multimappers or Bowtie2 `--bowtie_all`/`-k` output; otherwise a read can contribute to more than one locus or transcript. For Bowtie v1 `--bowtie_all`, use `--bowtie_all false` and `--bowtie_k` if you need stricter one-alignment-per-read reporting.
 
 For the full list of available options see the [rf-count documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-count/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
 
@@ -204,9 +216,11 @@ For the full list of available options see the [rf-correlate documentation](http
 
 #### rf-structextract (optional)
 
-Once structures are folded, `rf-structextract` can pull out the high-confidence structural elements — substructures whose bases show consistently low reactivity **and** low Shannon entropy (the signature of a well-defined, stably folded region) and that meet thermodynamic and geometric criteria. It runs after rf-fold on each `sample_group`, using the fold output (structures + Shannon entropy) together with the group's rf-norm reactivity profiles. Enable it with `--structextract true`; it is off by default.
+Once structures are folded, `rf-structextract` can pull out the high-confidence structural elements — substructures whose bases show consistently low reactivity (and, optionally, low Shannon entropy) — the signature of a well-defined, stably folded region — and that meet thermodynamic and geometric criteria. It runs after rf-fold on each `sample_group`, using the fold output (structures + Shannon entropy) together with the group's rf-norm reactivity profiles. Enable it with `--structextract true`; it is off by default.
 
-The selection criteria are exposed as parameters, matching the rf-structextract defaults: window size for the median reactivity/Shannon scan (`--structextract_win_size`, 50 nt), the minimum transcript length evaluated (`--structextract_min_transcript_len`, 500 nt), the minimum fraction of bases that must sit below the transcript median (`--structextract_min_below_median`, 0.7), the minimum paired-base fraction (`--structextract_min_paired_frac`, 0.45), and motif length bounds (`--structextract_min_motif_len` 50, `--structextract_max_motif_len` unset). You can restrict output to multiway-junction elements with `--structextract_multiway_only`, or skip the reactivity or Shannon test individually with `--structextract_ignore_react` / `--structextract_ignore_shannon`. To additionally keep only motifs whose folding free energy is significantly lower than expected by chance, set `--structextract_eval_energy true` (tuned with `--structextract_pvalue`, `--structextract_n_shufflings`, and `--structextract_dinucl_shuffle`).
+By default reactivity is used as a selection criterion (`--structextract_ignore_react false`), so only regions with probing support are extracted — an unprobed region with no reactivity is not reported. Set `--structextract_ignore_react true` to extract well-defined structural motifs regardless of reactivity coverage (structure-only mode).
+
+The selection criteria are exposed as parameters, matching the rf-structextract defaults: window size for the median reactivity/Shannon scan (`--structextract_win_size`, 50 nt), the minimum transcript length evaluated (`--structextract_min_transcript_len`, 500 nt), the minimum fraction of bases that must sit below the transcript median (`--structextract_min_below_median`, 0.7), the minimum paired-base fraction (`--structextract_min_paired_frac`, 0.45), and motif length bounds (`--structextract_min_motif_len` 50, `--structextract_max_motif_len` unset). You can restrict output to multiway-junction elements with `--structextract_multiway_only`. The reactivity and Shannon tests are toggled individually with `--structextract_ignore_react` (default `false`, so reactivity is evaluated) and `--structextract_ignore_shannon` (default `true`, so the Shannon test is skipped). To additionally keep only motifs whose folding free energy is significantly lower than expected by chance, set `--structextract_eval_energy true` (tuned with `--structextract_pvalue`, `--structextract_n_shufflings`, and `--structextract_dinucl_shuffle`).
 
 Results are written under the sample group's fold directory at `fold/<group>/extracted_structures/`, with the dot-bracket motifs in `dotbracket/` and one 2D diagram per motif in `images/`. The diagrams are drawn with ViennaRNA RNAplot and coloured by SHAPE reactivity in the same style as the rf-fold structure plots (the motif's reactivity is sliced from its parent transcript); disable them with `--structextract_plot false`.
 

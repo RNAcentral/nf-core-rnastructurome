@@ -17,6 +17,7 @@ components:
   - ensembl/transcriptome
   - fasta/sort
   - gffread
+  - gtf/sanitize
   - ncbi/fasta
   - ncbi/gtf
   - resolvereferencekey

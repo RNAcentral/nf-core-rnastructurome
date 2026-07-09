@@ -167,10 +167,12 @@
             "description": "Cutadapt trimming parameters.",
             "properties": {
                 "cutadapt_adapter_5p": {
+                    "default": "AGATCGGAAGAGC",
                     "type": "string",
                     "description": "Global fallback 5' adapter sequence(s), comma-separated. If omitted and no per-sample adapter is provided, the pipeline defaults to AGATCGGAAGAGC."
                 },
                 "cutadapt_adapter_3p": {
+                    "default": "AGATCGGAAGAGC",
                     "type": "string",
                     "description": "Global fallback 3' adapter sequence(s), comma-separated. If omitted and no per-sample adapter is provided, the pipeline defaults to AGATCGGAAGAGC."
                 },
@@ -231,11 +233,13 @@
                     "description": "Maximum number of loci a read is allowed to map to in STAR (`--outFilterMultimapNmax`). Reads mapping to more loci than this are discarded. Increase when studying repetitive non-coding RNAs."
                 },
                 "bowtie_k": {
+                    "default": 1,
                     "type": "integer",
                     "minimum": 1,
                     "description": "Report up to this number of alignments per read (`-k`)."
                 },
                 "bowtie_all": {
+                    "default": true,
                     "type": [
                         "boolean",
                         "string"
@@ -243,11 +247,13 @@
                     "description": "Report all valid alignments (`-a`)."
                 },
                 "bowtie_trim5": {
+                    "default": 0,
                     "type": "integer",
                     "minimum": 0,
                     "description": "Trim this many bases from 5' read end (`--trim5`)."
                 },
                 "bowtie_trim3": {
+                    "default": 0,
                     "type": "integer",
                     "minimum": 0,
                     "description": "Trim this many bases from 3' read end (`--trim3`)."
@@ -257,6 +263,7 @@
                     "description": "Optional path to a prebuilt Bowtie index (currently not consumed by workflow logic)."
                 },
                 "bowtie_n": {
+                    "default": 2,
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 3,
@@ -269,11 +276,13 @@
                     "description": "Bowtie v1 `-v` mismatch mode value."
                 },
                 "bowtie_max": {
+                    "default": 1,
                     "type": "integer",
                     "minimum": 1,
                     "description": "Bowtie v1 `-m` maximum reportable alignments per read before suppression."
                 },
                 "bowtie_chunkmbs": {
+                    "default": 512,
                     "type": "integer",
                     "minimum": 1,
                     "description": "Bowtie v1 `--chunkmbs` memory chunk size."
@@ -284,21 +293,25 @@
                     "description": "Bowtie2 alignment preset. Default is equivalent to `--local -N 0 -D 20 -R 3 -L 20 -i S,1,0.50`."
                 },
                 "bowtie2_mp": {
+                    "default": "6,2",
                     "type": "string",
                     "pattern": "^\\d+,\\d+$",
                     "description": "Bowtie2 `--mp` mismatch penalties as `max,min`."
                 },
                 "bowtie2_dpad": {
+                    "default": 15,
                     "type": "integer",
                     "minimum": 0,
                     "description": "Bowtie2 `--dpad` padding around DP table."
                 },
                 "bowtie2_rdg": {
+                    "default": "5,3",
                     "type": "string",
                     "pattern": "^\\d+,\\d+$",
                     "description": "Bowtie2 `--rdg` read gap penalties as `open,extend`."
                 },
                 "bowtie2_rfg": {
+                    "default": "5,3",
                     "type": "string",
                     "pattern": "^\\d+,\\d+$",
                     "description": "Bowtie2 `--rfg` reference gap penalties as `open,extend`."
@@ -308,10 +321,12 @@
                     "description": "Enable Bowtie2 local alignment mode (`--local`)."
                 },
                 "bowtie2_ma": {
+                    "default": 2,
                     "type": "integer",
                     "description": "Bowtie2 `--ma` match bonus used with `--local`."
                 },
                 "bowtie2_dovetail": {
+                    "default": true,
                     "type": "boolean",
                     "description": "Allow dovetailing mates (`--dovetail`)."
                 },
@@ -321,6 +336,7 @@
                     "description": "Skip SAMtools markdup deduplication (default: true). Position-based duplicate removal is not valid for chemical-probing libraries without UMIs, where reads sharing a 5' start are independent RT events rather than PCR duplicates. Leave enabled; UMI libraries are still deduplicated via UMI-tools. Set false only if you have a specific reason."
                 },
                 "star_map_sjdb_overhang": {
+                    "default": 200,
                     "type": "integer",
                     "minimum": 1,
                     "description": "STAR `--sjdbOverhang` for MaP alignment. Ideally `readLength - 1`; default 200 suits 201 bp reads."
@@ -367,6 +383,7 @@
                     "default": "unstranded"
                 },
                 "rfcount_genome_map_quality": {
+                    "default": 0,
                     "type": "integer",
                     "minimum": 0,
                     "description": "Minimum MAPQ score for rf-count-genome (`--map-quality`). Useful for filtering multi-mappers; 0 keeps all alignments."
@@ -586,21 +603,25 @@
                     "description": "Path to a reference `.db` structure file for rf-jackknife normalisation assessment. When provided, rf-jackknife runs between rf-norm and rf-fold and the output CSV reports optimal slope/intercept values. When omitted, rf-fold runs directly using whatever slope/intercept params are set."
                 },
                 "rfjackknife_slope": {
+                    "default": "0,5",
                     "type": "string",
                     "pattern": "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$",
                     "description": "Comma-separated slope range to search in rf-jackknife (`-sl`), e.g. `0,5`."
                 },
                 "rfjackknife_intercept": {
+                    "default": "-3,0",
                     "type": "string",
                     "pattern": "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$",
                     "description": "Comma-separated intercept range to search in rf-jackknife (`-in`), e.g. `-3,0`."
                 },
                 "rfjackknife_slope_step": {
+                    "default": 0.2,
                     "type": "number",
                     "exclusiveMinimum": 0,
                     "description": "Step size for slope grid search in rf-jackknife (`-ss`)."
                 },
                 "rfjackknife_intercept_step": {
+                    "default": 0.2,
                     "type": "number",
                     "exclusiveMinimum": 0,
                     "description": "Step size for intercept grid search in rf-jackknife (`-is`)."
@@ -616,6 +637,7 @@
                     "default": true
                 },
                 "rfjackknife_keep_lonelypairs": {
+                    "default": true,
                     "type": "boolean",
                     "description": "Retain lonely base-pairs (1 bp helices) in the reference structure before comparison (`-kl`)."
                 },
@@ -632,10 +654,12 @@
                     "description": "Generate R heatmap of grid-search results in rf-jackknife (`-g`)."
                 },
                 "rfjackknife_rf_fold_params": {
+                    "default": "-md 600",
                     "type": "string",
                     "description": "Additional rf-fold parameters passed inside rf-jackknife (`-rp`), e.g. `-md 500`."
                 },
                 "rfjackknife_pool_all": {
+                    "default": true,
                     "type": "boolean",
                     "description": "Pool XMLs from all sample groups into a single rf-jackknife run (output: `jackknife/all_groups/`) instead of running one jackknife per group. Default: true."
                 },
@@ -855,6 +879,7 @@
                     "default": false
                 },
                 "rffold_vienna_max_bp_span": {
+                    "default": 600,
                     "type": "integer",
                     "minimum": 1,
                     "description": "Maximal base-pair span for ViennaRNA in rf-fold (`-vmd`)."
@@ -900,6 +925,7 @@
                     "description": "Intercept for reactivity-to-folding-constraint conversion in rf-fold (`-in`). Auto by `chemical`: DMS -2, NAI -0.8, 2A3 -0.4, other/unset -0.6. Overridden by jackknife calibration when available."
                 },
                 "rffold_vienna_rnaplot": {
+                    "default": "RNAplot",
                     "type": "string",
                     "description": "Path to ViennaRNA `RNAplot` binary for SVG structure plots in rf-fold (`-vrp`).",
                     "default": "RNAplot"
@@ -934,6 +960,7 @@
                     "default": "ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35"
                 },
                 "rnaframework_r_path": {
+                    "default": "/usr/bin/R",
                     "type": "string",
                     "description": "Path to R executable used by rf-count, rf-norm, and rf-fold plotting.",
                     "default": "/usr/bin/R"

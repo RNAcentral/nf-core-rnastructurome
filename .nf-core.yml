@@ -32,7 +32,6 @@ lint:
   template_strings:
     - bin/r2dt_colour_svg.py
     - bin/viennarna_colour_svg.py
-    - tests/test_r2dt_colour_svg.py
     - modules/local/r2dt/tests/test_r2dt_colour_svg.py
 
 template:

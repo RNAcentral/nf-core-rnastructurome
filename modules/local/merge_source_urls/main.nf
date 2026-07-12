@@ -3,7 +3,9 @@ process MERGE_SOURCE_URLS {
     label 'process_single'
 
     conda "conda-forge::python=3.12"
-    container 'docker.io/library/python:3.12.11'
+    container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
+        ? 'https://depot.galaxyproject.org/singularity/python:3.12'
+        : 'quay.io/biocontainers/python:3.12'}"
 
     input:
     tuple val(meta), path(url_files, stageAs: "inputs/url_??.txt")

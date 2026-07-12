@@ -3,7 +3,9 @@ process RNAFRAMEWORK_TORDAT {
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"
-    container 'docker.io/library/python:3.12.11'
+    container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
+        ? 'https://depot.galaxyproject.org/singularity/python:3.12'
+        : 'quay.io/biocontainers/python:3.12'}"
 
     input:
     tuple val(meta), path(xml, stageAs: "xml_inputs/rep??/*"), path(fold_dir, stageAs: "fold_dir")

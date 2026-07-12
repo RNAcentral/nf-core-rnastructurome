@@ -3,7 +3,9 @@ process WIG_TO_GENOME {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container 'docker.io/library/python:3.12.11'
+    container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
+        ? 'https://depot.galaxyproject.org/singularity/python:3.12'
+        : 'quay.io/biocontainers/python:3.12'}"
 
     input:
     tuple val(meta), path(wig), path(gtf)

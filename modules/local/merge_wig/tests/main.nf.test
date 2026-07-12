@@ -24,6 +24,7 @@ nextflow_process {
                         file("${projectDir}/modules/local/merge_wig/tests/fixtures/TX2.wig", checkIfExists: true)
                     ]
                 ])
+                input[1] = file("${projectDir}/bin/merge_wig.py", checkIfExists: true)
                 """
             }
         }
@@ -58,6 +59,7 @@ nextflow_process {
                     [ id:'group1' ],
                     file("${projectDir}/modules/local/merge_wig/tests/fixtures/TX1.wig", checkIfExists: true)
                 ])
+                input[1] = file("${projectDir}/bin/merge_wig.py", checkIfExists: true)
                 """
             }
         }

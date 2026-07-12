@@ -13,7 +13,7 @@
                         "replicate": "rep1",
                         "condition": "treated"
                     },
-                    "map_sample.bam:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    "map_sample.sorted.bam:md5,d41d8cd98f00b204e9800998ecf8427e"
                 ],
                 [
                     {
@@ -26,15 +26,15 @@
                         "replicate": "rep1",
                         "condition": "treated"
                     },
-                    "rtstop_sample.bam:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    "rtstop_sample.sorted.bam:md5,d41d8cd98f00b204e9800998ecf8427e"
                 ]
             ],
-            "nf_core_rnastructurome_software_mqc_versions.yml:md5,e2517ea57a8d0d62dd88fb05cdf42eed"
+            "nf_core_rnastructurome_software_mqc_versions.yml:md5,887049a1be55fb334ad403c2559c60be"
         ],
-        "timestamp": "2026-03-13T16:44:56.340395",
+        "timestamp": "2026-07-12T12:24:38.363492",
         "meta": {
             "nf-test": "0.9.4",
-            "nextflow": "25.10.3"
+            "nextflow": "26.04.3"
         }
     }
 }

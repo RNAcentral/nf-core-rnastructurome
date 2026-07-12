@@ -8,6 +8,7 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     input:
     tuple val(meta), path(rc, stageAs: "input/*"), path(rci, stageAs: "input/*"), path(summary)
     tuple val(meta_ref), path(gtf)
+    path covered_bed_script
 
     output:
     tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc"),                       emit: rc
@@ -86,35 +87,7 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
         # Real per-transcript lengths from the GTF (spliced length = sum of exon lengths). These match
         # the RC exactly because it was built from this same GTF. 4-column BED (id 0 length id) keeps
         # the clean transcript ID instead of renaming the region to <id>_0-<end>.
-        python3 - "${gtf}" "${feature_name}" "${attr_name}" << 'PYEOF'
-import re, sys
-
-gtf_path, feature_name, attr_name = sys.argv[1:4]
-attr_re = re.compile(r'%s\\s+"([^"]+)"' % re.escape(attr_name))
-
-with open("covered_ids.txt") as fh:
-    covered = {line.strip() for line in fh if line.strip()}
-lengths = {}
-with open(gtf_path) as fh:
-    for line in fh:
-        if not line or line.startswith('#'):
-            continue
-        cols = line.rstrip('\\n').split('\\t')
-        if len(cols) < 9 or cols[2] != feature_name:
-            continue
-        m = attr_re.search(cols[8])
-        if not m or m.group(1) not in covered:
-            continue
-        try:
-            start = int(cols[3]); end = int(cols[4])
-        except ValueError:
-            continue
-        lengths[m.group(1)] = lengths.get(m.group(1), 0) + (end - start + 1)
-with open("covered.bed", "w") as out:
-    for tx_id, length in lengths.items():
-        if length > 0:
-            out.write(f"{tx_id}\\t0\\t{length}\\t{tx_id}\\n")
-PYEOF
+        python3 "${covered_bed_script}" "${gtf}" "${feature_name}" "${attr_name}"
 
         if [[ ! -s covered.bed ]]; then
             echo "ERROR: covered transcripts did not match any GTF ${attr_name} for ${prefix}." >&2

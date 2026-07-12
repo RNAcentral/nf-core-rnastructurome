@@ -8,6 +8,7 @@ process RNAFRAMEWORK_RFCOUNT {
     input:
     tuple val(meta), path(bam), path(bai)
     tuple val(meta_ref), path(fasta)
+    path summary_script
 
     output:
     tuple val(meta), path("*_rfcount/*.rc"), emit: rc
@@ -69,31 +70,9 @@ process RNAFRAMEWORK_RFCOUNT {
     fi
 
     summary_tsv="${outdir}/${prefix}.rfcount_summary.tsv"
-    {
-        # MaP has Mutated-alignments/pct_mutated columns; RT-stop does not, so omit them entirely there.
-        if [[ "${is_map}" == "1" ]]; then
-            printf 'sample\\tcovered\\tmutated_alignments\\tpct_mutated\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
-        else
-            printf 'sample\\tcovered\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
-        fi
-        awk -v sample="${prefix}" -v is_map="${is_map}" '
-            \$1 == sample {
-                if (is_map == "1") {
-                    if (index(\$3, "/") > 0) {
-                        # MaP: "<mutated>/<total> (<pct>%)" — \$3=mutated/total, \$4=(pct%), \$5-\$8=%A/C/G/U
-                        pct_mut = \$4; gsub("[()%]", "", pct_mut)
-                        print \$1 "\\t" \$2 "\\t" \$3 "\\t" pct_mut "\\t" \$5 "\\t" \$6 "\\t" \$7 "\\t" \$8
-                    } else {
-                        # MaP with zero counted alignments: rf-count prints "-" (\$3), bases at \$4-\$7
-                        print \$1 "\\t" \$2 "\\t" \$3 "\\t" "NA" "\\t" \$4 "\\t" \$5 "\\t" \$6 "\\t" \$7
-                    }
-                } else {
-                    # RT-stop: no Mutated-alignments column; \$3-\$6 = per-base stop percentages
-                    print \$1 "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
-                }
-            }
-        ' "\${cleaned_log}" | tail -n 1
-    } > "\${summary_tsv}"
+    awk -f "${summary_script}" \\
+        -v sample="${prefix}" -v is_map="${is_map}" -v match_mode="exact" \\
+        "\${cleaned_log}" > "\${summary_tsv}"
 
     covered=\$(awk -F'\\t' 'NR == 2 {print \$2}' "\${summary_tsv}")
     case "\${covered}" in

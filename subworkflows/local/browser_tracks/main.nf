@@ -32,7 +32,8 @@ workflow BROWSER_TRACKS {
     )
 
     MERGE_WIG (
-        RNAFRAMEWORK_RFWIGGLE.out.wig
+        RNAFRAMEWORK_RFWIGGLE.out.wig,
+        file("${projectDir}/bin/merge_wig.py", checkIfExists: true)
     )
 
     // Group per-replicate merged WIGs by sample_group. Single replicate bypasses AVERAGE_WIG

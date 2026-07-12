@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document describes the output produced by the pipeline. Most of the early steps (QC, trimming, alignment) follow standard RNA-seq conventions; this page focuses on the RNA Framework modules and downstream outputs that are specific to this pipeline.
+This document describes the output produced by the pipeline. Most of the early steps (QC, trimming, alignment) follow standard RNA-seq conventions and their outputs are described in the [nf-core/rnaseq](https://nf-co.re/rnaseq/3.14.0/docs/output/) documentation; this page focuses on the RNA Framework modules and downstream outputs specific to this pipeline.
 
 ## Output layout
 
@@ -18,23 +18,27 @@ All paths are relative to the top-level output directory specified with `--outdi
 ├── samtools/
 ├── umi_tools/                         (if UMI pattern provided)
 ├── count/
+│   ├── rfcount_summary_all_samples.tsv
 │   └── <sample>/*.{rc,rci}
-│       └── plots/*.pdf
 ├── norm/
 │   ├── <reference>.norm_factors.txt      (if cross-experiment normalisation enabled)
-│   ├── <group>/
+│   ├── <reference>.rfnormfactor.log
+│   ├── <group>_<replicate>/
 │   │   ├── xml/*.xml
-│   │   ├── plots/*.pdf
-│   │   └── wiggle/*.wig
+│   │   ├── wiggle/*.wig
+│   │   └── rfnorm.log
 │   ├── genome_bw/*.bw
 │   └── transcript_bw/*.bw
 ├── jackknife/                         (if --jackknife_reference provided)
+│   └── <group>/
+│       ├── FMI.csv
+│       └── rfjackknife.log
 ├── fold/
 │   ├── <group>/
 │   │   ├── structures/r2dt/*.svg
 │   │   ├── structures/viennarna/*.svg
-│   │   ├── summaries/*.pdf
 │   │   ├── rdat/*.rdat
+│   │   ├── rffold.log
 │   │   └── extracted_structures/      (if --structextract)
 │   │       ├── dotbracket/*.db        (extracted motifs, dot-bracket)
 │   │       └── images/*_ss.svg        (per-motif diagrams, reactivity-coloured)
@@ -43,10 +47,14 @@ All paths are relative to the top-level output directory specified with `--outdi
 │   ├── shannon_genome_bw/*.bw
 │   └── shannon_transcript_bw/*.bw
 ├── correlate/                         (if --correlate_replicates and >1 replicate)
-│   └── <group>_correlate/
+│   ├── <group>.{pearson,spearman}.rfcorrelate.log
+│   └── <group>.{pearson,spearman}_correlate/
 │       ├── matrix.csv
 │       └── pairwise/*.tsv
-├── eval/                              (if --eval_reference provided)
+├── eval/                              (if --rfeval_reference provided)
+│   └── <group>/
+│       ├── *.csv
+│       └── rfeval.log
 ├── reference/                         (only when reference downloaded from Ensembl)
 │   ├── *.sorted.fa
 │   ├── *.annotation.gtf.gz
@@ -71,11 +79,10 @@ This pipeline uses modules from [RNA Framework](https://rnaframework-docs.readth
 <details markdown="1">
 <summary>Output files — transcriptome route</summary>
 
+- `count/rfcount_summary_all_samples.tsv`: Aggregated `rf-count` summary across all samples in the run (the per-sample summaries are merged into this single TSV rather than published individually).
 - `count/<sample>/`
   - `<sample>.rc`: Transcript-level raw per-position count file used as input to `rf-norm`.
   - `index.rci`: Index sidecar for the transcript-level count file.
-  - `<sample>.rfcount_summary.tsv`: Per-sample count summary.
-  - `plots/*.pdf`: Per-base count distribution plots.
 
 </details>
 
@@ -86,8 +93,7 @@ This pipeline uses modules from [RNA Framework](https://rnaframework-docs.readth
   - `<sample>.plus.rc` / `<sample>.minus.rc`: Genome-coordinate strand-specific raw count files.
   - `<sample>.rc`: Transcript-level count file extracted from genome coordinates via `rf-rctools extract`, used as input to `rf-norm`.
   - `<sample>.rc.rci`: Index sidecar for the transcript-level count file.
-  - `<sample>.rfcount_genome_summary.tsv`: Per-sample count summary.
-  - `plots/*.pdf`: Per-base count distribution plots.
+  - The aggregated `count/rfcount_summary_all_samples.tsv` (above) also covers genome-route samples.
 
 </details>
 
@@ -115,7 +121,6 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
 - `norm/<group>/`
   - `xml/<transcript>.xml`: Normalised reactivity profiles in RNA Framework XML format, used as input for `rf-fold` and optionally `rf-jackknife`.
   - `rfnorm.log`: Raw `rf-norm` console output.
-  - `plots/<transcript>.pdf`: Per-transcript normalisation plots.
   - `wiggle/<transcript>.wig`: Per-transcript reactivity wiggle tracks produced by `rf-wiggle`.
 - `norm/genome_bw/`
   - `<sample_group>_reactivity_genome.bw`: Genomic-coordinate reactivity BigWig. When multiple replicates are present the per-replicate transcript-level tracks are averaged position-by-position, remapped to genomic coordinates using the GTF, and converted to BigWig format.
@@ -124,21 +129,22 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
 
 </details>
 
-[`rf-norm`](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/) normalises raw RT-stop or MaP counts into per-nucleotide reactivity scores. Output is grouped by `sample_group` + `replicate` (e.g. `HEK293T_1`). The XML files are the primary output passed to downstream structure-prediction steps. Per-transcript reactivity plots are available as PDFs; the BigWigs provide reactivity tracks (averaged across replicates where applicable) in both genomic and transcript coordinates for genome browser visualisation.
+[`rf-norm`](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/) normalises raw RT-stop or MaP counts into per-nucleotide reactivity scores. Output is grouped by `sample_group` + `replicate` (e.g. `HEK293T_1`). The XML files are the primary output passed to downstream structure-prediction steps. The BigWigs provide reactivity tracks (averaged across replicates where applicable) in both genomic and transcript coordinates for genome browser visualisation.
 
 ### rf-correlate (replicate QC)
 
 <details markdown="1">
 <summary>Output files </summary>
 
-- `correlate/<group>_correlate/`
+- `correlate/<group>.pearson_correlate/` and `correlate/<group>.spearman_correlate/`
   - `matrix.csv`: Overall pairwise correlation matrix between the group's replicates.
   - `pairwise/<repA>_vs_<repB>.tsv`: Per-transcript correlation coefficients and p-values for each replicate pair.
   - `*.pdf`: Correlation heatmap (only with `--correlate_img`).
+- `correlate/<group>.{pearson,spearman}.rfcorrelate.log`: Raw `rf-correlate` console output for each method.
 
 </details>
 
-[`rf-correlate`](https://rnaframework-docs.readthedocs.io/en/latest/rf-correlate/) quantifies replicate reproducibility by correlating reactivity profiles between the replicates of a sample group (transcriptome-wide and per-transcript). It runs for groups with more than one replicate (controlled by `--correlate_replicates`). The overall pairwise correlations are also summarised in the **MultiQC report** as a per-sample-group table (number of replicates, mean and minimum pairwise correlation), giving an at-a-glance reproducibility check.
+[`rf-correlate`](https://rnaframework-docs.readthedocs.io/en/latest/rf-correlate/) quantifies replicate reproducibility by correlating reactivity profiles between the replicates of a sample group (transcriptome-wide and per-transcript). It runs for groups with more than one replicate (controlled by `--correlate_replicates`) and computes both **Pearson** (reactivity-capped) and **Spearman** (rank-based) correlations, published to separate `.pearson`/`.spearman` directories. The overall pairwise correlations are also summarised in the **MultiQC report** as a per-sample-group table (number of replicates, mean Pearson and mean Spearman correlation), giving an at-a-glance reproducibility check.
 
 ### rf-fold
 
@@ -149,7 +155,6 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
   - `structures/r2dt/<transcript>.svg`: Template-based 2D structure diagram drawn by R2DT, when a matching template is available.
   - `structures/viennarna/<transcript>.svg`: RNAplot 2D structure diagram drawn by ViennaRNA for transcripts not drawn by R2DT.
   - `structures/r2dt.log`: log of transcripts drawn/skipped by R2DT.
-  - `summaries/<transcript>.pdf`: Per-transcript fold summary plot.
   - `rdat/<transcript>.rdat`: RDAT-format file (compatible with RMDB) which summarises results (sequence, dot-bracket notation, reactivities) and key parameters for how it was produced.
   - `rffold.log`: Raw `rf-fold` console output.
   - `conversion_warnings.log`: Warnings from dot-plot to base-pair conversion, if any.
@@ -164,7 +169,7 @@ The transcript-level `<sample>.rc` and `<sample>.rc.rci` files are passed to `rf
 
 </details>
 
-[`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/) predicts RNA secondary structures from normalised reactivity profiles. Replicates for the same sample group are combined and folded together using ViennaRNA RNAfold in a windowed manner, which improves accuracy for long transcripts by folding overlapping sequence windows and merging the results. Key outputs per transcript include 2D structure diagrams, [RDAT] (https://rmdb.stanford.edu/deposit/specs/) files summarising the predicted structure and reactivity values, and per-transcript summary PDF plots. Genome-wide Shannon entropy profiles and base-pair arcs are additionally provided as BigWig and `.bp` tracks for visualisation in a genome browser, in both genome and transcript coordinates.
+[`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/) predicts RNA secondary structures from normalised reactivity profiles. Replicates for the same sample group are combined and folded together using ViennaRNA RNAfold in a windowed manner, which improves accuracy for long transcripts by folding overlapping sequence windows and merging the results. Key outputs per transcript include 2D structure diagrams, [RDAT](https://rmdb.stanford.edu/deposit/specs/) files summarising the predicted structure and reactivity values. Genome-wide Shannon entropy profiles and base-pair arcs are additionally provided as BigWig and `.bp` tracks for visualisation in a genome browser, in both genome and transcript coordinates.
 
 - **[R2DT](https://github.com/RNAcentral/R2DT)** — used when a matching template exists in the R2DT library (rRNA, snRNA, tRNA, etc.). Produces layouts comparable across organisms. Published to `fold/<group>/structures/r2dt/`.
 - **[ViennaRNA](https://www.tbi.univie.ac.at/RNA/)** — fallback for transcripts without an R2DT template. `RNAplot` draws an energy-minimised 2D diagram from the dot-bracket structure. Published to `fold/<group>/structures/viennarna/`.
@@ -207,7 +212,7 @@ This step only runs when `--jackknife_reference` is provided.
 <summary>Output files</summary>
 
 - `eval/<group>/`
-  - `*.csv`: Per-transcript evaluation metrics including sensitivity, PPV, and FMI comparing predicted structures to the reference.
+  - `*.csv`: Per-transcript evaluation metrics — the Unpaired Coefficient, DSCI, and AUROC — comparing reactivity profiles to the reference.
   - `rfeval.log`: Raw `rf-eval` console output.
 
 </details>
@@ -218,9 +223,7 @@ This step only runs when `--jackknife_reference` is provided.
 - **DSCI** — probability that a randomly selected unpaired base has higher reactivity than a paired base
 - **AUROC** — area under the ROC curve treating reactivity as a classifier of unpaired bases
 
-This step only runs when `--eval_reference` is provided.
-
- Enabled by `--rfeval_reference`. 
+This step only runs when `--rfeval_reference` is provided.
 
 ---
 

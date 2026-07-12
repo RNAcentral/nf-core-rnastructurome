@@ -8,6 +8,7 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     input:
     tuple val(meta), path(bam), path(bai)
     tuple val(meta_ref), path(fasta)
+    path summary_script
 
     output:
     tuple val(meta), path("*_rfcount_genome/*.rc"),             optional: true, emit: rc
@@ -69,32 +70,10 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     fi
 
     summary_tsv="${outdir}/${prefix}.rfcount_genome_summary.tsv"
-    {
-        # MaP has Mutated-alignments/pct_mutated columns; RT-stop does not, so omit them entirely there.
-        if [[ "${is_map}" == "1" ]]; then
-            printf 'sample\\tcovered\\tmutated_alignments\\tpct_mutated\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
-        else
-            printf 'sample\\tcovered\\tpct_a_muts\\tpct_c_muts\\tpct_g_muts\\tpct_u_muts\\n'
-        fi
-        # Sample column carries the staged BAM's filename suffix (e.g. "${prefix}.sorted"), so match by prefix.
-        awk -v sample="${prefix}" -v is_map="${is_map}" '
-            index(\$1, sample) == 1 {
-                if (is_map == "1") {
-                    if (index(\$3, "/") > 0) {
-                        # MaP: "<mutated>/<total> (<pct>%)" — \$3=mutated/total, \$4=(pct%), \$5-\$8=%A/C/G/U
-                        pct_mut = \$4; gsub("[()%]", "", pct_mut)
-                        print sample "\\t" \$2 "\\t" \$3 "\\t" pct_mut "\\t" \$5 "\\t" \$6 "\\t" \$7 "\\t" \$8
-                    } else {
-                        # MaP with zero counted alignments: rf-count prints "-" (\$3), bases at \$4-\$7
-                        print sample "\\t" \$2 "\\t" \$3 "\\t" "NA" "\\t" \$4 "\\t" \$5 "\\t" \$6 "\\t" \$7
-                    }
-                } else {
-                    # RT-stop: no Mutated-alignments column; \$3-\$6 = per-base stop percentages
-                    print sample "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6
-                }
-            }
-        ' "\${cleaned_log}" | tail -n 1
-    } > "\${summary_tsv}"
+    # match_mode=prefix: the summary's sample column carries the staged BAM's filename suffix.
+    awk -f "${summary_script}" \\
+        -v sample="${prefix}" -v is_map="${is_map}" -v match_mode="prefix" \\
+        "\${cleaned_log}" > "\${summary_tsv}"
 
     # rf-count-genome reports "Covered: 0" when run without a -a annotation file
     # (genome-wide mode); that is expected here — rf-rctools extract handles transcript

@@ -108,10 +108,13 @@ def allReferencesUseNcbiRoute(samplesheetPath, schemaPath, cfg) {
 // Collect a queue channel of [key, value] pairs into a single value channel holding
 // a [key: value] map (last write wins on duplicate keys). Empty input yields [:].
 def collectToMap(ch_keyed) {
+    // .collect() on an empty channel emits nothing; ifEmpty keeps the result a real
+    // (reusable value) map so downstream .combine() isn't silently emptied (e.g. no --gtf).
     ch_keyed
         .map { key, value -> [ (key): value ] }
         .collect()
         .map { entries -> entries.inject([:]) { acc, entry -> acc + entry } }
+        .ifEmpty([:])
 }
 
 // Build STAR_ALIGN inputs for a set of trimmed reads: pair each sample with its reference's STAR index +

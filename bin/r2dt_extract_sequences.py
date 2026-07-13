@@ -26,6 +26,14 @@ _BIOTYPE_RES = {
     'transcript': re.compile(r'transcript_(?:biotype|type) "([^"]+)"'),
     'gene':       re.compile(r'gene_(?:biotype|type) "([^"]+)"'),
 }
+# Ensembl GTFs carry unversioned transcript_id (ENST…), but cDNA FASTA headers (and
+# thus the folded .db IDs) are versioned (ENST….2). Match on both forms.
+_VERSION_RE = re.compile(r'\.\d+$')
+
+
+def _strip_version(tid):
+    """Drop a trailing .<digits> Ensembl version suffix, if present."""
+    return _VERSION_RE.sub('', tid)
 
 
 def _open_text(path):
@@ -50,7 +58,9 @@ def load_allowed_ids(gtf_path, allowed_biotypes):
             gbt = _BIOTYPE_RES['gene'].search(line)
             biotype = (tbt.group(1) if tbt else (gbt.group(1) if gbt else None))
             if biotype and biotype.lower() in allowed:
-                allowed_ids.add(tid_m.group(1))
+                tid = tid_m.group(1)
+                allowed_ids.add(tid)
+                allowed_ids.add(_strip_version(tid))
     return allowed_ids
 
 
@@ -107,7 +117,8 @@ def main():
         seq = lines[1].strip()
         if not seq:
             continue
-        if allowed_ids is not None and tid not in allowed_ids:
+        if allowed_ids is not None and tid not in allowed_ids \
+                and _strip_version(tid) not in allowed_ids:
             skipped_type += 1
             continue
         if len(seq) <= _max_len:

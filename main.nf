@@ -63,6 +63,14 @@ workflow {
         log.info('[rnastructurome] All references resolve to the NCBI route (no-intron organisms) — enabling the transcriptome (Bowtie) route automatically. Pass --transcriptome to set it explicitly.')
         pipeline_config = pipeline_config + [ transcriptome: true ]
     }
+
+    // A user-supplied --fasta without --gtf can only be used on the transcriptome route: the genome route
+    // needs the GTF to extract and count transcripts. Assume the FASTA is a transcriptome and enable the
+    // route automatically rather than failing deep in STAR — pass --gtf to use the genome route instead.
+    if (!pipeline_config.transcriptome && pipeline_config.fasta && !pipeline_config.gtf) {
+        log.warn('[rnastructurome] --fasta was supplied without --gtf; enabling the transcriptome route.')
+        pipeline_config = pipeline_config + [ transcriptome: true ]
+    }
     // SUBWORKFLOW: Run initialisation tasks
     PIPELINE_INITIALISATION (
         params.version,

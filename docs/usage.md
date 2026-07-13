@@ -66,6 +66,8 @@ This pipeline expects an `organism` parameter to be passed either in the samples
 --input /path/to/samplesheet.csv --fasta /path/to/genome_or_transcriptome.fa.gz --gtf /path/to/annotation.gtf.gz
 ```
 
+The `--gtf` flag is optional. If you supply only `--fasta`, the pipeline enables the transcriptome route automatically with a warning, since the default genome route needs the GTF to extract and count transcripts. Without a GTF the run still produces all transcript-coordinate outputs (counts, reactivities, structures, transcript browser tracks and 2D diagrams) and skips only the annotation-dependent steps, each with a warning.
+
 ### Using genome versus transcriptome
 
 By default the pipeline aligns to the genome with STAR and extracts transcript-level counts using the GTF. To align directly to the transcriptome instead, pass `--transcriptome` and the rest happens automatically. See the [Alignment routes](#alignment-routes) section for more detail on when each route is appropriate.

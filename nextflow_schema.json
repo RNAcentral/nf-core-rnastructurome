@@ -936,8 +936,8 @@
                 },
                 "r2dt_container": {
                     "type": "string",
-                    "description": "Container image used for the local R2DT module. The default pins the Docker Hub image built immediately before the R2DT v2.2 release because Docker Hub does not publish a v2.2 tag.",
-                    "default": "docker.io/rnacentral/r2dt@sha256:5fccdaf3688c50b1f602235e527a78b26bd078d8f1784b2b09d58e204bb5539c"
+                    "description": "Container image used for the local R2DT module. The default is a digest pin of the rnacentral/r2dt :latest tag. An earlier pin shipped the ribovision-ssu/lsu, rnasep and tmrna covariance models without their cmfetch SSI indexes; because the data dir is read-only under Singularity, R2DT could not build them at runtime and those templates (e.g. LSU rRNA) failed to draw.",
+                    "default": "docker.io/rnacentral/r2dt@sha256:7ce2f54a7a3ff1d7fee7430209a7358ae1e971644446cfe4906dbd7b6211282c"
                 },
                 "r2dt_templatable_biotypes": {
                     "type": "string",

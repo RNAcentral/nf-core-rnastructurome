@@ -261,46 +261,6 @@ Each log reports how many transcripts were shared across the group's replicates,
 
 The headline number is the pairwise correlation (here Pearson 0.765 between the two DMSO replicates); higher means more reproducible reactivity profiles, and it is the value carried into the MultiQC table. Discards are almost always transcripts with too few paired positions to correlate; non-zero `parsing failed` or `mismatch between transcript sequences` counts instead indicate a reference or input problem.
 
-### Viewing tracks in a genome browser
-
-The reactivity and Shannon-entropy BigWigs (`norm/{genome,transcript}_bw/`, `fold/shannon_{genome,transcript}_bw/`) load into IGV or UCSC against the matching reference:
-
-- **Genome-coordinate tracks** (`*_genome.bw`, `fold/genome_bp/`): load against the genome FASTA + GTF. On the transcriptome route these are not produced; use the genome route if you want a genomic view.
-- **Transcript-coordinate tracks** (`*_transcript.bw`, `fold/transcript_bp/`): load the transcript FASTA as the browser's reference sequence: the transcriptome route's `<organism>.sorted.fa` (the cDNA FASTA), or `reference/<reference>.transcripts.fa` on the default (`count_genome = false`) genome route. Each transcript appears as its own "chromosome", so the per-nucleotide profile is continuous.
-
-#### Genome tracks superpose isoforms; prefer transcript coordinates for structure
-
-Genome-coordinate tracks project every transcript onto the assembly and **average** overlapping positions, so at a multi-isoform locus (e.g. human `HLA-A` and the rest of the MHC) the track is a _superposition_ of all isoforms, not the profile of any single transcript. This matters differently for the two kinds of data:
-
-- **Reactivity** is a per-nucleotide experimental measurement, so its genome projection is meaningful: it shows where the RNA was modified, and gaps mark introns or uncovered positions. It only writes covered positions, so introns of a given transcript stay empty unless another isoform genuinely has a covered exon there.
-- **Shannon entropy and base-pair arcs** describe the fold of a _whole_ transcript, not a genomic position, and are defined at every folded nucleotide (no coverage gaps). Projected to the genome and averaged across isoforms, they blend distinct structural models: one isoform's introns get filled by another isoform's exons, so the track looks continuous across the locus. This is expected, not a bug, but it is not "the structure" of any one transcript.
-
-For accurate interpretation, prefer the **transcript-coordinate** tracks against the transcript FASTA, where each transcript is its own "chromosome" with no cross-isoform blending. The **genome-coordinate** tracks are best used to visualise reactivity profiles in the context of the surrounding transcripts/locus, rather than as a per-transcript structural readout. On single-isoform genes (and all prokaryotic references, which are unspliced) the genome and transcript views are equivalent and this caveat does not apply.
-
-#### Example figures
-
-All figures below are from the human `HLA-A` gene (SHAPE, MDA-MB-231).
-
-**All tracks together (transcript coordinates).** Reactivity, Shannon entropy, and base-pair arcs for a single transcript (`ENST00000638375`, DMSO), loaded against the transcript FASTA. This is the cleanest way to read a single transcript's data: every track shares the same continuous per-nucleotide axis:
-
-![HLA-A reactivity, Shannon and base-pair tracks in transcript coordinates](images-for-output/hla-a_all_tracks_transcript.png)
-
-**Reactivity in genome coordinates** (`norm/genome_bw/<group>_reactivity_genome.bw`). Signal follows the exon structure of the gene model, with introns appearing as gaps; the genome view is meaningful for reactivity because it is a per-nucleotide measurement:
-
-![HLA-A reactivity in genomic coordinates](images-for-output/hla-a_reactivity_genome.png)
-
-For **structure**, the genome view is less useful at a multi-isoform locus like HLA-A. In the base-pair arc tracks, each arc connects two paired bases, coloured by base-pair probability: **yellow** = 10–40%, **blue** = 40–70%, **green** = 70–100% (pairs below 10% are not drawn; `rf-fold`'s dot-plot conversion runs with `--min-color-index 1`).
-
-Genome-coordinate base-pair arcs (`fold/genome_bp/<group>_genome.bp`): base pairs from every folded isoform are projected onto the assembly and overlap into a dense tangle:
-
-![HLA-A base-pair arcs in genomic coordinates](images-for-output/hla-a_bp_genome.png)
-
-Transcript-coordinate base-pair arcs (`fold/transcript_bp/<group>_transcript.bp`): the same data for one transcript, showing clean nested arcs:
-
-![HLA-A base-pair arcs in transcript coordinates](images-for-output/hla-a_bp_transcript.png)
-
-The Shannon-entropy tracks (`fold/shannon_{genome,transcript}_bw/`) behave the same way: clean per transcript, superposed in genome coordinates.
-
 ### rf-fold
 
 <details markdown="1">
@@ -354,6 +314,46 @@ COMMENT	Generated by nf-core/rnastructurome v1.0.0dev; FASTA: ecoli_rrna_collab.
 ```
 
 The fields are: `NAME` (transcript ID), `SEQUENCE`, `STRUCTURE` (predicted structure in dot-bracket notation), `ANNOTATION_DATA` (the probe used, here DMS), `REACTIVITY` (per-nucleotide normalised reactivity, `NaN` where there was no usable signal), and `COMMENT` (provenance: pipeline version, reference FASTA, probing principle, and the `rf-norm` scoring/normalisation methods used to produce the values).
+
+### Viewing tracks in a genome browser
+
+The reactivity and Shannon-entropy BigWigs (`norm/{genome,transcript}_bw/`, `fold/shannon_{genome,transcript}_bw/`) load into IGV or UCSC against the matching reference:
+
+- **Genome-coordinate tracks** (`*_genome.bw`, `fold/genome_bp/`): load against the genome FASTA + GTF. On the transcriptome route these are not produced; use the genome route if you want a genomic view.
+- **Transcript-coordinate tracks** (`*_transcript.bw`, `fold/transcript_bp/`): load the transcript FASTA as the browser's reference sequence: the transcriptome route's `<organism>.sorted.fa` (the cDNA FASTA), or `reference/<reference>.transcripts.fa` on the default (`count_genome = false`) genome route. Each transcript appears as its own "chromosome", so the per-nucleotide profile is continuous.
+
+#### Genome tracks superpose isoforms; prefer transcript coordinates for structure
+
+Genome-coordinate tracks project every transcript onto the assembly and **average** overlapping positions, so at a multi-isoform locus (e.g. human `HLA-A` and the rest of the MHC) the track is a _superposition_ of all isoforms, not the profile of any single transcript. This matters differently for the two kinds of data:
+
+- **Reactivity** is a per-nucleotide experimental measurement, so its genome projection is meaningful: it shows where the RNA was modified, and gaps mark introns or uncovered positions. It only writes covered positions, so introns of a given transcript stay empty unless another isoform genuinely has a covered exon there.
+- **Shannon entropy and base-pair arcs** describe the fold of a _whole_ transcript, not a genomic position, and are defined at every folded nucleotide (no coverage gaps). Projected to the genome and averaged across isoforms, they blend distinct structural models: one isoform's introns get filled by another isoform's exons, so the track looks continuous across the locus. This is expected, not a bug, but it is not "the structure" of any one transcript.
+
+For accurate interpretation, prefer the **transcript-coordinate** tracks against the transcript FASTA, where each transcript is its own "chromosome" with no cross-isoform blending. The **genome-coordinate** tracks are best used to visualise reactivity profiles in the context of the surrounding transcripts/locus, rather than as a per-transcript structural readout. On single-isoform genes (and all prokaryotic references, which are unspliced) the genome and transcript views are equivalent and this caveat does not apply.
+
+#### Example figures
+
+All figures below are from the human `HLA-A` gene (SHAPE, MDA-MB-231).
+
+**All tracks together (transcript coordinates).** Reactivity, Shannon entropy, and base-pair arcs for a single transcript (`ENST00000638375`, DMSO), loaded against the transcript FASTA. This is the cleanest way to read a single transcript's data: every track shares the same continuous per-nucleotide axis:
+
+![HLA-A reactivity, Shannon and base-pair tracks in transcript coordinates](images-for-output/hla-a_all_tracks_transcript.png)
+
+**Reactivity in genome coordinates** (`norm/genome_bw/<group>_reactivity_genome.bw`). Signal follows the exon structure of the gene model, with introns appearing as gaps; the genome view is meaningful for reactivity because it is a per-nucleotide measurement:
+
+![HLA-A reactivity in genomic coordinates](images-for-output/hla-a_reactivity_genome.png)
+
+For **structure**, the genome view is less useful at a multi-isoform locus like HLA-A. In the base-pair arc tracks, each arc connects two paired bases, coloured by base-pair probability: **yellow** = 10–40%, **blue** = 40–70%, **green** = 70–100% (pairs below 10% are not drawn; `rf-fold`'s dot-plot conversion runs with `--min-color-index 1`).
+
+Genome-coordinate base-pair arcs (`fold/genome_bp/<group>_genome.bp`): base pairs from every folded isoform are projected onto the assembly and overlap into a dense tangle:
+
+![HLA-A base-pair arcs in genomic coordinates](images-for-output/hla-a_bp_genome.png)
+
+Transcript-coordinate base-pair arcs (`fold/transcript_bp/<group>_transcript.bp`): the same data for one transcript, showing clean nested arcs:
+
+![HLA-A base-pair arcs in transcript coordinates](images-for-output/hla-a_bp_transcript.png)
+
+The Shannon-entropy tracks (`fold/shannon_{genome,transcript}_bw/`) behave the same way: clean per transcript, superposed in genome coordinates.
 
 ### rf-structextract (optional)
 

@@ -21,7 +21,7 @@
 
 ## Introduction
 
-**nf-core/rnastructurome** is a bioinformatics pipeline for the analysis of chemical-based high-throughput RNA structure probing data. It accepts FASTQ files from **SHAPE** or **DMS** experiments using either the **RT-stop** or **mutational profiling (MaP)** principle, and processes them from raw reads through alignment and deduplication to per-base reactivity scores and RNA secondary structure predictions.
+**nf-core/rnastructurome** is a bioinformatics pipeline for the analysis of chemical-based high-throughput RNA structure probing data. It takes a samplesheet and FASTQ files from **SHAPE** or **DMS** experiments (using either the **RT-stop** or **mutational profiling (MaP)** principle) as input, performs quality control, trimming, alignment and deduplication, quantifies per-base reactivity, and predicts RNA secondary structures. It produces normalised reactivity tracks, 2D structure diagrams, RMDB-compatible RDAT files, and an aggregated QC report.
 
 <p align="center">
     <picture>
@@ -45,7 +45,7 @@ Pipeline steps:
 11. Per-base reactivity counting: [`rf-count-genome`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count-genome/) plus [`rf-rctools extract`](https://rnaframework-docs.readthedocs.io/en/latest/rf-rctools/) on the default genome route, or [`rf-count`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count/) directly on the transcriptome route
 12. Reactivity normalisation with automatic control pairing and scoring-method selection ([`rf-norm`](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/))
 13. Reactivity track generation from rf-norm outputs, including transcript-coordinate and genome-coordinate WIG/BigWig files ([`rf-wiggle`](https://rnaframework-docs.readthedocs.io/en/latest/rf-wiggle/))
-14. Optional normalisation calibration against reference structures ([`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/)) when `--jackknife_reference` is provided; with `--stop_after_jackknife` the pipeline ends here, emitting the FMI calibration table as its final output
+14. Optional normalisation calibration against reference structures ([`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/)) when `--jackknife_reference` is provided; with `--stop_after_jackknife` the pipeline ends here, emitting the mFMI calibration table as its final output
 15. RNA secondary structure prediction across grouped replicates ([`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/))
 16. Base-pair and Shannon entropy track generation from rf-fold outputs, including transcript-coordinate and genome-coordinate files where possible
 17. 2D structure diagram drawing: every structure is drawn with [`ViennaRNA`](https://www.tbi.univie.ac.at/RNA/) RNAplot; when enabled, [`R2DT`](https://github.com/RNAcentral/R2DT) template-matched diagrams are drawn in parallel for side-by-side comparison (`structures/viennarna/` vs `structures/r2dt/`). R2DT is container-only, so conda/mamba runs draw with ViennaRNA alone
@@ -64,31 +64,43 @@ First, prepare a samplesheet with your input data:
 `samplesheet.csv`:
 
 ```csv
-sample,fastq_1,fastq_2,sample_group,condition,replicate
-HEK293T_treated_rep1,HEK293T_treated_rep1.fastq.gz,,HEK293T,treated,1
-HEK293T_untreated_rep1,HEK293T_untreated_rep1.fastq.gz,,HEK293T,untreated,1
+sample,sample_id,fastq_1,fastq_2,method,principle,chemical,RT_enzyme,sample_group,condition,replicate,organism,pH,adapter_3p,adapter_5p,umi_pattern
+HEK293T_treated_r1,GSM000001,/data/treated_r1.fastq.gz,,SHAPE,RT-stop,NAI,M-MLV,HEK293T,treated,1,Homo sapiens,7.5,,,
+HEK293T_untreated_r1,GSM000002,/data/untreated_r1.fastq.gz,,SHAPE,RT-stop,NAI,M-MLV,HEK293T,untreated,1,Homo sapiens,7.5,,,
 ```
 
-Each row is one sample. `fastq_2` is optional (leave empty for single-end). `sample_group`, `condition`, and `replicate` are used to pair treated/untreated/denatured controls for `rf-norm`.
+Each row is one sample. The columns `sample`, `fastq_1`, `sample_group`, `condition`, and `replicate` are always required (`sample_group`, `condition`, and `replicate` pair treated/untreated/denatured controls for `rf-norm`; supported `condition` values are `treated`, `untreated`, `denatured`). `method`, `principle`, and `organism` are required information but may instead be given globally via `--method`, `--principle`, and `--organism` when they are uniform across samples. Every other column (`sample_id`, `fastq_2`, `chemical`, `RT_enzyme`, `pH`, `adapter_3p`, `adapter_5p`, `umi_pattern`) is optional and falls back to its global `--<param>` value or a sensible default when left blank. See the [usage documentation](https://nf-co.re/rnastructurome/usage) for the full column reference.
 
-Optional `chemical` (e.g. `1M7`) and `RT_enzyme` (e.g. `M-MLV`) columns record the probing reagent and reverse transcriptase used; set per sample in the samplesheet or globally via `--chemical`/`--RT_enzyme`.
+Rows with the same sample identifier are considered technical replicates and merged automatically. Samples are grouped by `sample_group` and replicate so that treated, untreated, and denatured controls are paired correctly for normalisation.
 
-For MaP samples, `RT_enzyme` also drives several rf-count defaults (each overridable via its `--rfcount_map_*` flag): M-MLV (or unset) enables `--collapse-consecutive` and `--right-deletion`; a Group II Intron RT (e.g. TGIRT) instead enables `-dc 3`, `-ni` (no-insertions), and `-na` (no-ambiguous). `--sort-by-read-name` is applied only for paired-end reads regardless of `RT_enzyme`.
+Now run the pipeline. By default no reference is supplied, so the pipeline downloads the genome FASTA and GTF for each sample's `organism` from Ensembl (or NCBI for bacteria/viruses) and aligns with STAR (genome route):
 
-Supported `condition` values: `treated`, `untreated`, `denatured`.
+```bash
+nextflow run nf-core/rnastructurome \
+   -profile <docker/singularity/.../institute> \
+   --input samplesheet.csv \
+   --outdir <OUTDIR>
+```
 
-If you omit `--fasta` and `--gtf`, add an `organism` column to your samplesheet (e.g. `Homo sapiens`) and the pipeline will download the reference from Ensembl automatically.
+Alternatively, provide your own reference. Supplying `--fasta` (with `--gtf` for the genome route) takes priority over any `organism` download:
 
-The pipeline handles reference resolution automatically: supply a transcript FASTA and GTF directly, configure them via `params.genomes`, or let the pipeline download them from Ensembl by organism name. Samples are grouped by `sample_group` and replicate so that treated, untreated, and denatured controls are paired correctly for normalisation.
+```bash
+nextflow run nf-core/rnastructurome \
+   -profile <docker/singularity/.../institute> \
+   --input samplesheet.csv \
+   --fasta genome.fa \
+   --gtf annotation.gtf.gz \
+   --outdir <OUTDIR>
+```
 
-Now run the pipeline:
+To align against a transcript-level FASTA with Bowtie/Bowtie2 instead of a genome, add `--transcriptome true` and pass the transcript FASTA as `--fasta` (the GTF is optional on this route):
 
 ```bash
 nextflow run nf-core/rnastructurome \
    -profile <docker/singularity/.../institute> \
    --input samplesheet.csv \
    --fasta transcripts.fa \
-   --gtf annotation.gtf.gz \
+   --transcriptome true \
    --outdir <OUTDIR>
 ```
 
@@ -103,11 +115,14 @@ To see the results of an example test run with a full size dataset refer to the 
 For more details about the output files and reports, please refer to the
 [output documentation](https://nf-co.re/rnastructurome/output).
 
+This pipeline quantifies per-base reactivity and predicts secondary structures for the transcripts in your reference, grouping replicates and pairing treated/untreated controls for normalisation. It does not statistically compare conditions or samples. The per-nucleotide reactivity tracks, Shannon-entropy and base-pair-arc tracks, 2D structure diagrams, and RMDB-compatible RDAT files are intended for genome-browser visualisation, structural analysis, and deposition, and can be taken into downstream tools for cross-condition comparison.
+
 ## Credits
 
 nf-core/rnastructurome was originally written by Victoria Begley (@Vicbeg) and Pedro Madrigal (@pmb59) from RNAcentral (EBI-EMBL).
 
 We thank the following people for their extensive assistance in the development of this pipeline:
+
 - Danny Incarnato
 - Yiliang Ding
 

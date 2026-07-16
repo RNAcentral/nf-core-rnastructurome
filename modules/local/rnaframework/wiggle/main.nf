@@ -23,6 +23,13 @@ process RNAFRAMEWORK_RFWIGGLE {
         ${args} \\
         xml/
 
+    # rf-wiggle names its single output WIG after the input directory (xml.wig); rename it to the
+    # group id so the published track is self-describing.
+    produced_wig=\$(find ${prefix}_wiggle -maxdepth 1 -type f -name '*.wig' | head -1)
+    if [[ -n "\${produced_wig}" && "\${produced_wig}" != "${prefix}_wiggle/${prefix}.wig" ]]; then
+        mv "\${produced_wig}" "${prefix}_wiggle/${prefix}.wig"
+    fi
+
     rnaframework_version=\$(rf-wiggle -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
     printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
@@ -31,7 +38,7 @@ process RNAFRAMEWORK_RFWIGGLE {
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     mkdir -p ${prefix}_wiggle
-    touch ${prefix}_wiggle/stub.wig
+    touch ${prefix}_wiggle/${prefix}.wig
 
     rnaframework_version=\$(rf-wiggle -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
     printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml

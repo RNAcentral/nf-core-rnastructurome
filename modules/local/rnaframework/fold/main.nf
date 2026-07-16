@@ -103,6 +103,14 @@ process RNAFRAMEWORK_RFFOLD {
     cleaned_log="${prefix}_fold.clean.log"
     sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' "\${log_tmp}" | tr '\\r' '\\n' > "\${cleaned_log}"
 
+    # Publish only the Folding statistics block (the folded/discarded summary parseRffoldLog reads);
+    # the preceding per-transcript progress output is noise. Keep the full log if the marker is absent
+    # (e.g. a failure before stats are printed) so errors stay debuggable.
+    if grep -Fq '[+] Folding statistics:' "\${cleaned_log}"; then
+        awk 'index(\$0, "[+] Folding statistics:") { f=1 } f' "\${cleaned_log}" > "\${cleaned_log}.trim"
+        mv "\${cleaned_log}.trim" "\${cleaned_log}"
+    fi
+
     mkdir -p ${prefix}_fold
     mv "\${cleaned_log}" ${prefix}_fold/rffold.log
     rm -f "\${log_tmp}"

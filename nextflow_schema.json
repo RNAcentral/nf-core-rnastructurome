@@ -10,10 +10,7 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": [
-                "input",
-                "outdir"
-            ],
+            "required": ["input", "outdir"],
             "properties": {
                 "input": {
                     "type": "string",
@@ -126,12 +123,7 @@
                 "principle": {
                     "type": "string",
                     "description": "Fallback probing principle for rows missing `principle`.",
-                    "enum": [
-                        "RT-stop",
-                        "MaP",
-                        "rt-stop",
-                        "map"
-                    ]
+                    "enum": ["RT-stop", "MaP", "rt-stop", "map"]
                 },
                 "organism": {
                     "type": "string",
@@ -240,10 +232,7 @@
                 },
                 "bowtie_all": {
                     "default": true,
-                    "type": [
-                        "boolean",
-                        "string"
-                    ],
+                    "type": ["boolean", "string"],
                     "description": "Report all valid alignments (`-a`)."
                 },
                 "bowtie_trim5": {
@@ -359,10 +348,7 @@
                                 "const": true
                             }
                         },
-                        "required": [
-                            "rfcount_paired_only",
-                            "rfcount_properly_paired"
-                        ]
+                        "required": ["rfcount_paired_only", "rfcount_properly_paired"]
                     }
                 }
             ],
@@ -374,11 +360,7 @@
                 },
                 "rfcount_strandedness": {
                     "type": "string",
-                    "enum": [
-                        "unstranded",
-                        "first",
-                        "second"
-                    ],
+                    "enum": ["unstranded", "first", "second"],
                     "description": "Library strandedness fallback for rf-count-genome when RSeQC inference is unavailable (e.g. viral/bacterial references without a usable BED annotation).",
                     "default": "unstranded"
                 },
@@ -532,22 +514,12 @@
                 },
                 "rfnorm_score_method": {
                     "type": "integer",
-                    "enum": [
-                        1,
-                        2,
-                        3,
-                        4
-                    ],
+                    "enum": [1, 2, 3, 4],
                     "description": "Override rf-norm scoring method (`-sm`). 1=Ding, 2=Rouskin, 3=Siegfried, 4=Zubradt."
                 },
                 "rfnorm_norm_method": {
                     "type": "integer",
-                    "enum": [
-                        1,
-                        2,
-                        3,
-                        4
-                    ],
+                    "enum": [1, 2, 3, 4],
                     "description": "Override rf-norm normalization method (`-nm`). 1=2-8%, 2=90% Winsorizing, 3=Box-plot, 4=Mitchell (MaP only)."
                 },
                 "rfnorm_raw": {
@@ -1059,14 +1031,7 @@
                     "description": "Method used to save pipeline results to output directory.",
                     "help_text": "The Nextflow `publishDir` option specifies which intermediate files should be saved to the output directory. This option tells the pipeline what method should be used to move these files. See [Nextflow docs](https://www.nextflow.io/docs/latest/process.html#publishdir) for details.",
                     "fa_icon": "fas fa-copy",
-                    "enum": [
-                        "symlink",
-                        "rellink",
-                        "link",
-                        "copy",
-                        "copyNoFollow",
-                        "move"
-                    ],
+                    "enum": ["symlink", "rellink", "link", "copy", "copyNoFollow", "move"],
                     "hidden": true
                 },
                 "email_on_fail": {
@@ -1143,10 +1108,7 @@
                     "hidden": true
                 },
                 "help": {
-                    "type": [
-                        "boolean",
-                        "string"
-                    ],
+                    "type": ["boolean", "string"],
                     "description": "Display the help message."
                 },
                 "help_full": {

@@ -57,6 +57,14 @@ process RNAFRAMEWORK_RFNORM {
     cleaned_log="${prefix}.rfnorm.clean.log"
     sed -E 's/\\x1b\\[[0-9;]*[A-Za-z]//g' "\${rfnorm_log_tmp}" | tr '\\r' '\\n' > "\${cleaned_log}"
 
+    # Publish only the Normalization statistics block (the covered/discarded summary parseRfnormLog reads);
+    # the preceding progress output is noise. Keep the full log if the marker is absent (e.g. a failure
+    # before stats are printed) so errors stay debuggable.
+    if grep -Fq '[+] Normalization statistics:' "\${cleaned_log}"; then
+        awk 'index(\$0, "[+] Normalization statistics:") { f=1 } f' "\${cleaned_log}" > "\${cleaned_log}.trim"
+        mv "\${cleaned_log}.trim" "\${cleaned_log}"
+    fi
+
     if [[ -d ${prefix}_norm ]]; then
         mv "\${cleaned_log}" ${prefix}_norm/rfnorm.log
     fi

@@ -106,7 +106,7 @@ nextflow_process {
                 { assert path("${outputDir}/fold/group_publish/dotbracket/example.db").exists() },
                 { assert path("${outputDir}/fold/group_publish/shannon/example.wig").exists() },
                 { assert path("${outputDir}/fold/group_publish/rffold.log").exists() },
-                { assert !path("${outputDir}/fold/group_publish/2D-structures").exists() },
+                { assert !path("${outputDir}/fold/group_publish/structures/viennarna").exists() },
                 { assert !path("${outputDir}/fold/group_publish/summaries").exists() }
             )
         }

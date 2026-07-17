@@ -87,8 +87,15 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
         echo "[RNAFRAMEWORK_RFCOUNT_GENOME] rf-count-genome exited with status \${rfcount_status} after reporting completion; continuing because RC files were produced." >&2
     fi
 
-    mv "\${cleaned_log}" "${outdir}/${prefix}.rfcount_genome.log"
-    rm -f "\${rfcount_log_tmp}"
+    # Publish only the final statistics section (from "[+] Statistics:" to the end); the verbose
+    # per-transcript progress above it is noise. Fall back to the full log if the marker is absent,
+    # e.g. an early failure, so nothing useful is lost.
+    if grep -Fq '[+] Statistics:' "\${cleaned_log}"; then
+        awk '/^\\[\\+\\] Statistics:/{p=1} p' "\${cleaned_log}" > "${outdir}/${prefix}.rfcount_genome.log"
+    else
+        cp "\${cleaned_log}" "${outdir}/${prefix}.rfcount_genome.log"
+    fi
+    rm -f "\${cleaned_log}" "\${rfcount_log_tmp}"
 
     rnaframework_version=\$(rf-count-genome -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
     cat <<-END_VERSIONS > versions.yml

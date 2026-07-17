@@ -132,7 +132,7 @@ The aggregated summary reports, per sample, the number of transcripts `covered` 
 | MDA-MB-231_MTX_treated_r1    | 20639   | 121944486/180812092  | 67.44       | 20.05      | 21.29      | 25.81      | 32.84      |
 | MDA-MB-231_MTX_treated_r2    | 20473   | 108016250/155999073  | 69.24       | 20.27      | 20.68      | 26.33      | 32.71      |
 
-This is close to an ideal result: the treated samples sit at ~67–70% `pct_mutated` against ~25% in the untreated controls, a clean ~3× separation that shows the probe reacted well above background.
+This is close to an ideal result: the treated samples sit at ~67-70% `pct_mutated` against ~25% in the untreated controls, a clean ~3× separation that shows the probe reacted well above background.
 
 **RT-stop (DMS)**
 
@@ -147,7 +147,7 @@ This is close to an ideal result: the treated samples sit at ~67–70% `pct_muta
 | WT_Rep1_100mM_DMS_r1        | 4223    | 47.23      | 12.81      | 18.34      | 21.62      |
 | WT_Rep1_100mM_DMS_r2        | 4584    | 39.38      | 15.08      | 20.99      | 24.56      |
 
-This example is less clear-cut. Lacking `pct_mutated` (see above), the base composition is the main handle: `pct_a_muts` does rise in the DMS-treated samples (~39–48% vs ~26–32% in the controls), but `pct_c_muts` is not elevated as DMS at pH < 8 would predict. Results like this warrant a closer look at the downstream reactivities before drawing conclusions.
+This example is less clear-cut. Lacking `pct_mutated` (see above), the base composition is the main handle: `pct_a_muts` does rise in the DMS-treated samples (~39-48% vs ~26-32% in the controls), but `pct_c_muts` is not elevated as DMS at pH < 8 would predict. Results like this warrant a closer look at the downstream reactivities before drawing conclusions.
 
 ### rf-normfactor (optional)
 
@@ -343,7 +343,7 @@ All figures below are from the human `HLA-A` gene (SHAPE, MDA-MB-231).
 
 ![HLA-A reactivity in genomic coordinates](images-for-output/hla-a_reactivity_genome.png)
 
-For **structure**, the genome view is less useful at a multi-isoform locus like HLA-A. In the base-pair arc tracks, each arc connects two paired bases, coloured by base-pair probability: **yellow** = 10–40%, **blue** = 40–70%, **green** = 70–100% (pairs below 10% are not drawn; `rf-fold`'s dot-plot conversion runs with `--min-color-index 1`).
+For **structure**, the genome view is less useful at a multi-isoform locus like HLA-A. In the base-pair arc tracks, each arc connects two paired bases, coloured by base-pair probability: **yellow** = 10-40%, **blue** = 40-70%, **green** = 70-100% (pairs below 10% are not drawn; `rf-fold`'s dot-plot conversion runs with `--min-color-index 1`).
 
 Genome-coordinate base-pair arcs (`fold/genome_bp/<group>_genome.bp`): base pairs from every folded isoform are projected onto the assembly and overlap into a dense tangle:
 
@@ -373,9 +373,9 @@ This is where `rf-structextract` earns its place: it pulls the few genuinely wel
 
 ![Full ENST00000942651 structure drawn by ViennaRNA](images-for-output/enst00000942651-viennarna.svg)
 
-From this, `rf-structextract` isolates one region, positions 646–750, whose bases pass the reactivity and Shannon-entropy tests, a well-defined 105 nt motif that would otherwise be lost in the full-length diagram. It is written to the multi-record dot-bracket file (`extracted_structures/dotbracket/ENST00000942651.db`, record `ENST00000942651_646-750`) and drawn on its own, reactivity-coloured, in `extracted_structures/images/ENST00000942651_646-750_ss.svg`:
+From this, `rf-structextract` isolates one region, positions 646-750, whose bases pass the reactivity and Shannon-entropy tests, a well-defined 105 nt motif that would otherwise be lost in the full-length diagram. It is written to the multi-record dot-bracket file (`extracted_structures/dotbracket/ENST00000942651.db`, record `ENST00000942651_646-750`) and drawn on its own, reactivity-coloured, in `extracted_structures/images/ENST00000942651_646-750_ss.svg`:
 
-![Extracted ENST00000942651 motif, positions 646–750](images-for-output/enst00000942651-motif-646-750.svg)
+![Extracted ENST00000942651 motif, positions 646-750](images-for-output/enst00000942651-motif-646-750.svg)
 
 ### rf-jackknife (optional)
 
@@ -383,12 +383,12 @@ From this, `rf-structextract` isolates one region, positions 646–750, whose ba
 <summary>Output files</summary>
 
 - `jackknife/all_groups_jackknife/` (the default pooled run; with `--rfjackknife_pool_all false` you instead get one `jackknife/<group>_jackknife/` per sample group)
-  - `mFMI.csv`: Grid-search scores as a semicolon-delimited matrix. Rows are slope values, columns are intercept values, and each cell is the mean modified Fowlkes–Mallows Index (mFMI) between the reference structures and the structure rf-fold predicts at that slope/intercept.
+  - `mFMI.csv`: Grid-search scores as a semicolon-delimited matrix. Rows are slope values, columns are intercept values, and each cell is the mean modified Fowlkes-Mallows Index (mFMI) between the reference structures and the structure rf-fold predicts at that slope/intercept.
   - `rfjackknife.log`: Raw `rf-jackknife` console output, including the ranked top slope/intercept pairs and the jackknifing statistics.
 
 </details>
 
-[`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/) identifies optimal slope and intercept parameters for reactivity-guided structure folding by performing a grid search and comparing predicted structures to a set of reference structures using the (modified) Fowlkes–Mallows Index.
+[`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/) identifies optimal slope and intercept parameters for reactivity-guided structure folding by performing a grid search and comparing predicted structures to a set of reference structures using the (modified) Fowlkes-Mallows Index.
 
 This step only runs when `--jackknife_reference` is provided.
 
@@ -456,7 +456,7 @@ Below is the "Overall metrics" block from `rfeval.log` for one of the bacterial 
   [*] AUC:                  0.873
 ```
 
-All three metrics sit at 0.82–0.87 here, comfortably above the ~0.5 chance level, so the DMS reactivities agree well with the reference rRNA structure.
+All three metrics sit at 0.82-0.87 here, comfortably above the ~0.5 chance level, so the DMS reactivities agree well with the reference rRNA structure.
 
 ## MultiQC
 

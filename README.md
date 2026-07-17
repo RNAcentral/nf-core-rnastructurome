@@ -21,7 +21,7 @@
 
 ## Introduction
 
-**nf-core/rnastructurome** is a bioinformatics pipeline for the analysis of chemical-based high-throughput RNA structure probing data. It takes a samplesheet and FASTQ files from **SHAPE** or **DMS** experiments (using either the **RT-stop** or **mutational profiling (MaP)** principle) as input, performs quality control, trimming, alignment and deduplication, quantifies per-base reactivity, and predicts RNA secondary structures. It produces normalised reactivity tracks, 2D structure diagrams, RMDB-compatible RDAT files, and an aggregated QC report.
+**nf-core/rnastructurome** is a bioinformatics pipeline for analysing chemical high-throughput RNA structure-probing data. It takes a samplesheet and FASTQ files from **SHAPE** or **DMS** experiments — read out by either the **RT-stop** or **mutational profiling (MaP)** principle — then performs quality control, trimming and alignment, quantifies per-base reactivity, and predicts RNA secondary structures. Outputs include normalised reactivity, Shannon entropy and base-pair arc tracks, 2D structure diagrams, RMDB-compatible RDAT files, and an aggregated QC report. References can be supplied locally or fetched automatically from Ensembl or NCBI, so the pipeline works across a wide range of organisms, including viruses and bacteria.
 
 <p align="center">
     <picture>
@@ -36,21 +36,22 @@ Pipeline steps:
 2. Raw read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
 3. Optional UMI extraction ([`UMI-tools extract`](https://umi-tools.readthedocs.io/)) when `umi_pattern` is supplied
 4. Adapter and quality trimming ([`Cutadapt`](https://cutadapt.readthedocs.io/)) with principle-aware settings, followed by post-trim FastQC
-5. Reference resolution: use local FASTA/GTF inputs, download genome FASTA and GTF from Ensembl, or fall back to NCBI for organisms not captured by Ensembl like bacteria or viruses.
+5. Reference resolution: use local FASTA/GTF inputs, download genome FASTA and GTF from Ensembl, or fall back to NCBI for organisms not captured by Ensembl such as bacteria and viruses
 6. Reference indexing: [`STAR`](https://github.com/alexdobin/STAR) genome index by default; optional [`Bowtie`](http://bowtie-bio.sourceforge.net/) / [`Bowtie2`](http://bowtie-bio.sourceforge.net/bowtie2/) transcriptome indexes with `--transcriptome`
 7. Alignment: STAR for the default genome route; Bowtie for RT-stop and Bowtie2 for MaP on the optional transcriptome route
 8. BAM sorting, indexing, and alignment QC ([`SAMtools`](https://www.htslib.org/))
 9. Duplicate handling: UMI-aware deduplication ([`UMI-tools dedup`](https://umi-tools.readthedocs.io/)) for libraries with a `umi_pattern`. Position-based duplicate removal ([`SAMtools markdup`](https://www.htslib.org/)) is **disabled by default** (`skip_markdup = true`) and is not recommended for chemical-probing data without UMIs, where reads sharing a 5' start are independent molecules rather than PCR duplicates; enable it with `--skip_markdup false` only if you have a specific reason
-10. Genome-route strandedness support: GTF-to-BED conversion ([`BEDOPS`](https://bedops.readthedocs.io/)) and MaP strandedness inference ([`RSeQC infer_experiment`](https://rseqc.sourceforge.net/))
-11. Per-base reactivity counting: [`rf-count-genome`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count-genome/) plus [`rf-rctools extract`](https://rnaframework-docs.readthedocs.io/en/latest/rf-rctools/) on the default genome route, or [`rf-count`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count/) directly on the transcriptome route
-12. Reactivity normalisation with automatic control pairing and scoring-method selection ([`rf-norm`](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/))
-13. Reactivity track generation from rf-norm outputs, including transcript-coordinate and genome-coordinate WIG/BigWig files ([`rf-wiggle`](https://rnaframework-docs.readthedocs.io/en/latest/rf-wiggle/))
-14. Optional normalisation calibration against reference structures ([`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/)) when `--jackknife_reference` is provided; with `--stop_after_jackknife` the pipeline ends here, emitting the mFMI calibration table as its final output
+10. Per-base reactivity counting: by default, [`rf-count`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count/) tallies mutations (MaP) or RT-stops (RT-stop) directly on transcript-coordinate alignments — the genome route runs it on STAR's `--quantMode TranscriptomeSAM` output, the transcriptome route on the transcript BAM. Alternatively, on the genome route with `--count_genome`, [`rf-count-genome`](https://rnaframework-docs.readthedocs.io/en/latest/rf-count-genome/) counts against genome coordinates — with strandedness resolved first (GTF-to-BED conversion via [`BEDOPS`](https://bedops.readthedocs.io/) and, for MaP libraries, strand inference via [`RSeQC infer_experiment`](https://rseqc.sourceforge.net/)) — followed by [`rf-rctools extract`](https://rnaframework-docs.readthedocs.io/en/latest/rf-rctools/) to pull per-transcript reactivity
+11. Reactivity normalisation with automatic control pairing and scoring-method selection ([`rf-norm`](https://rnaframework-docs.readthedocs.io/en/latest/rf-norm/))
+12. Reactivity track generation from rf-norm outputs, including transcript-coordinate and genome-coordinate WIG/BigWig files ([`rf-wiggle`](https://rnaframework-docs.readthedocs.io/en/latest/rf-wiggle/))
+13. Replicate reproducibility QC: pairwise Pearson and Spearman correlation of per-`sample_group` reactivity profiles ([`rf-correlate`](https://rnaframework-docs.readthedocs.io/en/latest/rf-correlate/)), summarised in the MultiQC report
+14. Optional normalisation calibration against reference structures ([`rf-jackknife`](https://rnaframework-docs.readthedocs.io/en/latest/rf-jackknife/)) when `--jackknife_reference` is provided; with `--stop_after_jackknife` the pipeline ends here, emitting the FMI (Fowlkes–Mallows Index) calibration table as its final output
 15. RNA secondary structure prediction across grouped replicates ([`rf-fold`](https://rnaframework-docs.readthedocs.io/en/latest/rf-fold/))
 16. Base-pair and Shannon entropy track generation from rf-fold outputs, including transcript-coordinate and genome-coordinate files where possible
 17. 2D structure diagram drawing: every structure is drawn with [`ViennaRNA`](https://www.tbi.univie.ac.at/RNA/) RNAplot; when enabled, [`R2DT`](https://github.com/RNAcentral/R2DT) template-matched diagrams are drawn in parallel for side-by-side comparison (`structures/viennarna/` vs `structures/r2dt/`). R2DT is container-only, so conda/mamba runs draw with ViennaRNA alone
 18. RDAT export combining per-transcript reactivity and structure ([`rnaframework_to_rdat`](bin/rnaframework_to_rdat.py))
-19. Aggregated QC report ([`MultiQC`](http://multiqc.info/))
+19. Optional downstream analysis of the folded structures: structural-element extraction of high-confidence, low-reactivity/low-Shannon motifs ([`rf-structextract`](https://rnaframework-docs.readthedocs.io/en/latest/rf-structextract/), enabled with `--structextract`) and structure-accuracy evaluation against known structures ([`rf-eval`](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/), enabled by `--rfeval_reference`)
+20. Aggregated QC report ([`MultiQC`](http://multiqc.info/))
 
 ## Usage
 

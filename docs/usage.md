@@ -116,10 +116,10 @@ The pipeline always downloads the most recent available assembly - the current E
 
 Resolution order for each file type:
 
-| File  | 1st       | 2nd                       | 3rd              | 4th                  |
-| ----- | --------- | ------------------------- | ---------------- | -------------------- |
-| FASTA | `--fasta` | `params.genomes[key]`     | Ensembl download | NCBI fallback        |
-| GTF   | `--gtf`   | `params.genomes[key].gtf` | Ensembl download | Synthetic GTF (NCBI) |
+| File  | 1st       | 2nd              | 3rd                  |
+| ----- | --------- | ---------------- | -------------------- |
+| FASTA | `--fasta` | Ensembl download | NCBI fallback        |
+| GTF   | `--gtf`   | Ensembl download | Synthetic GTF (NCBI) |
 
 ### Alignment routes
 

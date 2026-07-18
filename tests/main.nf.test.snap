@@ -29,10 +29,6 @@
                 "MERGE_WIG": {
                     "python": "3.12.12"
                 },
-                "R2DT": {
-                    "r2dt": "2.2.0",
-                    "python": "3.11.0"
-                },
                 "RNAFRAMEWORK_DOTPLOT2BP": {
                     "python": "3.12.12"
                 },
@@ -114,7 +110,7 @@
                 }
             }
         ],
-        "timestamp": "2026-07-18T22:48:25.977882",
+        "timestamp": "2026-07-18T23:32:52.49727",
         "meta": {
             "nf-test": "0.9.4",
             "nextflow": "26.04.3"

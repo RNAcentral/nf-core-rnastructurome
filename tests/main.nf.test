@@ -37,7 +37,10 @@ nextflow_workflow {
         then {
             assertAll(
                 { assert workflow.success },
-                { assert snapshot(removeNextflowVersion("${outputDir}/pipeline_info/nf_core_rnastructurome_software_mqc_versions.yml")).match() }
+                // R2DT is container-only (custom CM image), so it emits no version entry under
+                // -profile conda; drop it so the versions snapshot matches across all engines.
+                { assert snapshot(removeNextflowVersion("${outputDir}/pipeline_info/nf_core_rnastructurome_software_mqc_versions.yml")
+                    .findAll { process, _v -> process != 'R2DT' }).match() }
             )
         }
     }

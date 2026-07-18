@@ -39,7 +39,10 @@ nextflow_workflow {
                 { assert workflow.out.mapped_bam.collect { entry -> entry[0].principle }.toSet() == ['RT-stop', 'MaP'] as Set },
                 { assert snapshot(
                     workflow.out.mapped_bam,
+                    // R2DT is container-only (custom CM image), so it emits no version entry under
+                    // -profile conda; drop it so the versions snapshot matches across all engines.
                     removeNextflowVersion("${outputDir}/pipeline_info/nf_core_rnastructurome_software_mqc_versions.yml")
+                        .findAll { process, _v -> process != 'R2DT' }
                 ).match() }
             )
         }

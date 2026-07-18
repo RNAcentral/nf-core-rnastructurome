@@ -39,7 +39,7 @@ nextflow_workflow {
                 { assert workflow.out.mapped_bam.collect { entry -> entry[0].principle }.toSet() == ['RT-stop', 'MaP'] as Set },
                 { assert snapshot(
                     workflow.out.mapped_bam,
-                    path("${outputDir}/pipeline_info/nf_core_rnastructurome_software_mqc_versions.yml")
+                    removeNextflowVersion("${outputDir}/pipeline_info/nf_core_rnastructurome_software_mqc_versions.yml")
                 ).match() }
             )
         }
@@ -432,9 +432,11 @@ nextflow_workflow {
                 { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep1' }[0].rfnorm_scoring_method == 3 },
                 { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep1' }[0].rfnorm_norm_method == 3 },
                 { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep1' }[0].rfnorm_has_denatured },
-                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_scoring_method == 4 },
+                // rep2 has no untreated of its own; the reference-wide reuse fallback supplies
+                // hek293T's single untreated, so rep2 resolves to has-untreated scoring (method 3).
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_scoring_method == 3 },
                 { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_norm_method == 3 },
-                { assert !workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_has_untreated }
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_has_untreated }
             )
         }
     }
@@ -522,7 +524,7 @@ nextflow_workflow {
         then {
             assertAll(
                 { assert !workflow.success },
-                { assert workflow.errorMessage.contains("rf-norm requires treated and untreated samples for denatured controls") },
+                { assert workflow.errorMessage.contains("rf-norm requires a treated sample for denatured controls") },
                 { assert workflow.errorMessage.contains("hek_denatured_rep1 (denatured)") }
             )
         }

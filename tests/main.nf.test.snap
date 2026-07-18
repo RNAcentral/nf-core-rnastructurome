@@ -9,7 +9,7 @@
                     "cutadapt": 5.2
                 },
                 "FASTA_SORT_LOCAL": {
-                    "python": "3.12.2"
+                    "python": "3.12.12"
                 },
                 "FASTQC_POST": {
                     "fastqc": "0.12.1"
@@ -21,23 +21,23 @@
                     "gffread": "0.12.7"
                 },
                 "MERGE_BP": {
-                    "python": "3.12.2"
+                    "python": "3.12.12"
                 },
                 "MERGE_BP_TRANSCRIPT": {
-                    "python": "3.12.2"
+                    "python": "3.12.12"
                 },
                 "MERGE_WIG": {
-                    "python": "3.12.2"
+                    "python": "3.12.12"
                 },
                 "R2DT": {
                     "r2dt": "2.2.0",
                     "python": "3.11.0"
                 },
                 "RNAFRAMEWORK_DOTPLOT2BP": {
-                    "python": "3.12.2"
+                    "python": "3.12.12"
                 },
                 "RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT": {
-                    "python": "3.12.2"
+                    "python": "3.12.12"
                 },
                 "RNAFRAMEWORK_RFCOUNT_STAR": {
                     "rnaframework": "2.9.7"
@@ -52,7 +52,7 @@
                     "rnaframework": "2.9.7"
                 },
                 "RNAFRAMEWORK_TORDAT": {
-                    "python": "3.12.2"
+                    "python": "3.12.12"
                 },
                 "SAMTOOLS_CALMD": {
                     "samtools": "1.23.1"
@@ -104,17 +104,17 @@
                     "viennarna": "2.6.4"
                 },
                 "WIG_TO_GENOME_REACTIVITY": {
-                    "python": "3.12.2"
+                    "python": "3.12.12"
                 },
                 "WIG_TO_GENOME_SHANNON": {
-                    "python": "3.12.2"
+                    "python": "3.12.12"
                 },
                 "Workflow": {
                     "nf-core/rnastructurome": "v1.0.0"
                 }
             }
         ],
-        "timestamp": "2026-07-17T15:21:23.312529",
+        "timestamp": "2026-07-18T22:48:25.977882",
         "meta": {
             "nf-test": "0.9.4",
             "nextflow": "26.04.3"

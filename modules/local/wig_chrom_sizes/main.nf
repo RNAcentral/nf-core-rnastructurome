@@ -4,8 +4,8 @@ process WIG_CHROM_SIZES {
 
     conda "conda-forge::python=3.12"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
-        ? 'https://depot.galaxyproject.org/singularity/python:3.12'
-        : 'quay.io/biocontainers/python:3.12'}"
+        ? 'https://depot.galaxyproject.org/singularity/python:3.12.12'
+        : 'quay.io/biocontainers/python:3.12.12'}"
 
     input:
     tuple val(meta), path(wig)

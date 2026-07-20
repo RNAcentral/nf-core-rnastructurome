@@ -1,16 +1,34 @@
+lint:
+  files_exist:
+    - conf/igenomes.config
+    - conf/igenomes_ignored.config
+  files_unchanged:
+    - .gitignore
+    - .github/workflows/linting_comment.yml
+    - .github/workflows/linting.yml
+    - subworkflows/nf-core/utils_nfcore_pipeline/main.nf
+    - assets/email_template.html
+    - assets/nf-core-rnastructurome_logo_light.png
+    - docs/images/nf-core-rnastructurome_logo_light.png
+    - docs/images/nf-core-rnastructurome_logo_dark.png
+  nextflow_config:
+    - params.bowtie_all
+    - config_defaults:
+        - params.bowtie_all
+  schema_params: false
+  template_strings:
+    - bin/r2dt_colour_svg.py
+    - bin/viennarna_colour_svg.py
+    - modules/local/r2dt/tests/test_r2dt_colour_svg.py
+nf_core_version: 4.0.2
 repository_type: pipeline
-
-nf_core_version: 3.5.2
-
-lint: {}
-
 template:
-  org: nf-core
-  name: rnastructurome
+  author: RNAcentral
   description: This pipeline analyses chemical-based high-throughput RNA structure
     probing data
-  author: RNAcentral
-  version: 1.0.0dev
-  force: true
-  outdir: .
+  force: false
   is_nfcore: true
+  name: rnastructurome
+  org: nf-core
+  outdir: .
+  version: 1.0.0

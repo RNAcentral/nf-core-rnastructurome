@@ -1,3 +1,19 @@
 {
-    "markdown.styles": ["public/vscode_markdown.css"]
+    "markdown.styles": ["public/vscode_markdown.css"],
+    "files.exclude": {
+        "**/.venv": true,
+        "**/.nf-test": true,
+        "**/work": true
+    },
+    "search.exclude": {
+        "**/.venv": true,
+        "**/.nf-test": true,
+        "**/work": true
+    },
+    "files.watcherExclude": {
+        "**/.venv/**": true,
+        "**/.nf-test/**": true,
+        "**/work/**": true
+    },
+    "nextflow.files.exclude": [".git", ".nf-test", ".nf-test/**", "work", "work/**", ".venv", ".venv/**"]
 }

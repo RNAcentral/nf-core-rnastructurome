@@ -1,0 +1,39 @@
+name: merge_wig
+description: Merge per-transcript WIG reactivity files into a single combined WIG file
+keywords:
+  - wig
+  - merge
+  - reactivity
+  - rnaframework
+tools:
+  - python:
+      description: Python runtime used for lightweight WIG post-processing
+      homepage: https://www.python.org/
+      documentation: https://docs.python.org/3/
+      licence: ["Python-2.0"]
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample metadata (e.g. id, condition, replicate)
+    - wig:
+        type: file
+        description: One or more per-transcript WIG reactivity files
+        pattern: "*.wig"
+output:
+  merged_wig:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample metadata
+      - "*.merged.wig":
+          type: file
+          description: Combined WIG file for downstream genomic remapping
+          pattern: "*.merged.wig"
+  versions:
+    - "versions.yml":
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@vicbeg"
+maintainers:
+  - "@vicbeg"

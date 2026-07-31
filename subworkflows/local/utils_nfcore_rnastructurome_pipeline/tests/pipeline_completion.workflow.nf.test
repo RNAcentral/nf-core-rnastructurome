@@ -1,0 +1,34 @@
+nextflow_workflow {
+
+    name "Test Workflow PIPELINE_COMPLETION"
+    script "../main.nf"
+    config "./nextflow.config"
+    workflow "PIPELINE_COMPLETION"
+    tag "subworkflows"
+    tag "utils_nfcore_rnastructurome_pipeline"
+    tag "pipeline_completion"
+
+    test("Completes without notifications when optional hooks are unset") {
+
+        when {
+            workflow {
+                """
+                input[0] = null
+                input[1] = null
+                input[2] = false
+                input[3] = "$outputDir"
+                input[4] = true
+                input[5] = null
+                input[6] = Channel.of(file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true))
+                input[7] = 0
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success }
+            )
+        }
+    }
+}

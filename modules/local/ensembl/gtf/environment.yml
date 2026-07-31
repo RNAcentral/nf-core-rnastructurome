@@ -1,0 +1,5 @@
+name: ensembl_gtf
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12.12

@@ -1,0 +1,535 @@
+nextflow_workflow {
+
+    name "Test Workflow RNASTRUCTUROME"
+    script "../workflows/rnastructurome.nf"
+    config "${new File('tests/nextflow.config').absolutePath}"
+    workflow "RNASTRUCTUROME"
+    tag "workflows"
+    tag "rnastructurome"
+
+    test("Routes RT-stop to bowtie and MaP to bowtie2") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'rtstop_sample', sample_id:'rtstop_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'rtstop_line', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'map_sample', sample_id:'map_sample', principle:'MaP', organism:'Mus musculus', single_end:true, sample_group:'map_line', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.mapped_bam.size() == 2 },
+                { assert workflow.out.mapped_bam.collect { entry -> entry[0].principle }.toSet() == ['RT-stop', 'MaP'] as Set },
+                { assert snapshot(
+                    workflow.out.mapped_bam,
+                    // R2DT is container-only (custom CM image), so it emits no version entry under
+                    // -profile conda; drop it so the versions snapshot matches across all engines.
+                    removeNextflowVersion("${outputDir}/pipeline_info/nf_core_rnastructurome_software_mqc_versions.yml")
+                        .findAll { process, _v -> process != 'R2DT' }
+                ).match() }
+            )
+        }
+    }
+
+    test("Concatenates resequenced paired-end FASTQs before preprocessing") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'reseq_rtstop', sample_id:'reseq_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:false, sample_group:'reseq_line', replicate:'rep1', condition:'treated' ],
+                        [
+                            file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true),
+                            file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true),
+                            file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true),
+                            file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true)
+                        ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.mapped_bam.size() == 1 },
+                { assert path("${outputDir}/pipeline_info/nf_core_rnastructurome_software_mqc_versions.yml").text.contains('CAT_FASTQ') }
+            )
+        }
+    }
+
+    test("Accepts organism as the reference key") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+                params.organism = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'organism_sample', sample_id:'organism_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'organism_line', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.mapped_bam.size() == 1 }
+            )
+        }
+    }
+
+    test("Fails when organism is missing") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+                params.organism = null
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'missing_build', sample_id:'missing_build', principle:'RT-stop', single_end:true ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("Missing organism") }
+            )
+        }
+    }
+
+    test("Accepts rf-count parameter overrides") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+                params.rfcount_img = true
+                params.rfcount_trim_5prime = 2
+                params.rfcount_primary_only = true
+                params.rfcount_map_sort_by_read_name = true
+                params.rfcount_map_discard_shorter = 5
+                params.rfcount_map_min_quality = 25
+                params.rfcount_map_collapse_consecutive = true
+                params.rfcount_map_max_collapse_distance = 3
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'map_rfcount', sample_id:'map_rfcount', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'map_rfcount_line', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.mapped_bam.size() == 1 }
+            )
+        }
+    }
+
+    test("Groups rf-norm inputs by matching sample_group and replicate") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'hek_treated_rep2', sample_id:'hek_treated_rep2', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep2', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'hek_untreated_rep2', sample_id:'hek_untreated_rep2', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep2', condition:'untreated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.normalized_xml.size() == 2 },
+                { assert workflow.out.normalized_xml.collect { entry -> entry[0].id }.toSet() == ['hek293T_rep1', 'hek293T_rep2'] as Set },
+                { assert workflow.out.normalized_xml.collect { entry -> entry[0].rfnorm_scoring_method }.toSet() == [1] as Set },
+                { assert workflow.out.normalized_xml.collect { entry -> entry[0].rfnorm_norm_method }.toSet() == [3] as Set }
+            )
+        }
+    }
+
+    test("Selects RT-stop treated-only rf-norm defaults") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_treated_only', sample_id:'hek_treated_only', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.normalized_xml.size() == 1 },
+                { assert workflow.out.normalized_xml[0][0].rfnorm_scoring_method == 2 },
+                { assert workflow.out.normalized_xml[0][0].rfnorm_norm_method == 2 }
+            )
+        }
+    }
+
+    test("Allows explicit rf-norm normalization override") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [
+                    outdir            : "$outputDir",
+                    fasta             : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString(),
+                    rfnorm_norm_method: 2
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.normalized_xml.size() == 1 },
+                { assert workflow.out.normalized_xml[0][0].rfnorm_scoring_method == 1 },
+                { assert workflow.out.normalized_xml[0][0].rfnorm_norm_method == 2 }
+            )
+        }
+    }
+
+    test("Allows explicit rf-norm scoring override") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [
+                    outdir              : "$outputDir",
+                    fasta               : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString(),
+                    rfnorm_score_method : 2
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.normalized_xml.size() == 1 },
+                { assert workflow.out.normalized_xml[0][0].rfnorm_scoring_method == 2 },
+                { assert workflow.out.normalized_xml[0][0].rfnorm_norm_method == 2 }
+            )
+        }
+    }
+
+    test("Fails on unsupported rf-norm normalization override") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [
+                    outdir            : "$outputDir",
+                    fasta             : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString(),
+                    rfnorm_norm_method: 99
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("Unsupported rf-norm normalization method '99'") }
+            )
+        }
+    }
+
+    test("Fails on unsupported rf-norm scoring override") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [
+                    outdir              : "$outputDir",
+                    fasta               : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString(),
+                    rfnorm_score_method : 99
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("Unsupported rf-norm scoring method '99'") }
+            )
+        }
+    }
+
+    test("Selects MaP rf-norm defaults from available controls") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'map_treated_rep1', sample_id:'map_treated_rep1', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'map_untreated_rep1', sample_id:'map_untreated_rep1', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'map_denatured_rep1', sample_id:'map_denatured_rep1', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'denatured' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ],
+                    [
+                        [ id:'map_treated_rep2', sample_id:'map_treated_rep2', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep2', condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.normalized_xml.size() == 2 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep1' }[0].rfnorm_scoring_method == 3 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep1' }[0].rfnorm_norm_method == 3 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep1' }[0].rfnorm_has_denatured },
+                // rep2 has no untreated of its own; the reference-wide reuse fallback supplies
+                // hek293T's single untreated, so rep2 resolves to has-untreated scoring (method 3).
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_scoring_method == 3 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_norm_method == 3 },
+                { assert workflow.out.normalized_xml.find { entry -> entry[0].id == 'hek293T_rep2' }[0].rfnorm_has_untreated }
+            )
+        }
+    }
+
+    test("Fails rf-norm grouping when sample_group or replicate is missing") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'missing_norm_key', sample_id:'missing_norm_key', principle:'RT-stop', organism:'Homo sapiens', single_end:true, condition:'treated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("Missing sample_group or replicate") }
+            )
+        }
+    }
+
+    test("Fails rf-norm when untreated lacks matching treated sample") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'untreated' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("rf-norm requires a treated sample") },
+                { assert workflow.errorMessage.contains("hek_untreated_rep1 (untreated)") }
+            )
+        }
+    }
+
+    test("Fails rf-norm when denatured lacks matching treated and untreated samples") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                params.outdir = "$outputDir"
+                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
+
+                input[0] = Channel.of(
+                    [
+                        [ id:'hek_denatured_rep1', sample_id:'hek_denatured_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'denatured' ],
+                        [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
+                    ]
+                )
+                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !workflow.success },
+                { assert workflow.errorMessage.contains("rf-norm requires a treated sample for denatured controls") },
+                { assert workflow.errorMessage.contains("hek_denatured_rep1 (denatured)") }
+            )
+        }
+    }
+}

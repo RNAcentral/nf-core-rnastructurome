@@ -1,0 +1,5 @@
+name: rnaframework_tordat
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12.12

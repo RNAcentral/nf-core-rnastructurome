@@ -1,0 +1,119 @@
+{
+    "Runs the named workflow with a minimal RT-stop sample": {
+        "content": [
+            {
+                "CAT_FASTQ": {
+                    "cat": 9.5
+                },
+                "CUTADAPT_RTSTOP": {
+                    "cutadapt": 5.2
+                },
+                "FASTA_SORT_LOCAL": {
+                    "python": "3.12.12"
+                },
+                "FASTQC_POST": {
+                    "fastqc": "0.12.1"
+                },
+                "FASTQC_PRE": {
+                    "fastqc": "0.12.1"
+                },
+                "GFFREAD": {
+                    "gffread": "0.12.7"
+                },
+                "MERGE_BP": {
+                    "python": "3.12.12"
+                },
+                "MERGE_BP_TRANSCRIPT": {
+                    "python": "3.12.12"
+                },
+                "MERGE_WIG": {
+                    "python": "3.12.12"
+                },
+                "RNAFRAMEWORK_DOTPLOT2BP": {
+                    "python": "3.12.12"
+                },
+                "RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT": {
+                    "python": "3.12.12"
+                },
+                "RNAFRAMEWORK_RFCOUNT_STAR": {
+                    "rnaframework": "2.9.7"
+                },
+                "RNAFRAMEWORK_RFFOLD": {
+                    "rnaframework": "2.9.7"
+                },
+                "RNAFRAMEWORK_RFNORM": {
+                    "rnaframework": "2.9.7"
+                },
+                "RNAFRAMEWORK_RFWIGGLE": {
+                    "rnaframework": "2.9.7"
+                },
+                "RNAFRAMEWORK_TORDAT": {
+                    "python": "3.12.12"
+                },
+                "SAMTOOLS_CALMD": {
+                    "samtools": "1.23.1"
+                },
+                "SAMTOOLS_FAIDX": {
+                    "samtools": "1.23.1"
+                },
+                "SAMTOOLS_FLAGSTAT": {
+                    "samtools": "1.23.1"
+                },
+                "SAMTOOLS_IDXSTATS": {
+                    "samtools": "1.23.1"
+                },
+                "SAMTOOLS_INDEX_FINAL": {
+                    "samtools": "1.23.1"
+                },
+                "SAMTOOLS_INDEX_SORT": {
+                    "samtools": "1.23.1"
+                },
+                "SAMTOOLS_INDEX_TRANSCRIPT": {
+                    "samtools": "1.23.1"
+                },
+                "SAMTOOLS_SORT": {
+                    "samtools": "1.23.1"
+                },
+                "SAMTOOLS_SORT_TRANSCRIPT": {
+                    "samtools": "1.23.1"
+                },
+                "SAMTOOLS_STATS": {
+                    "samtools": "1.23.1"
+                },
+                "STAR_ALIGN_RTSTOP": {
+                    "gawk": "5.1.0",
+                    "samtools": 1.21,
+                    "star": "2.7.11b"
+                },
+                "STAR_GENOMEGENERATE": {
+                    "gawk": "5.1.0",
+                    "samtools": 1.21,
+                    "star": "2.7.11b"
+                },
+                "UCSC_WIGTOBIGWIG_TRANSCRIPT_REACTIVITY": {
+                    "ucsc": 482
+                },
+                "UCSC_WIGTOBIGWIG_TRANSCRIPT_SHANNON": {
+                    "ucsc": 482
+                },
+                "VIENNARNA": {
+                    "viennarna": "2.6.4"
+                },
+                "WIG_TO_GENOME_REACTIVITY": {
+                    "python": "3.12.12"
+                },
+                "WIG_TO_GENOME_SHANNON": {
+                    "python": "3.12.12"
+                },
+                "Workflow": {
+                    "nf-core/rnastructurome": "v1.0.0"
+                }
+            }
+        ],
+        "timestamp": "2026-07-18T23:32:52.49727",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.3"
+        }
+    }
+}

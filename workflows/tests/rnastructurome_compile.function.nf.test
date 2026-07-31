@@ -1,0 +1,17 @@
+nextflow_function {
+
+    // Compile gate: loading rnastructurome.nf forces Nextflow to resolve its
+    // `include { ... } from './rnastructurome_functions.nf'` block. A broken
+    // include path or missing function name fails this test at script load.
+    name "rnastructurome workflow compiles with extracted-function include"
+    script "../rnastructurome.nf"
+
+    test("defaultPipelineConfig is callable (workflow + includes load)") {
+        function "defaultPipelineConfig"
+        then {
+            assert function.success
+            assert function.result instanceof Map
+            assert function.result.containsKey('ensembl_release')
+        }
+    }
+}

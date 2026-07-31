@@ -1,0 +1,71 @@
+nextflow_process {
+
+    name "Test Process FASTA_SORT"
+    script "../main.nf"
+    process "FASTA_SORT"
+
+    tag "modules"
+    tag "modules_local"
+    tag "fasta"
+    tag "fasta/sort"
+    config "./nextflow.config"
+
+    test("sorts FASTA records lexicographically by sequence identifier") {
+
+        when {
+            process {
+                """
+                input[1] = file("${projectDir}/bin/fasta_sort.py", checkIfExists: true)
+                input[0] = Channel.of([
+                    [ id:'yeast_ref', organism:'Saccharomyces cerevisiae' ],
+                    file("${projectDir}/modules/local/fasta/sort/tests/fixtures/unsorted.fa", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.fasta.size() == 1 },
+                {
+                    def fastaText = path(process.out.fasta[0][1]).text
+                    def headers = fastaText.readLines().findAll { line -> line.startsWith('>') }
+                    assert headers == ['>YAL001C transcript_a', '>YBR002W transcript_b', '>YCR003C transcript_c']
+                },
+                { assert path(process.out.versions[0]).text.contains('python:') }
+            )
+        }
+    }
+
+    test("normalizes yeast isoform transcript ids from hyphen to underscore before sorting") {
+
+        when {
+            process {
+                """
+                input[1] = file("${projectDir}/bin/fasta_sort.py", checkIfExists: true)
+                input[0] = Channel.of([
+                    [ id:'yeast_ref', organism:'Saccharomyces cerevisiae' ],
+                    file("${projectDir}/modules/local/fasta/sort/tests/fixtures/unsorted_yeast.fa", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                {
+                    def fastaText = path(process.out.fasta[0][1]).text
+                    def headers = fastaText.readLines().findAll { line -> line.startsWith('>') }
+                    assert headers == [
+                        '>YAL016C_A_mRNA transcript_zero',
+                        '>YAL016C_B_mRNA transcript_one',
+                        '>YAL042C_A_mRNA transcript_two'
+                    ]
+                },
+                { assert path(process.out.versions[0]).text.contains('python:') }
+            )
+        }
+    }
+}

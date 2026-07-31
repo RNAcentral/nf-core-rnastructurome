@@ -1,6 +1,4 @@
-//
 // Subworkflow with functionality specific to the nf-core/rnastructurome pipeline
-//
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -11,7 +9,6 @@
 include { UTILS_NFSCHEMA_PLUGIN     } from '../../nf-core/utils_nfschema_plugin'
 include { paramsSummaryMap          } from 'plugin/nf-schema'
 include { samplesheetToList         } from 'plugin/nf-schema'
-include { paramsHelp                } from 'plugin/nf-schema'
 include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
@@ -35,14 +32,16 @@ workflow PIPELINE_INITIALISATION {
     help              // boolean: Display help message and exit
     help_full         // boolean: Show the full help message
     show_hidden       // boolean: Show hidden parameters in the help message
+    pipeline_config_input // map: pipeline configuration captured at the entry workflow
 
     main:
 
+    def pipeline_config = defaultPipelineConfig() + (pipeline_config_input ?: [:])
     ch_versions = channel.empty()
 
-    //
+    validateRequiredPaths(input, outdir)
+
     // Print version and exit if required and dump pipeline parameters to JSON file
-    //
     UTILS_NEXTFLOW_PIPELINE (
         version,
         true,
@@ -50,12 +49,7 @@ workflow PIPELINE_INITIALISATION {
         workflow.profile.tokenize(',').intersect(['conda', 'mamba']).size() >= 1
     )
 
-    //
     // Validate parameters and generate parameter summary to stdout
-    //
-
-    def before_text = ""
-    def after_text = ""
     before_text = """
 -\033[2m----------------------------------------------------\033[0m-
                                         \033[0;32m,--.\033[0;30m/\033[0;32m,-.\033[0m
@@ -88,33 +82,44 @@ workflow PIPELINE_INITIALISATION {
         show_hidden,
         before_text,
         after_text,
-        command
+        command,
+        null
     )
 
-    //
     // Check config provided to the pipeline
-    //
     UTILS_NFCORE_PIPELINE (
         nextflow_cli_args
     )
 
-    //
     // Custom validation for pipeline parameters
-    //
-    validateInputParameters()
+    validateInputParameters(pipeline_config)
 
-    //
-    // Create channel from input file provided through params.input
-    //
+    // Create channel from input file provided through `input`
 
     channel
         .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
         .map {
             meta, fastq_1, fastq_2 ->
+                def resolved_meta = meta + [
+                    sample_id     : meta.sample_id ?: pipeline_config.sample_id,
+                    library_layout: fastq_2 ? 'PAIRED' : 'SINGLE',
+                    method        : meta.method ?: pipeline_config.method,
+                    principle     : meta.principle ?: pipeline_config.principle,
+                    chemical      : meta.chemical ?: pipeline_config.chemical,
+                    RT_enzyme     : meta.RT_enzyme ?: pipeline_config.RT_enzyme,
+                    pH            : hasMetadataValue(meta.pH) ? meta.pH : pipeline_config.pH,
+                    organism      : meta.organism ?: pipeline_config.organism,
+                    adapter_3p    : meta.adapter_3p,
+                    adapter_5p    : meta.adapter_5p,
+                    umi_pattern   : meta.umi_pattern ?: pipeline_config.umi_pattern,
+                    sample_group  : meta.sample_group,
+                    replicate     : meta.replicate
+                ]
+
                 if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
+                    return [ resolved_meta.id, resolved_meta + [ single_end:true ], [ fastq_1 ] ]
                 } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
+                    return [ resolved_meta.id, resolved_meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
                 }
         }
         .groupTuple()
@@ -152,9 +157,7 @@ workflow PIPELINE_COMPLETION {
     summary_params = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
     def multiqc_reports = multiqc_report.toList()
 
-    //
     // Completion email and summary
-    //
     workflow.onComplete {
         if (email || email_on_fail) {
             completionEmail(
@@ -169,7 +172,6 @@ workflow PIPELINE_COMPLETION {
         }
 
         completionSummary(monochrome_logs)
-
     }
 
     workflow.onError {
@@ -182,16 +184,52 @@ workflow PIPELINE_COMPLETION {
     FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-//
 // Check and validate pipeline parameters
-//
-def validateInputParameters() {
-    genomeExistsError()
+def defaultPipelineConfig() {
+    [
+        sample_id  : null,
+        method     : null,
+        principle  : null,
+        chemical   : null,
+        RT_enzyme  : null,
+        pH         : null,
+        organism   : null,
+        umi_pattern: null,
+        genomes    : null,
+        genome     : null
+    ]
 }
 
-//
+def validateInputParameters(pipeline_config) {
+    genomeExistsError(pipeline_config)
+}
+
+def hasMetadataValue(value) {
+    if (value == null) {
+        return false
+    }
+    if (value instanceof Collection) {
+        return !value.isEmpty()
+    }
+    return value.toString().trim()
+}
+
+def validateRequiredPaths(input, outdir) {
+    if (!isSpecifiedPath(input)) {
+        error("Missing required parameter: --input. Provide a samplesheet CSV path.")
+    }
+
+    if (!isSpecifiedPath(outdir)) {
+        error("Missing required parameter: --outdir. Provide an output directory path.")
+    }
+}
+
+def isSpecifiedPath(value) {
+    def normalised = value?.toString()?.trim()
+    return normalised && !normalised.equalsIgnoreCase('null')
+}
+
 // Validate channels from input samplesheet
-//
 def validateInputSamplesheet(input) {
     def (metas, fastqs) = input[1..2]
 
@@ -203,61 +241,61 @@ def validateInputSamplesheet(input) {
 
     return [ metas[0], fastqs ]
 }
-//
 // Get attribute from genome config file e.g. fasta
-//
-def getGenomeAttribute(attribute) {
-    if (params.genomes && params.genome && params.genomes.containsKey(params.genome)) {
-        if (params.genomes[ params.genome ].containsKey(attribute)) {
-            return params.genomes[ params.genome ][ attribute ]
+def getGenomeAttribute(attribute, pipeline_config) {
+    if (pipeline_config.genomes && pipeline_config.genome && pipeline_config.genomes.containsKey(pipeline_config.genome)) {
+        if (pipeline_config.genomes[pipeline_config.genome].containsKey(attribute)) {
+            return pipeline_config.genomes[pipeline_config.genome][attribute]
         }
     }
     return null
 }
 
-//
 // Exit pipeline if incorrect --genome key provided
-//
-def genomeExistsError() {
-    if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
+def genomeExistsError(pipeline_config) {
+    if (pipeline_config.genomes && pipeline_config.genome && !pipeline_config.genomes.containsKey(pipeline_config.genome)) {
         def error_string = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n" +
-            "  Genome '${params.genome}' not found in any config files provided to the pipeline.\n" +
+            "  Genome '${pipeline_config.genome}' not found in any config files provided to the pipeline.\n" +
             "  Currently, the available genome keys are:\n" +
-            "  ${params.genomes.keySet().join(", ")}\n" +
+            "  ${pipeline_config.genomes.keySet().join(", ")}\n" +
             "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         error(error_string)
     }
 }
-//
 // Generate methods description for MultiQC
-//
-def toolCitationText() {
-    // TODO nf-core: Optionally add in-text citation tools to this list.
-    // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "Tool (Foo et al. 2023)" : "",
-    // Uncomment function in methodsDescriptionText to render in MultiQC report
+def toolCitationText(pipeline_config) {
     def citation_text = [
             "Tools used in the workflow included:",
             "FastQC (Andrews 2010),",
+            "Cutadapt (Martin 2011),",
+            pipeline_config.umi_pattern ? "UMI-tools (Smith et al. 2017)," : "",
+            "Bowtie (Langmead et al. 2009),",
+            "Bowtie2 (Langmead & Salzberg 2012),",
+            "SAMtools (Danecek et al. 2021),",
+            "RNAFramework (Incarnato et al. 2018),",
             "MultiQC (Ewels et al. 2016)",
             "."
-        ].join(' ').trim()
+        ].findAll { entry -> entry }.join(' ').trim()
 
     return citation_text
 }
 
-def toolBibliographyText() {
-    // TODO nf-core: Optionally add bibliographic entries to this list.
-    // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "<li>Author (2023) Pub name, Journal, DOI</li>" : "",
-    // Uncomment function in methodsDescriptionText to render in MultiQC report
+def toolBibliographyText(pipeline_config) {
     def reference_text = [
-            "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).</li>",
-            "<li>Ewels, P., Magnusson, M., Lundin, S., & Käller, M. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics , 32(19), 3047–3048. doi: /10.1093/bioinformatics/btw354</li>"
-        ].join(' ').trim()
+            "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/.</li>",
+            "<li>Martin M (2011). Cutadapt removes adapter sequences from high-throughput sequencing reads. EMBnet.journal, 17(1), 10–12. doi: 10.14806/ej.17.1.200</li>",
+            pipeline_config.umi_pattern ? "<li>Smith T, et al. (2017). UMI-tools: modelling sequencing errors in Unique Molecular Identifiers to improve quantification accuracy. Genome Research, 27(3), 491–499. doi: 10.1101/gr.209601.116</li>" : "",
+            "<li>Langmead B, et al. (2009). Ultrafast and memory-efficient alignment of short DNA sequences to the human genome. Genome Biology, 10(3), R25. doi: 10.1186/gb-2009-10-3-r25</li>",
+            "<li>Langmead B & Salzberg SL (2012). Fast gapped-read alignment with Bowtie 2. Nature Methods, 9(4), 357–359. doi: 10.1038/nmeth.1923</li>",
+            "<li>Danecek P, et al. (2021). Twelve years of SAMtools and BCFtools. GigaScience, 10(2), giab008. doi: 10.1093/gigascience/giab008</li>",
+            "<li>Incarnato D, et al. (2018). RNA Framework: an all-in-one toolkit for the analysis of RNA structures and post-transcriptional modifications. Nucleic Acids Research, 46(W1), W121–W127. doi: 10.1093/nar/gky486</li>",
+            "<li>Ewels P, et al. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics, 32(19), 3047–3048. doi: 10.1093/bioinformatics/btw354</li>"
+        ].findAll { entry -> entry }.join(' ').trim()
 
     return reference_text
 }
 
-def methodsDescriptionText(mqc_methods_yaml) {
+def methodsDescriptionText(mqc_methods_yaml, pipeline_config) {
     // Convert  to a named map so can be used as with familiar NXF ${workflow} variable syntax in the MultiQC YML file
     def meta = [:]
     meta.workflow = workflow.toMap()
@@ -265,9 +303,8 @@ def methodsDescriptionText(mqc_methods_yaml) {
 
     // Pipeline DOI
     if (meta.manifest_map.doi) {
-        // Using a loop to handle multiple DOIs
-        // Removing `https://doi.org/` to handle pipelines using DOIs vs DOI resolvers
-        // Removing ` ` since the manifest.doi is a string and not a proper list
+        // Loop to handle multiple DOIs, stripping `https://doi.org/` (DOIs vs resolvers) and spaces
+        // (manifest.doi is a string, not a proper list).
         def temp_doi_ref = ""
         def manifest_doi = meta.manifest_map.doi.tokenize(",")
         manifest_doi.each { doi_ref ->
@@ -281,9 +318,8 @@ def methodsDescriptionText(mqc_methods_yaml) {
     meta["tool_citations"] = ""
     meta["tool_bibliography"] = ""
 
-    // TODO nf-core: Only uncomment below if logic in toolCitationText/toolBibliographyText has been filled!
-    // meta["tool_citations"] = toolCitationText().replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
-    // meta["tool_bibliography"] = toolBibliographyText()
+    meta["tool_citations"] = toolCitationText(pipeline_config).replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
+    meta["tool_bibliography"] = toolBibliographyText(pipeline_config)
 
 
     def methods_text = mqc_methods_yaml.text

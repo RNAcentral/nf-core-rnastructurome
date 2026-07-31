@@ -3,7 +3,8 @@ process RNAFRAMEWORK_RFFOLD {
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
-    container params.rnaframework_container
+    // Official RNAframework runtime image: bundles rnaframework + R + ViennaRNA/RNAplot.
+    container 'ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35'
 
     input:
     tuple val(meta), path(xml, stageAs: "input*/*")

@@ -658,6 +658,13 @@
                     "description": "Path to a `.db` file of known RNA secondary structures. Enables rf-eval when provided.",
                     "fa_icon": "far fa-file-code"
                 },
+                "rfeval_windows": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Optional manifest of sub-region references, one per line: `ref_seq_id start end structure_id [strand]` (1-based inclusive, in the XML's own coordinate space). When set, rf-norm reactivities are sliced to each window before rf-eval, so a sub-region structure (e.g. an Rfam element on a whole chromosome) is scored against a matching windowed XML instead of the diluted full transcript. `structure_id` must match an entry in `--rfeval_reference`.",
+                    "fa_icon": "far fa-file-alt"
+                },
                 "rfeval_reactivity_cutoff": {
                     "type": "number",
                     "minimum": 0,

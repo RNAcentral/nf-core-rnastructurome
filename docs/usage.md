@@ -257,6 +257,15 @@ For the full list of available options see the [rf-jackknife documentation](http
 
 `--rfeval_reactivity_cutoff` (default `0.7`) sets the reactivity above which a base is classified as highly-reactive when computing the unpaired coefficient. Terminal base-pairs are excluded from the comparison by default (`--rfeval_ignore_terminal true`); alternatively count them as unpaired with `--rfeval_terminal_as_unpaired true`. `--rfeval_keep_pseudoknots` (default `true`) and `--rfeval_keep_lonelypairs` (default `true`) control whether pseudoknotted and isolated 1-bp base-pairs in the reference are retained in the comparison. Set `--rfeval_img true` to additionally write R metric plots.
 
+`--rfeval_windows` takes an optional manifest that slices reactivities to the sub-region each reference structure covers before rf-eval runs, so a short element (e.g. an Rfam family on a whole genome) is not scored against the full transcript. Coordinates are 1-based inclusive in that reference's own space, `strand` is optional (`+` by default), and each `structure_id` must match an entry id in the `--rfeval_reference` `.db` file:
+
+```
+# ref_seq_id      start   end     structure_id    [strand]
+NC_012532.1        1       161     zika_5UTR       +
+NC_012532.1        10383   10454   zika_xrRNA1     +
+NC_012532.1        10467   10535   zika_xrRNA2     +
+```
+
 For the full list of available options see the [rf-eval documentation](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/). Any flag not exposed as a pipeline parameter can be passed directly via `ext.args` in a custom config.
 
 ### rf-structextract (optional)

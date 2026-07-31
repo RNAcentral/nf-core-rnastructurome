@@ -454,6 +454,7 @@ def defaultPipelineConfig() {
         bowtie2_dovetail                  : true,
         jackknife_reference               : null,
         rfeval_reference                  : null,
+        rfeval_windows                    : null,
         rfjackknife_pool_all              : true,
         stop_after_jackknife              : false,
         structextract                     : false,

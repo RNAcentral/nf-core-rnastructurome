@@ -58,6 +58,8 @@ All paths are relative to the top-level output directory specified with `--outdi
 │       ├── mFMI.csv
 │       └── rfjackknife.log
 ├── eval/                              (if --rfeval_reference provided)
+│   ├── <group>_rfeval_windows/        reactivity XMLs sliced to each reference region
+│   │                                  (if --rfeval_windows provided)
 │   └── <group>_rfeval/
 │       └── rfeval.log
 ├── multiqc/

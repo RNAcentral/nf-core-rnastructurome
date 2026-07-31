@@ -37,6 +37,20 @@ input:
         per-transcript .db files. Transcript IDs must match those in the XML.
       pattern: "*.{db,txt}"
       ontologies: []
+  - windows:
+      type: file
+      description: |
+        Optional manifest of sub-region references, one per line:
+        `ref_seq_id start end structure_id [strand]` (1-based inclusive, in the
+        XML's own coordinate space). When supplied, reactivities are sliced to
+        each window before rf-eval runs. Pass `[]` to disable.
+      pattern: "*.{tsv,txt}"
+      ontologies: []
+  - window_script:
+      type: file
+      description: Helper script that performs the slicing (bin/rnaframework_rfeval_window.py).
+      pattern: "*.py"
+      ontologies: []
 output:
   csv:
     - - meta:
@@ -67,6 +81,17 @@ output:
           type: file
           description: rf-eval run log
           pattern: "rfeval.log"
+          ontologies: []
+  windows:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample/group information
+      - "*_rfeval_windows/*.xml":
+          type: file
+          description: |
+            Reactivity XMLs sliced to each reference region, emitted only when a
+            windows manifest is supplied.
+          pattern: "*.xml"
           ontologies: []
   versions:
     - "versions.yml":

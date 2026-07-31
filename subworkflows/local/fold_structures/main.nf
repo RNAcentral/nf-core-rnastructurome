@@ -127,9 +127,18 @@ workflow FOLD_STRUCTURES {
     if (pipeline_config.rfeval_reference) {
         def ch_rfeval_reference = channel.value(file(pipeline_config.rfeval_reference.toString(), checkIfExists: true))
 
+        // With --rfeval_windows, rf-eval first slices each group's XML reactivities to the manifest
+        // regions, so a sub-region reference (e.g. an Rfam element on a whole chromosome) is scored
+        // against a matching windowed XML instead of the diluted full transcript.
+        def ch_rfeval_windows = pipeline_config.rfeval_windows
+            ? channel.value(file(pipeline_config.rfeval_windows.toString(), checkIfExists: true))
+            : channel.value([])
+
         RNAFRAMEWORK_RFEVAL (
             ch_rfnorm_xml,
-            ch_rfeval_reference
+            ch_rfeval_reference,
+            ch_rfeval_windows,
+            file("${projectDir}/bin/rnaframework_rfeval_window.py", checkIfExists: true)
         )
         ch_versions    = ch_versions.mix(RNAFRAMEWORK_RFEVAL.out.versions.first())
         ch_rfeval_csv  = RNAFRAMEWORK_RFEVAL.out.csv

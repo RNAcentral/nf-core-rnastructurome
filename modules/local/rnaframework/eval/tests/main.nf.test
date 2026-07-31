@@ -25,6 +25,8 @@ nextflow_process {
                     file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
                 ])
                 input[1] = file("${projectDir}/modules/local/rnaframework/eval/tests/fixtures/test_structures.db", checkIfExists: true)
+                input[2] = []
+                input[3] = file("${projectDir}/bin/rnaframework_rfeval_window.py", checkIfExists: true)
                 """
             }
         }
@@ -36,7 +38,42 @@ nextflow_process {
                 { assert path(process.out.csv[0][1]).text.contains('AUROC') },
                 { assert path(process.out.csv[0][1]).text.contains('DSCI') },
                 { assert process.out.log.size() == 1 },
-                { assert process.out.plots.size() == 0 }
+                { assert process.out.plots.size() == 0 },
+                { assert process.out.windows.size() == 0 }
+            )
+        }
+    }
+
+    test("rfeval - stub with windows manifest") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_args = ''
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'group_windows' ],
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/modules/local/rnaframework/eval/tests/fixtures/test_structures.db", checkIfExists: true)
+                input[2] = file("${projectDir}/modules/local/rnaframework/eval/tests/fixtures/test_windows.tsv", checkIfExists: true)
+                input[3] = file("${projectDir}/bin/rnaframework_rfeval_window.py", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.csv.size() == 1 },
+                { assert process.out.windows.size() == 1 },
+                // versions.yml must stay valid YAML — a failed probe reports 'unknown',
+                // it never leaks a shell error message onto the line
+                { assert path(process.out.versions[0]).yaml['RNAFRAMEWORK_RFEVAL'].containsKey('python') },
+                { assert !path(process.out.versions[0]).text.contains('command not found') }
             )
         }
     }
@@ -59,6 +96,8 @@ nextflow_process {
                     ]
                 ])
                 input[1] = file("${projectDir}/modules/local/rnaframework/eval/tests/fixtures/test_structures.db", checkIfExists: true)
+                input[2] = []
+                input[3] = file("${projectDir}/bin/rnaframework_rfeval_window.py", checkIfExists: true)
                 """
             }
         }
@@ -88,6 +127,8 @@ nextflow_process {
                     file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
                 ])
                 input[1] = file("${projectDir}/modules/local/rnaframework/eval/tests/fixtures/test_structures.db", checkIfExists: true)
+                input[2] = []
+                input[3] = file("${projectDir}/bin/rnaframework_rfeval_window.py", checkIfExists: true)
                 """
             }
         }
@@ -116,6 +157,8 @@ nextflow_process {
                     file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
                 ])
                 input[1] = file("${projectDir}/modules/local/rnaframework/eval/tests/fixtures/test_structures.db", checkIfExists: true)
+                input[2] = []
+                input[3] = file("${projectDir}/bin/rnaframework_rfeval_window.py", checkIfExists: true)
                 """
             }
         }

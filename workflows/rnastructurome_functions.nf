@@ -186,7 +186,7 @@ def parseInferExperiment(txtFile) {
     txtFile.readLines().each { line ->
         def m = line =~ /Fraction of reads explained by "(?:1\+\+,1--,2\+-,2-\+|\+\+,--)": (.+)/
         if (m) forward = m[0][1].trim() as double
-        m = line =~ /Fraction of reads explained by "(?:1\+-,1-\+,2\+\+,2--|\\+-,-\+)": (.+)/
+        m = line =~ /Fraction of reads explained by "(?:1\+-,1-\+,2\+\+,2--|\+-,-\+)": (.+)/
         if (m) reverse = m[0][1].trim() as double
     }
     // rf-count-genome's "second-strand" assigns transcript strand from read1's own mapped orientation

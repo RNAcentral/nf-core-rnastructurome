@@ -102,8 +102,9 @@ def main():
                 file=sys.stderr,
             )
 
-    # Longest R2DT model is the human LSU (HS_LSU_3D, ~3305 nt); skip anything longer.
-    _max_len = 3500
+    # Largest R2DT model is ~6000 nt; allow headroom above it and skip only clearly untemplatable
+    # transcripts, so long LSU rRNAs still reach the template search.
+    _max_len = 10000
 
     extracted     = []
     skipped_len   = 0

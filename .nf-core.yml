@@ -1,8 +1,6 @@
 repository_type: pipeline
-nf_core_version: 4.0.2
+nf_core_version: 4.0.3
 lint:
-  module_changes: false
-  subworkflow_changes: false
   # iGenomes support intentionally removed (Ensembl / NCBI / custom genome routes
   # are used instead), so the igenomes config files do not exist.
   files_exist:

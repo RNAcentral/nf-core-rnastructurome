@@ -97,9 +97,7 @@ workflow {
         params.plaintext_email,
         params.outdir,
         params.monochrome_logs,
-        params.hook_url,
-        NFCORE_RNASTRUCTUROME.out.multiqc_report,
-        params.max_multiqc_email_size
+        NFCORE_RNASTRUCTUROME.out.multiqc_report
     )
 }
 

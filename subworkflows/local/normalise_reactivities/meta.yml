@@ -19,10 +19,6 @@ input:
       type: channel
       description: |
         rf-count RC index files. Structure: [ val(meta), path(rci) ]
-  - pipeline_config:
-      type: map
-      description: |
-        Resolved pipeline configuration/parameters map.
 output:
   - xml:
       type: channel

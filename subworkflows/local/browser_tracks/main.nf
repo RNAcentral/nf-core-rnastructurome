@@ -21,7 +21,6 @@ workflow BROWSER_TRACKS {
     ch_rfnorm_xml          // channel: [ val(meta), path(xml) ]
     ch_fold_shannon_wig    // channel: [ val(meta), path(shannon_wig) ]
     ch_reference_gtf_map   // value:   map of reference_key -> [meta, gtf]
-    pipeline_config        // map
 
     main:
     ch_versions = channel.empty()
@@ -68,7 +67,7 @@ workflow BROWSER_TRACKS {
             def meta = combined[0]
             def wig = combined[1]
             def gtf_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+            def reference_key = resolveReferenceKey(meta)
             def gtf_tuple = gtf_map[reference_key]
             if (!gtf_tuple) {
                 log.warn("Skipping genomic reactivity BigWig for '${reference_key}': no GTF available.")
@@ -139,7 +138,7 @@ workflow BROWSER_TRACKS {
                 def meta = combined[0]
                 def wig = combined[1]
                 def gtf_map = combined[2]
-                def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def reference_key = resolveReferenceKey(meta)
                 def gtf_tuple = gtf_map[reference_key]
                 if (!gtf_tuple) {
                     log.warn("Skipping genomic Shannon BigWig for '${reference_key}': no GTF available.")

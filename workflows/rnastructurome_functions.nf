@@ -17,9 +17,9 @@ def normaliseEnsemblSpecies(value) {
         ?.replaceAll(/^_+|_+$/, '')
 }
 
-def resolveReferenceKey(meta, fallbackOrganism) {
+def resolveReferenceKey(meta) {
     def sampleId = meta?.id ?: 'unknown'
-    def rawReference = (meta?.organism ?: fallbackOrganism)?.toString()?.trim()
+    def rawReference = (meta?.organism ?: params.organism)?.toString()?.trim()
     if (!rawReference) {
         error("Missing organism for sample '${sampleId}'. Set organism in the samplesheet or provide --organism.")
     }
@@ -34,14 +34,14 @@ def resolveReferenceKey(meta, fallbackOrganism) {
 
 // Resolve how one sample's reference artifact (kind = 'fasta' | 'gtf') is obtained, returning
 // [ reference_key, "<scheme>::<value>", original_organism ] (scheme: path:: | ensembl:: | ncbi:: | none::).
-def resolveReferenceResolution(meta, cfg, kind) {
-    def reference_key     = resolveReferenceKey(meta, cfg.organism)
+def resolveReferenceResolution(meta, kind) {
+    def reference_key     = resolveReferenceKey(meta)
     def original_organism = meta.organism?.toString() ?: reference_key
-    def genome_entry      = cfg.genomes?.containsKey(reference_key) ? cfg.genomes[reference_key] : null
+    def genome_entry      = params.genomes?.containsKey(reference_key) ? params.genomes[reference_key] : null
 
     // 1. Explicit local path (user-supplied or from params.genomes)
     if (kind == 'fasta') {
-        def local_fasta = cfg.fasta
+        def local_fasta = params.fasta
         if (local_fasta) {
             return [ reference_key, "path::${local_fasta.toString()}", original_organism ]
         }
@@ -50,8 +50,8 @@ def resolveReferenceResolution(meta, cfg, kind) {
             return [ reference_key, "path::${transcript_fasta.toString()}", original_organism ]
         }
     } else {
-        if (cfg.gtf) {
-            return [ reference_key, "path::${cfg.gtf.toString()}", original_organism ]
+        if (params.gtf) {
+            return [ reference_key, "path::${params.gtf.toString()}", original_organism ]
         }
         def gtf_path = genome_entry?.gtf
         if (gtf_path) {
@@ -60,14 +60,14 @@ def resolveReferenceResolution(meta, cfg, kind) {
     }
 
     // 2. Explicit Ensembl species (per-genome override or species map)
-    def explicit_ensembl = genome_entry?.ensembl_species ?: cfg.ensembl_species_map?.get(reference_key)
+    def explicit_ensembl = genome_entry?.ensembl_species ?: params.ensembl_species_map?.get(reference_key)
     if (explicit_ensembl) {
         return [ reference_key, "ensembl::${explicit_ensembl.toLowerCase()}", original_organism ]
     }
 
     // 3. Pre-configured NCBI accessions. For FASTA this skips Ensembl (avoids spurious 404
     // log lines); for GTF the annotation is the synthetic NCBI_GTF, signalled by none::.
-    def ncbi_accessions = genome_entry?.ncbi_accessions ?: cfg.ncbi_accessions_map?.get(reference_key)
+    def ncbi_accessions = genome_entry?.ncbi_accessions ?: params.ncbi_accessions_map?.get(reference_key)
     if (ncbi_accessions) {
         if (kind == 'fasta') {
             def acc_str = (ncbi_accessions instanceof List) ? ncbi_accessions.join(',') : ncbi_accessions.toString()
@@ -87,18 +87,18 @@ def resolveReferenceResolution(meta, cfg, kind) {
 // references have no introns, so STAR offers nothing — auto-enable when every reference resolves to
 // NCBI (samplesheets are single-organism-class by contract). Returns false on any parse error so the
 // normal validation path in PIPELINE_INITIALISATION still runs and reports.
-def allReferencesUseNcbiRoute(samplesheetPath, schemaPath, cfg) {
+def allReferencesUseNcbiRoute(samplesheetPath, schemaPath) {
     if (!samplesheetPath) return false
     try {
         def rows = samplesheetToList(samplesheetPath.toString(), schemaPath.toString())
         if (!rows) return false
         def organisms = rows.collect { row ->
             def meta = (row instanceof List) ? row[0] : row
-            (meta?.organism ?: cfg.organism)?.toString()?.trim()
+            (meta?.organism ?: params.organism)?.toString()?.trim()
         }
         if (organisms.any { org -> !org }) return false
         return organisms.every { org ->
-            resolveReferenceResolution([ id: 'route-probe', organism: org ], cfg, 'fasta')[1].startsWith('ncbi::')
+            resolveReferenceResolution([ id: 'route-probe', organism: org ], 'fasta')[1].startsWith('ncbi::')
         }
     } catch (Exception _ignored) {
         return false
@@ -120,9 +120,9 @@ def collectToMap(ch_keyed) {
 // Build STAR_ALIGN inputs for a set of trimmed reads: pair each sample with its reference's STAR index +
 // GTF (combine by:0) and emit [ [meta,reads], [idx_meta,index], [gtf_meta,gtf], ignore_gtf ].
 // ignore_gtf skips --sjdbGTFfile at align time only when no GTF was resolved for that reference.
-def buildStarAlignInputs(ch_trimmed, ch_star_index, ch_gtf, cfg) {
+def buildStarAlignInputs(ch_trimmed, ch_star_index, ch_gtf) {
     def ch_keyed = ch_trimmed
-        .map { meta, reads -> [ resolveReferenceKey(meta, cfg.organism), meta, reads ] }
+        .map { meta, reads -> [ resolveReferenceKey(meta), meta, reads ] }
     def ch_idx_keyed = ch_star_index
         .map { meta, index -> [ meta.id.toString(), meta, index ] }
     def ch_gtf_keyed = ch_gtf
@@ -198,7 +198,7 @@ def parseInferExperiment(txtFile) {
     return 'unstranded'
 }
 
-def filterSummaryParams(summaryParams) {
+def filterSummaryParams(summaryParams, transcriptome) {
     def hiddenKeys = [
         'ensembl_species_map',
         'ncbi_accessions_map',
@@ -213,7 +213,7 @@ def filterSummaryParams(summaryParams) {
 
     // Hide aligner-specific params for the route not in use.
     // Transcriptome route uses Bowtie (RT-stop) / Bowtie2 (MaP); genome route uses STAR.
-    if (params.transcriptome) {
+    if (transcriptome) {
         hiddenKeys.addAll(['star_map_sjdb_overhang', 'star_multimap_nmax'])
     } else {
         hiddenKeys.addAll(summaryParams.values()
@@ -223,7 +223,7 @@ def filterSummaryParams(summaryParams) {
     }
 
     // Hide genome-route-specific params for transcriptome runs, and vice versa
-    if (params.transcriptome) {
+    if (transcriptome) {
         hiddenKeys.addAll(summaryParams.values()
             .findAll { section -> section instanceof Map }
             .collectMany { section -> section.keySet() as List }
@@ -269,9 +269,9 @@ def filterSummaryParams(summaryParams) {
     }
 }
 
-def addModuleOptionsSummary(summaryParams, pipeline_config) {
-    def sampleMetadata = parseInputSamplesheetMetadata(pipeline_config.input)
-    def moduleOptions = buildModuleOptionsSummary(pipeline_config, sampleMetadata)
+def addModuleOptionsSummary(summaryParams, transcriptome) {
+    def sampleMetadata = parseInputSamplesheetMetadata(params.input)
+    def moduleOptions = buildModuleOptionsSummary(sampleMetadata, transcriptome)
     if (moduleOptions.isEmpty()) {
         return summaryParams
     }
@@ -339,7 +339,7 @@ def parseInputSamplesheetMetadata(inputPath) {
     ]
 }
 
-def buildModuleOptionsSummary(pipeline_config, sampleMetadata) {
+def buildModuleOptionsSummary(sampleMetadata, transcriptome) {
     def moduleOptions = [:]
     def principles = (sampleMetadata.principles ?: []).collect { principle -> principle.toLowerCase() }
     def adapter5p = (sampleMetadata.adapter_5p ?: []).findAll { adapter -> adapter?.trim() }
@@ -352,94 +352,94 @@ def buildModuleOptionsSummary(pipeline_config, sampleMetadata) {
         moduleOptions['cutadapt_adapter_3p'] = adapter3p.join(', ')
     }
 
-    if (pipeline_config.transcriptome) {
+    if (transcriptome) {
         moduleOptions['aligner'] = 'transcriptome'
         if (!principles || principles.contains('rt-stop')) {
             moduleOptions['rtstop_aligner'] = 'bowtie'
-            moduleOptions['rtstop_aligner_args'] = renderBowtie1Args(pipeline_config)
+            moduleOptions['rtstop_aligner_args'] = renderBowtie1Args()
         }
         if (principles.contains('map')) {
             moduleOptions['map_aligner'] = 'bowtie2'
-            moduleOptions['map_aligner_args'] = renderBowtie2Args(pipeline_config)
+            moduleOptions['map_aligner_args'] = renderBowtie2Args()
         }
     } else {
         moduleOptions['aligner'] = 'star'
     }
 
-    def rfnormSummary = renderRfNormSummary(pipeline_config, sampleMetadata)
+    def rfnormSummary = renderRfNormSummary(sampleMetadata)
     moduleOptions.putAll(rfnormSummary)
 
     moduleOptions.findAll { _k, v -> v != null && v.toString().trim() }
 }
 
-def renderBowtie1Args(pipeline_config) {
+def renderBowtie1Args() {
     def args = []
-    if (pipeline_config.bowtie_all as Boolean) {
+    if (params.bowtie_all as Boolean) {
         args << '-a'
-    } else if (pipeline_config.bowtie_k != null) {
-        args << "-k ${pipeline_config.bowtie_k as Integer}"
+    } else if (params.bowtie_k != null) {
+        args << "-k ${params.bowtie_k as Integer}"
     }
-    if ((pipeline_config.bowtie_trim5 as Integer) > 0) {
-        args << "--trim5 ${pipeline_config.bowtie_trim5 as Integer}"
+    if ((params.bowtie_trim5 as Integer) > 0) {
+        args << "--trim5 ${params.bowtie_trim5 as Integer}"
     }
-    if ((pipeline_config.bowtie_trim3 as Integer) > 0) {
-        args << "--trim3 ${pipeline_config.bowtie_trim3 as Integer}"
+    if ((params.bowtie_trim3 as Integer) > 0) {
+        args << "--trim3 ${params.bowtie_trim3 as Integer}"
     }
     args << '-l 28'
-    if (pipeline_config.bowtie_v != null) {
-        args << "-v ${pipeline_config.bowtie_v as Integer}"
+    if (params.bowtie_v != null) {
+        args << "-v ${params.bowtie_v as Integer}"
     } else {
-        args << "-n ${pipeline_config.bowtie_n as Integer}"
+        args << "-n ${params.bowtie_n as Integer}"
     }
-    if (!(pipeline_config.bowtie_all as Boolean) && pipeline_config.bowtie_k == null && pipeline_config.bowtie_max != null) {
-        args << "-m ${pipeline_config.bowtie_max as Integer}"
-        if ((pipeline_config.bowtie_max as Integer) > 1) {
+    if (!(params.bowtie_all as Boolean) && params.bowtie_k == null && params.bowtie_max != null) {
+        args << "-m ${params.bowtie_max as Integer}"
+        if ((params.bowtie_max as Integer) > 1) {
             args << '-a'
         }
     }
     args << '--best'
     args << '--strata'
-    args << "--chunkmbs ${pipeline_config.bowtie_chunkmbs as Integer}"
+    args << "--chunkmbs ${params.bowtie_chunkmbs as Integer}"
     args.join(' ').trim()
 }
 
-def renderBowtie2Args(pipeline_config) {
+def renderBowtie2Args() {
     def args = []
-    def preset = pipeline_config.bowtie2_preset?.toString()?.trim() ?: ''
-    if (pipeline_config.bowtie_all as Boolean) {
+    def preset = params.bowtie2_preset?.toString()?.trim() ?: ''
+    if (params.bowtie_all as Boolean) {
         args << '-a'
-    } else if (!preset && pipeline_config.bowtie_k != null) {
-        args << "-k ${pipeline_config.bowtie_k as Integer}"
+    } else if (!preset && params.bowtie_k != null) {
+        args << "-k ${params.bowtie_k as Integer}"
     }
-    if ((pipeline_config.bowtie_trim5 as Integer) > 0) {
-        args << "--trim5 ${pipeline_config.bowtie_trim5 as Integer}"
+    if ((params.bowtie_trim5 as Integer) > 0) {
+        args << "--trim5 ${params.bowtie_trim5 as Integer}"
     }
-    if ((pipeline_config.bowtie_trim3 as Integer) > 0) {
-        args << "--trim3 ${pipeline_config.bowtie_trim3 as Integer}"
+    if ((params.bowtie_trim3 as Integer) > 0) {
+        args << "--trim3 ${params.bowtie_trim3 as Integer}"
     }
     if (preset) {
         args << preset
-        if (pipeline_config.bowtie2_softclip as Boolean) {
-            args << "--ma ${pipeline_config.bowtie2_ma as Integer}"
+        if (params.bowtie2_softclip as Boolean) {
+            args << "--ma ${params.bowtie2_ma as Integer}"
         }
     } else {
         args << '-L 22'
-        if (pipeline_config.bowtie2_softclip as Boolean) {
+        if (params.bowtie2_softclip as Boolean) {
             args << '--local'
-            args << "--ma ${pipeline_config.bowtie2_ma as Integer}"
+            args << "--ma ${params.bowtie2_ma as Integer}"
         }
     }
-    args << "--mp ${pipeline_config.bowtie2_mp}"
-    args << "--dpad ${pipeline_config.bowtie2_dpad as Integer}"
-    args << "--rdg ${pipeline_config.bowtie2_rdg}"
-    args << "--rfg ${pipeline_config.bowtie2_rfg}"
-    if (pipeline_config.bowtie2_dovetail as Boolean) {
+    args << "--mp ${params.bowtie2_mp}"
+    args << "--dpad ${params.bowtie2_dpad as Integer}"
+    args << "--rdg ${params.bowtie2_rdg}"
+    args << "--rfg ${params.bowtie2_rfg}"
+    if (params.bowtie2_dovetail as Boolean) {
         args << '--dovetail'
     }
     args.join(' ').trim()
 }
 
-def renderRfNormSummary(pipeline_config, sampleMetadata) {
+def renderRfNormSummary(sampleMetadata) {
     def principles = (sampleMetadata.principles ?: []).collect { principle -> principle.toLowerCase() }.unique()
     def conditions = (sampleMetadata.conditions ?: []).collect { condition -> condition.toLowerCase() }.unique()
     if (principles.size() != 1) {
@@ -451,34 +451,34 @@ def renderRfNormSummary(pipeline_config, sampleMetadata) {
     def principle = principles[0]
     def hasUntreated = conditions.contains('untreated')
     def hasDenatured = conditions.contains('denatured')
-    def scoringMethod = resolveRfNormScoreMethod(pipeline_config, principle, hasUntreated)
-    def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
+    def scoringMethod = resolveRfNormScoreMethod(principle, hasUntreated)
+    def normMethod = resolveRfNormNormMethod(scoringMethod)
     def isDmsOnly = ((sampleMetadata.methods ?: []).collect { method -> method.toLowerCase() }.unique()) == ['dms']
     def isDmsBroad = isDmsOnly && sampleMetadata.pH != null && (sampleMetadata.pH as Double) >= 8.0
-    def reactiveBases = pipeline_config.rfnorm_reactive_bases ?: (isDmsOnly ? (isDmsBroad ? 'ACGU' : 'AC') : null)
-    def dynamicWindow = pipeline_config.rfnorm_dynamic_window != null ? (pipeline_config.rfnorm_dynamic_window as Integer) : (isDmsOnly && !isDmsBroad ? 50 : null)
+    def reactiveBases = params.rfnorm_reactive_bases ?: (isDmsOnly ? (isDmsBroad ? 'ACGU' : 'AC') : null)
+    def dynamicWindow = params.rfnorm_dynamic_window != null ? (params.rfnorm_dynamic_window as Integer) : (isDmsOnly && !isDmsBroad ? 50 : null)
 
     def args = [
         "-sm ${scoringMethod}",
         "-nm ${normMethod}"
     ]
-    if (pipeline_config.rfnorm_remap_reactivities as Boolean) args << '--remap-reactivities'
+    if (params.rfnorm_remap_reactivities as Boolean) args << '--remap-reactivities'
     if (reactiveBases) args << "--reactive-bases ${reactiveBases}"
-    if (pipeline_config.rfnorm_norm_window != null) args << "--norm-window ${pipeline_config.rfnorm_norm_window as Integer}"
-    if (pipeline_config.rfnorm_window_offset != null) args << "--window-offset ${pipeline_config.rfnorm_window_offset as Integer}"
+    if (params.rfnorm_norm_window != null) args << "--norm-window ${params.rfnorm_norm_window as Integer}"
+    if (params.rfnorm_window_offset != null) args << "--window-offset ${params.rfnorm_window_offset as Integer}"
     if (dynamicWindow != null) args << "--dynamic-window ${dynamicWindow}"
-    if (pipeline_config.rfnorm_norm_independent as Boolean) args << '--norm-independent'
-    if (pipeline_config.rfnorm_raw as Boolean) args << '--raw'
-    if (pipeline_config.rfnorm_pseudocount != null) args << "--pseudocount ${pipeline_config.rfnorm_pseudocount}"
-    if (pipeline_config.rfnorm_ignore_lower_than_untreated as Boolean) args << '--ignore-lower-than-untreated'
-    def meanCoverage = pipeline_config.rfnorm_mean_coverage != null ? pipeline_config.rfnorm_mean_coverage as BigDecimal : 0
-    if (meanCoverage > 0) args << "--mean-coverage ${pipeline_config.rfnorm_mean_coverage}"
-    def medianCoverage = pipeline_config.rfnorm_median_coverage != null ? pipeline_config.rfnorm_median_coverage as BigDecimal : 0
-    if (medianCoverage > 0) args << "--median-coverage ${pipeline_config.rfnorm_median_coverage}"
-    def nanThreshold = pipeline_config.rfnorm_nan != null ? pipeline_config.rfnorm_nan as Integer : 10
+    if (params.rfnorm_norm_independent as Boolean) args << '--norm-independent'
+    if (params.rfnorm_raw as Boolean) args << '--raw'
+    if (params.rfnorm_pseudocount != null) args << "--pseudocount ${params.rfnorm_pseudocount}"
+    if (params.rfnorm_ignore_lower_than_untreated as Boolean) args << '--ignore-lower-than-untreated'
+    def meanCoverage = params.rfnorm_mean_coverage != null ? params.rfnorm_mean_coverage as BigDecimal : 0
+    if (meanCoverage > 0) args << "--mean-coverage ${params.rfnorm_mean_coverage}"
+    def medianCoverage = params.rfnorm_median_coverage != null ? params.rfnorm_median_coverage as BigDecimal : 0
+    if (medianCoverage > 0) args << "--median-coverage ${params.rfnorm_median_coverage}"
+    def nanThreshold = params.rfnorm_nan != null ? params.rfnorm_nan as Integer : 10
     if (nanThreshold != 10) args << "--nan ${nanThreshold}"
     args << '--img'
-    args << "-R ${pipeline_config.rnaframework_r_path}"
+    args << "-R ${params.rnaframework_r_path}"
 
     [
         rfnorm_mode         : "${principle.toUpperCase()} ${hasUntreated ? 'with untreated' : 'treated-only'}${hasDenatured ? ' + denatured' : ''}",
@@ -494,29 +494,29 @@ def sampleGroupBaseToken(String sample_group) {
     sample_group.tokenize('_')[0]
 }
 
-def resolveRfNormScoreMethod(pipeline_config, principle, hasUntreated) {
+def resolveRfNormScoreMethod(principle, hasUntreated) {
     def defaultMethod = principle == 'map' ? (hasUntreated ? 3 : 4) : (hasUntreated ? 1 : 2)
-    if (pipeline_config.rfnorm_score_method == null) {
+    if (params.rfnorm_score_method == null) {
         return defaultMethod
     }
 
-    def requestedMethod = pipeline_config.rfnorm_score_method as Integer
+    def requestedMethod = params.rfnorm_score_method as Integer
     if (!(requestedMethod in [1, 2, 3, 4])) {
-        error("Unsupported rf-norm scoring method '${pipeline_config.rfnorm_score_method}'. Expected one of: 1, 2, 3, 4.")
+        error("Unsupported rf-norm scoring method '${params.rfnorm_score_method}'. Expected one of: 1, 2, 3, 4.")
     }
 
     requestedMethod
 }
 
-def resolveRfNormNormMethod(pipeline_config, scoringMethod) {
+def resolveRfNormNormMethod(scoringMethod) {
     def defaultMethod = (scoringMethod as Integer) == 2 ? 2 : 3
-    if (pipeline_config.rfnorm_norm_method == null) {
+    if (params.rfnorm_norm_method == null) {
         return defaultMethod
     }
 
-    def requestedMethod = pipeline_config.rfnorm_norm_method as Integer
+    def requestedMethod = params.rfnorm_norm_method as Integer
     if (!(requestedMethod in [2, 3, 4])) {
-        error("Unsupported rf-norm normalization method '${pipeline_config.rfnorm_norm_method}'. Expected one of: 2, 3, 4.")
+        error("Unsupported rf-norm normalization method '${params.rfnorm_norm_method}'. Expected one of: 2, 3, 4.")
     }
 
     requestedMethod

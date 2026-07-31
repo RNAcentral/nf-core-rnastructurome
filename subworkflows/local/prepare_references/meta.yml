@@ -30,10 +30,11 @@ input:
       type: channel
       description: |
         Reads after lane concatenation, used to determine which references are needed. Structure: [ val(meta), [ reads ] ]
-  - pipeline_config:
-      type: map
+  - transcriptome:
+      type: boolean
       description: |
-        Resolved pipeline configuration/parameters map.
+        Whether the transcriptome (Bowtie) route is in use, including auto-detection
+        performed by the entry workflow. All other settings are read from params.
 output:
   - fasta_map:
       type: map

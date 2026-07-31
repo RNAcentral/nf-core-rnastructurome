@@ -5,43 +5,52 @@ nextflow_function {
 
     test("resolveReferenceKey normalises a binomial organism") {
         function "resolveReferenceKey"
-        when { function { """ input[0] = [ id: 's1', organism: 'Homo sapiens' ]; input[1] = null """ } }
+        when { function { """ input[0] = [ id: 's1', organism: 'Homo sapiens' ] """ } }
         then { assert function.success; assert function.result == 'homo_sapiens' }
     }
 
-    test("resolveReferenceKey falls back to provided organism") {
+    test("resolveReferenceKey falls back to --organism") {
         function "resolveReferenceKey"
-        when { function { """ input[0] = [ id: 's2' ]; input[1] = 'mus_musculus' """ } }
+        when {
+            params { organism = 'mus_musculus' }
+            function { """ input[0] = [ id: 's2' ] """ }
+        }
         then { assert function.success; assert function.result == 'mus_musculus' }
     }
 
     test("resolveRfNormNormMethod default depends on scoring method") {
         function "resolveRfNormNormMethod"
-        when { function { """ input[0] = [:]; input[1] = 2 """ } }
+        when { function { """ input[0] = 2 """ } }
         then { assert function.success; assert function.result == 2 }
     }
 
     test("resolveRfNormNormMethod default for non-2 scoring method is 3") {
         function "resolveRfNormNormMethod"
-        when { function { """ input[0] = [:]; input[1] = 1 """ } }
+        when { function { """ input[0] = 1 """ } }
         then { assert function.success; assert function.result == 3 }
     }
 
     test("resolveRfNormScoreMethod defaults by principle and untreated control") {
         function "resolveRfNormScoreMethod"
-        when { function { """ input[0] = [:]; input[1] = 'rt-stop'; input[2] = true """ } }
+        when { function { """ input[0] = 'rt-stop'; input[1] = true """ } }
         then { assert function.success; assert function.result == 1 }
     }
 
     test("resolveRfNormScoreMethod allows explicit scoring override") {
         function "resolveRfNormScoreMethod"
-        when { function { """ input[0] = [ rfnorm_score_method: 2 ]; input[1] = 'rt-stop'; input[2] = true """ } }
+        when {
+            params { rfnorm_score_method = 2 }
+            function { """ input[0] = 'rt-stop'; input[1] = true """ }
+        }
         then { assert function.success; assert function.result == 2 }
     }
 
     test("resolveRfNormScoreMethod rejects unsupported scoring override") {
         function "resolveRfNormScoreMethod"
-        when { function { """ input[0] = [ rfnorm_score_method: 99 ]; input[1] = 'rt-stop'; input[2] = true """ } }
+        when {
+            params { rfnorm_score_method = 99 }
+            function { """ input[0] = 'rt-stop'; input[1] = true """ }
+        }
         then { assert function.failed }
     }
 
@@ -59,49 +68,72 @@ nextflow_function {
 
     test("resolveReferenceResolution fasta: local --fasta wins (genome route)") {
         function "resolveReferenceResolution"
-        when { function { """ input[0] = [ id: 's', organism: 'homo_sapiens' ]; input[1] = [ transcriptome: false, fasta: '/x.fa' ]; input[2] = 'fasta' """ } }
+        when {
+            params { transcriptome = false; fasta = '/x.fa' }
+            function { """ input[0] = [ id: 's', organism: 'homo_sapiens' ]; input[1] = 'fasta' """ }
+        }
         then { assert function.success; assert function.result == [ 'homo_sapiens', 'path::/x.fa', 'homo_sapiens' ] }
     }
 
     test("resolveReferenceResolution fasta: defaults to ensembl by key") {
         function "resolveReferenceResolution"
-        when { function { """ input[0] = [ id: 's', organism: 'homo_sapiens' ]; input[1] = [:]; input[2] = 'fasta' """ } }
+        when {
+            params { fasta = null; gtf = null }
+            function { """ input[0] = [ id: 's', organism: 'homo_sapiens' ]; input[1] = 'fasta' """ }
+        }
         then { assert function.success; assert function.result == [ 'homo_sapiens', 'ensembl::homo_sapiens', 'homo_sapiens' ] }
     }
 
     test("resolveReferenceResolution fasta: ensembl_species_map maps alias") {
         function "resolveReferenceResolution"
-        when { function { """ input[0] = [ id: 's', organism: 'human' ]; input[1] = [ ensembl_species_map: [ human: 'homo_sapiens' ] ]; input[2] = 'fasta' """ } }
+        when {
+            params { fasta = null; gtf = null; ensembl_species_map = [ human: 'homo_sapiens' ] }
+            function { """ input[0] = [ id: 's', organism: 'human' ]; input[1] = 'fasta' """ }
+        }
         then { assert function.success; assert function.result == [ 'human', 'ensembl::homo_sapiens', 'human' ] }
     }
 
     test("resolveReferenceResolution fasta: ncbi accessions list joins") {
         function "resolveReferenceResolution"
-        when { function { """ input[0] = [ id: 's', organism: 'ec' ]; input[1] = [ ncbi_accessions_map: [ ec: [ 'X1', 'X2' ] ] ]; input[2] = 'fasta' """ } }
+        when {
+            params { fasta = null; gtf = null; ncbi_accessions_map = [ ec: [ 'X1', 'X2' ] ] }
+            function { """ input[0] = [ id: 's', organism: 'ec' ]; input[1] = 'fasta' """ }
+        }
         then { assert function.success; assert function.result == [ 'ec', 'ncbi::X1,X2', 'ec' ] }
     }
 
     test("resolveReferenceResolution gtf: --gtf path wins") {
         function "resolveReferenceResolution"
-        when { function { """ input[0] = [ id: 's', organism: 'homo_sapiens' ]; input[1] = [ gtf: '/a.gtf' ]; input[2] = 'gtf' """ } }
+        when {
+            params { gtf = '/a.gtf' }
+            function { """ input[0] = [ id: 's', organism: 'homo_sapiens' ]; input[1] = 'gtf' """ }
+        }
         then { assert function.success; assert function.result == [ 'homo_sapiens', 'path::/a.gtf', 'homo_sapiens' ] }
     }
 
     test("resolveReferenceResolution gtf: ncbi accessions yield none:: (synthetic GTF)") {
         function "resolveReferenceResolution"
-        when { function { """ input[0] = [ id: 's', organism: 'ec' ]; input[1] = [ ncbi_accessions_map: [ ec: 'X1' ] ]; input[2] = 'gtf' """ } }
+        when {
+            params { fasta = null; gtf = null; ncbi_accessions_map = [ ec: 'X1' ] }
+            function { """ input[0] = [ id: 's', organism: 'ec' ]; input[1] = 'gtf' """ }
+        }
         then { assert function.success; assert function.result == [ 'ec', 'none::', 'ec' ] }
     }
 
     test("renderBowtie1Args renders deterministic default args") {
         function "renderBowtie1Args"
-        when { function { """
-            input[0] = [
-                bowtie_all: true, bowtie_k: 1,
-                bowtie_trim5: 0, bowtie_trim3: 0,
-                bowtie_v: null, bowtie_n: 2, bowtie_max: 1, bowtie_chunkmbs: 512
-            ]
-        """ } }
+        when {
+            params {
+                bowtie_all = true
+                bowtie_k = 1
+                bowtie_trim5 = 0
+                bowtie_trim3 = 0
+                bowtie_v = null
+                bowtie_n = 2
+                bowtie_max = 1
+                bowtie_chunkmbs = 512
+            }
+        }
         then {
             assert function.success
             assert function.result == '-a -l 28 -n 2 --best --strata --chunkmbs 512'

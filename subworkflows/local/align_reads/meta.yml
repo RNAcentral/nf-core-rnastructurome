@@ -62,10 +62,11 @@ input:
       description: |
         Value map of reference_key -> [ val(meta), path(fasta), path(fai) ]. Transcript FASTA + index
         for SAMTOOLS_CALMD on STAR's TranscriptomeSAM output (genome route, count_genome=false only).
-  - pipeline_config:
-      type: map
+  - transcriptome:
+      type: boolean
       description: |
-        Resolved pipeline configuration/parameters map.
+        Whether the transcriptome (Bowtie) route is in use, including auto-detection
+        performed by the entry workflow. All other settings are read from params.
 output:
   - markdup_bam_bai:
       type: channel

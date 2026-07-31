@@ -343,7 +343,7 @@ workflow RNASTRUCTUROME {
         file(params.multiqc_methods_description, checkIfExists: true) :
         file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
     ch_methods_description                = channel.value(
-        methodsDescriptionText(ch_multiqc_custom_methods_description))
+        methodsDescriptionText(ch_multiqc_custom_methods_description, transcriptome))
 
     ch_multiqc_files = ch_multiqc_files.mix(
         ch_methods_description.collectFile(

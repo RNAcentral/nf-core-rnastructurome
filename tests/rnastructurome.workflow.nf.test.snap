@@ -30,6 +30,9 @@
                 ]
             ],
             {
+                "BEDOPS_GTF2BED": {
+                    "bedops": "2.4.42"
+                },
                 "CAT_FASTQ": {
                     "cat": 9.5
                 },
@@ -39,9 +42,6 @@
                 "CUTADAPT_RTSTOP": {
                     "cutadapt": 5.2
                 },
-                "ENSEMBL_GTF": {
-                    "ensembl_release": "current"
-                },
                 "FASTA_SORT_LOCAL": {
                     "python": "3.12.12"
                 },
@@ -50,9 +50,6 @@
                 },
                 "FASTQC_PRE": {
                     "fastqc": "0.12.1"
-                },
-                "GFFREAD": {
-                    "gffread": "0.12.7"
                 },
                 "MERGE_BP": {
                     "python": "3.12.12"
@@ -69,7 +66,7 @@
                 "RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT": {
                     "python": "3.12.12"
                 },
-                "RNAFRAMEWORK_RFCOUNT_STAR": {
+                "RNAFRAMEWORK_RFCOUNT_GENOME": {
                     "rnaframework": "2.9.7"
                 },
                 "RNAFRAMEWORK_RFFOLD": {
@@ -78,17 +75,17 @@
                 "RNAFRAMEWORK_RFNORM": {
                     "rnaframework": "2.9.7"
                 },
+                "RNAFRAMEWORK_RFRCTOOLS_EXTRACT": {
+                    "rnaframework": "2.9.7"
+                },
                 "RNAFRAMEWORK_RFWIGGLE": {
                     "rnaframework": "2.9.7"
                 },
                 "RNAFRAMEWORK_TORDAT": {
                     "python": "3.12.12"
                 },
-                "SAMTOOLS_CALMD": {
-                    "samtools": "1.23.1"
-                },
-                "SAMTOOLS_FAIDX": {
-                    "samtools": "1.23.1"
+                "RSEQC_INFEREXPERIMENT": {
+                    "rseqc": "5.0.4"
                 },
                 "SAMTOOLS_FLAGSTAT": {
                     "samtools": "1.23.1"
@@ -102,13 +99,7 @@
                 "SAMTOOLS_INDEX_SORT": {
                     "samtools": "1.23.1"
                 },
-                "SAMTOOLS_INDEX_TRANSCRIPT": {
-                    "samtools": "1.23.1"
-                },
                 "SAMTOOLS_SORT": {
-                    "samtools": "1.23.1"
-                },
-                "SAMTOOLS_SORT_TRANSCRIPT": {
                     "samtools": "1.23.1"
                 },
                 "SAMTOOLS_STATS": {
@@ -149,7 +140,7 @@
                 }
             }
         ],
-        "timestamp": "2026-07-18T23:39:14.703216",
+        "timestamp": "2026-08-10T12:20:01.853995",
         "meta": {
             "nf-test": "0.9.4",
             "nextflow": "26.04.3"

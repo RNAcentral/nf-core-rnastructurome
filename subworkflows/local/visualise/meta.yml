@@ -28,10 +28,6 @@ input:
       type: map
       description: |
         Value map of reference_key -> [ val(meta), path(fasta) ].
-  - pipeline_config:
-      type: map
-      description: |
-        Resolved pipeline configuration/parameters map.
 output:
   - versions:
       type: channel

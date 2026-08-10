@@ -44,10 +44,9 @@ workflow RNASTRUCTUROME {
 
     take:
     ch_samplesheet         // channel: samplesheet read in from --input
-    pipeline_config_input  // map: pipeline configuration captured at the entry workflow
+    transcriptome          // boolean: transcriptome (Bowtie) route, including auto-detection
     main:
 
-    def pipeline_config = defaultPipelineConfig() + (pipeline_config_input ?: [:])
     ch_versions = channel.empty()
     ch_multiqc_files = channel.empty()
     // SUBWORKFLOW: FASTQ_QC_TRIM — cat → FastQC → UMI → cutadapt → FastQC
@@ -63,7 +62,7 @@ workflow RNASTRUCTUROME {
     // SUBWORKFLOW: PREPARE_REFERENCES — resolve/fetch/sort/index reference artifacts
     PREPARE_REFERENCES (
         ch_samplesheet_for_branching,
-        pipeline_config
+        transcriptome
     )
     ch_versions = ch_versions.mix(PREPARE_REFERENCES.out.versions)
 
@@ -87,7 +86,7 @@ workflow RNASTRUCTUROME {
         ch_bowtie2_index_map,
         ch_reference_fasta_map,
         ch_genome_transcript_fasta_fai_map,
-        pipeline_config
+        transcriptome
     )
     ch_multiqc_files = ch_multiqc_files.mix(ALIGN_READS.out.multiqc_files)
 
@@ -105,7 +104,7 @@ workflow RNASTRUCTUROME {
         ch_reference_gtf_map,
         ch_reference_fasta_map,
         ch_genome_transcript_fasta_map,
-        pipeline_config
+        transcriptome
     )
     ch_versions = ch_versions.mix(QUANTIFY_REACTIVITY.out.versions)
 
@@ -167,16 +166,14 @@ workflow RNASTRUCTUROME {
     // SUBWORKFLOW: NORMALISE_REACTIVITIES — group RC files, pair treated/untreated, run rf-norm
     NORMALISE_REACTIVITIES (
         ch_rfcount_rc,
-        ch_rfcount_rci,
-        pipeline_config
+        ch_rfcount_rci
     )
     ch_versions = ch_versions.mix(NORMALISE_REACTIVITIES.out.versions)
 
     // SUBWORKFLOW: FOLD_STRUCTURES — group by sample_group, optional jackknife, rf-fold, dotplot→bp
     FOLD_STRUCTURES (
         NORMALISE_REACTIVITIES.out.xml,
-        ch_reference_gtf_map,
-        pipeline_config
+        ch_reference_gtf_map
     )
     ch_versions = ch_versions.mix(FOLD_STRUCTURES.out.versions)
 
@@ -187,8 +184,7 @@ workflow RNASTRUCTUROME {
             FOLD_STRUCTURES.out.structures,
             FOLD_STRUCTURES.out.fold_input,
             ch_reference_fasta_map,
-            ch_reference_gtf_map,
-            pipeline_config
+            ch_reference_gtf_map
         )
         ch_versions = ch_versions.mix(VISUALISE_STRUCTURES.out.versions)
 
@@ -196,8 +192,7 @@ workflow RNASTRUCTUROME {
         BROWSER_TRACKS (
             NORMALISE_REACTIVITIES.out.xml,
             FOLD_STRUCTURES.out.shannon_wig,
-            ch_reference_gtf_map,
-            pipeline_config
+            ch_reference_gtf_map
         )
         ch_versions = ch_versions.mix(BROWSER_TRACKS.out.versions)
     }
@@ -207,9 +202,9 @@ workflow RNASTRUCTUROME {
         // source file name channels so the RDAT COMMENT records exact Ensembl filenames/NCBI accessions.
         def ch_ref_fasta_names
         def ch_ref_gtf_names
-        if (pipeline_config.fasta) {
-            def local_fasta_name = file(pipeline_config.fasta.toString()).name
-            def local_gtf_name   = pipeline_config.gtf ? file(pipeline_config.gtf.toString()).name : ''
+        if (params.fasta) {
+            def local_fasta_name = file(params.fasta.toString()).name
+            def local_gtf_name   = params.gtf ? file(params.gtf.toString()).name : ''
             ch_ref_fasta_names = PREPARE_REFERENCES.out.local_fasta_sorted
                 .map { meta, _fasta -> [ meta.id.toString(), local_fasta_name ] }
             ch_ref_gtf_names = PREPARE_REFERENCES.out.local_fasta_sorted
@@ -247,7 +242,7 @@ workflow RNASTRUCTUROME {
                 by: 0
             )
             .map { _key, fold_meta, xml, fold_dir ->
-                def reference_key = resolveReferenceKey(fold_meta, pipeline_config.organism)
+                def reference_key = resolveReferenceKey(fold_meta)
                 [ reference_key.toString(), fold_meta, xml, fold_dir ]
             }
             .combine(ch_ref_fasta_names, by: 0)
@@ -319,7 +314,7 @@ workflow RNASTRUCTUROME {
     }
 
     // rf-correlate — replicate-reproducibility QC (see CORRELATE_REPLICATES subworkflow).
-    if (pipeline_config.correlate_replicates) {
+    if (params.correlate_replicates) {
         CORRELATE_REPLICATES(FOLD_STRUCTURES.out.fold_input)
         ch_versions      = ch_versions.mix(CORRELATE_REPLICATES.out.versions)
         ch_multiqc_files = ch_multiqc_files.mix(CORRELATE_REPLICATES.out.multiqc)
@@ -330,25 +325,25 @@ workflow RNASTRUCTUROME {
     // MODULE: multiqc — aggregate pipeline quality control reports
     ch_multiqc_config        = channel.fromPath(
         "$projectDir/assets/multiqc_config.yml", checkIfExists: true)
-    ch_multiqc_custom_config = pipeline_config.multiqc_config ?
-        channel.fromPath(pipeline_config.multiqc_config, checkIfExists: true) :
+    ch_multiqc_custom_config = params.multiqc_config ?
+        channel.fromPath(params.multiqc_config, checkIfExists: true) :
         channel.empty()
-    ch_multiqc_logo          = pipeline_config.multiqc_logo ?
-        channel.fromPath(pipeline_config.multiqc_logo, checkIfExists: true) :
+    ch_multiqc_logo          = params.multiqc_logo ?
+        channel.fromPath(params.multiqc_logo, checkIfExists: true) :
         channel.empty()
 
     summary_params      = paramsSummaryMap(
         workflow, parameters_schema: "nextflow_schema.json")
-    summary_params      = filterSummaryParams(summary_params)
-    summary_params      = addModuleOptionsSummary(summary_params, pipeline_config)
+    summary_params      = filterSummaryParams(summary_params, transcriptome)
+    summary_params      = addModuleOptionsSummary(summary_params, transcriptome)
     ch_workflow_summary = channel.value(paramsSummaryMultiqc(summary_params))
     ch_multiqc_files = ch_multiqc_files.mix(
         ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
-    ch_multiqc_custom_methods_description = pipeline_config.multiqc_methods_description ?
-        file(pipeline_config.multiqc_methods_description, checkIfExists: true) :
+    ch_multiqc_custom_methods_description = params.multiqc_methods_description ?
+        file(params.multiqc_methods_description, checkIfExists: true) :
         file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
     ch_methods_description                = channel.value(
-        methodsDescriptionText(ch_multiqc_custom_methods_description, pipeline_config))
+        methodsDescriptionText(ch_multiqc_custom_methods_description, transcriptome))
 
     ch_multiqc_files = ch_multiqc_files.mix(
         ch_methods_description.collectFile(
@@ -392,7 +387,7 @@ workflow RNASTRUCTUROME {
     softwareVersionsToYAML(ch_versions.mix(topic_versions.versions_file))
         .mix(topic_versions_string)
         .collectFile(
-            storeDir: "${pipeline_config.outdir}/pipeline_info",
+            storeDir: "${params.outdir}/pipeline_info",
             name: 'nf_core_'  +  'rnastructurome_software_'  + 'mqc_'  + 'versions.yml',
             sort: true,
             newLine: true
@@ -410,73 +405,6 @@ workflow RNASTRUCTUROME {
     merged_bp        = FOLD_STRUCTURES.out.bp                  // channel: [ val(meta), path(*_merged.bp) ]
     versions         = ch_versions                             // channel: [ path(versions.yml) ]
 
-}
-
-
-def defaultPipelineConfig() {
-    [
-        organism                          : null,
-        fasta                             : null,
-        gtf                               : null,
-        transcriptome                     : false,
-        count_genome                      : false,
-        genomes                           : null,
-        ensembl_species_map               : [
-            'human': 'homo_sapiens',
-            'mouse': 'mus_musculus',
-            'yeast': 'saccharomyces_cerevisiae',
-            'rat'  : 'rattus_norvegicus'
-        ],
-        ensembl_release                   : 'current',
-        ensembl_base_url                  : 'https://ftp.ensembl.org/pub',
-        ncbi_accessions_map               : [:],
-        multiqc_config                    : null,
-        multiqc_logo                      : null,
-        multiqc_methods_description       : null,
-        outdir                            : null,
-        input                             : null,
-        umi_pattern                       : null,
-        bowtie_k                          : 1,
-        bowtie_all                        : true,
-        bowtie_trim5                      : 0,
-        bowtie_trim3                      : 0,
-        bowtie_n                          : 2,
-        bowtie_v                          : null,
-        bowtie_max                        : 1,
-        bowtie_chunkmbs                   : 512,
-        bowtie2_preset                    : '--very-sensitive-local',
-        bowtie2_mp                        : '6,2',
-        bowtie2_dpad                      : 15,
-        bowtie2_rdg                       : '5,3',
-        bowtie2_rfg                       : '5,3',
-        bowtie2_softclip                  : false,
-        bowtie2_ma                        : 2,
-        bowtie2_dovetail                  : true,
-        jackknife_reference               : null,
-        rfeval_reference                  : null,
-        rfeval_windows                    : null,
-        rfjackknife_pool_all              : true,
-        stop_after_jackknife              : false,
-        structextract                     : false,
-        correlate_replicates              : true,
-        rfnorm_use_normfactor             : null,
-        rfnorm_reactive_bases             : null,
-        rfnorm_remap_reactivities         : false,
-        rfnorm_norm_window                : null,
-        rfnorm_window_offset              : null,
-        rfnorm_dynamic_window             : null,
-        rfnorm_norm_independent           : false,
-        rfnorm_score_method               : null,
-        rfnorm_norm_method                : null,
-        rfnorm_raw                        : false,
-        rfnorm_pseudocount                : null,
-        fuzzy_untreated_pairing           : true,
-        rfnorm_ignore_lower_than_untreated: false,
-        rfnorm_mean_coverage              : 0,
-        rfnorm_median_coverage            : 0,
-        rfnorm_nan                        : null,
-        rnaframework_r_path               : '/usr/bin/R'
-    ]
 }
 
 

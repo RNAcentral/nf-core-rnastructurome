@@ -12,11 +12,12 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir = "$outputDir"
+                fasta  = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-
                 input[0] = Channel.of(
                     [
                         [ id:'rtstop_sample', sample_id:'rtstop_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'rtstop_line', replicate:'rep1', condition:'treated' ],
@@ -27,7 +28,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }
@@ -53,11 +54,12 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir = "$outputDir"
+                fasta  = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-
                 input[0] = Channel.of(
                     [
                         [ id:'reseq_rtstop', sample_id:'reseq_rtstop', principle:'RT-stop', organism:'Homo sapiens', single_end:false, sample_group:'reseq_line', replicate:'rep1', condition:'treated' ],
@@ -69,7 +71,7 @@ nextflow_workflow {
                         ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }
@@ -88,19 +90,20 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir   = "$outputDir"
+                fasta    = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+                organism = null
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-                params.organism = null
-
                 input[0] = Channel.of(
                     [
                         [ id:'organism_sample', sample_id:'organism_sample', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'organism_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }
@@ -118,19 +121,20 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir   = "$outputDir"
+                fasta    = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+                organism = null
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-                params.organism = null
-
                 input[0] = Channel.of(
                     [
                         [ id:'missing_build', sample_id:'missing_build', principle:'RT-stop', single_end:true ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }
@@ -148,26 +152,27 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir                            = "$outputDir"
+                fasta                             = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+                rfcount_img                       = true
+                rfcount_trim_5prime               = 2
+                rfcount_primary_only              = true
+                rfcount_map_sort_by_read_name     = true
+                rfcount_map_discard_shorter       = 5
+                rfcount_map_min_quality           = 25
+                rfcount_map_collapse_consecutive  = true
+                rfcount_map_max_collapse_distance = 3
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-                params.rfcount_img = true
-                params.rfcount_trim_5prime = 2
-                params.rfcount_primary_only = true
-                params.rfcount_map_sort_by_read_name = true
-                params.rfcount_map_discard_shorter = 5
-                params.rfcount_map_min_quality = 25
-                params.rfcount_map_collapse_consecutive = true
-                params.rfcount_map_max_collapse_distance = 3
-
                 input[0] = Channel.of(
                     [
                         [ id:'map_rfcount', sample_id:'map_rfcount', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'map_rfcount_line', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }
@@ -185,11 +190,12 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir = "$outputDir"
+                fasta  = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-
                 input[0] = Channel.of(
                     [
                         [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
@@ -208,7 +214,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }
@@ -229,18 +235,19 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir = "$outputDir"
+                fasta  = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-
                 input[0] = Channel.of(
                     [
                         [ id:'hek_treated_only', sample_id:'hek_treated_only', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }
@@ -260,10 +267,13 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir             = "$outputDir"
+                fasta              = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+                rfnorm_norm_method = 2
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
                 input[0] = Channel.of(
                     [
                         [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
@@ -274,11 +284,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [
-                    outdir            : "$outputDir",
-                    fasta             : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString(),
-                    rfnorm_norm_method: 2
-                ]
+                input[1] = false
                 """
             }
         }
@@ -298,10 +304,13 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir              = "$outputDir"
+                fasta               = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+                rfnorm_score_method = 2
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
                 input[0] = Channel.of(
                     [
                         [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
@@ -312,11 +321,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [
-                    outdir              : "$outputDir",
-                    fasta               : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString(),
-                    rfnorm_score_method : 2
-                ]
+                input[1] = false
                 """
             }
         }
@@ -336,21 +341,20 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir             = "$outputDir"
+                fasta              = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+                rfnorm_norm_method = 99
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
                 input[0] = Channel.of(
                     [
                         [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [
-                    outdir            : "$outputDir",
-                    fasta             : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString(),
-                    rfnorm_norm_method: 99
-                ]
+                input[1] = false
                 """
             }
         }
@@ -358,7 +362,7 @@ nextflow_workflow {
         then {
             assertAll(
                 { assert !workflow.success },
-                { assert workflow.errorMessage.contains("Unsupported rf-norm normalization method '99'") }
+                { assert workflow.stdout.any { it.contains("Unsupported rf-norm normalization method '99'") } }
             )
         }
     }
@@ -368,21 +372,20 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir              = "$outputDir"
+                fasta               = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+                rfnorm_score_method = 99
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
                 input[0] = Channel.of(
                     [
                         [ id:'hek_treated_rep1', sample_id:'hek_treated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [
-                    outdir              : "$outputDir",
-                    fasta               : file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString(),
-                    rfnorm_score_method : 99
-                ]
+                input[1] = false
                 """
             }
         }
@@ -390,7 +393,7 @@ nextflow_workflow {
         then {
             assertAll(
                 { assert !workflow.success },
-                { assert workflow.errorMessage.contains("Unsupported rf-norm scoring method '99'") }
+                { assert workflow.stdout.any { it.contains("Unsupported rf-norm scoring method '99'") } }
             )
         }
     }
@@ -400,11 +403,12 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir = "$outputDir"
+                fasta  = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-
                 input[0] = Channel.of(
                     [
                         [ id:'map_treated_rep1', sample_id:'map_treated_rep1', principle:'MaP', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'treated' ],
@@ -423,7 +427,7 @@ nextflow_workflow {
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }
@@ -449,18 +453,19 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir = "$outputDir"
+                fasta  = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-
                 input[0] = Channel.of(
                     [
                         [ id:'missing_norm_key', sample_id:'missing_norm_key', principle:'RT-stop', organism:'Homo sapiens', single_end:true, condition:'treated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }
@@ -478,18 +483,19 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir = "$outputDir"
+                fasta  = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-
                 input[0] = Channel.of(
                     [
                         [ id:'hek_untreated_rep1', sample_id:'hek_untreated_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'untreated' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }
@@ -508,18 +514,19 @@ nextflow_workflow {
         options "-stub"
 
         when {
+            params {
+                outdir = "$outputDir"
+                fasta  = "$projectDir/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa"
+            }
             workflow {
                 """
-                params.outdir = "$outputDir"
-                params.fasta  = file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString()
-
                 input[0] = Channel.of(
                     [
                         [ id:'hek_denatured_rep1', sample_id:'hek_denatured_rep1', principle:'RT-stop', organism:'Homo sapiens', single_end:true, sample_group:'hek293T', replicate:'rep1', condition:'denatured' ],
                         [ file("\${projectDir}/tests/data/GSM4333255.R1.HEK293T_untreated_r1.trim.top1.fastq.gz", checkIfExists: true) ]
                     ]
                 )
-                input[1] = [ outdir: "$outputDir", fasta: file("\${projectDir}/tests/data/Homo_sapiens.GRCh38.ENST00000389680.fa", checkIfExists: true).toString() ]
+                input[1] = false
                 """
             }
         }

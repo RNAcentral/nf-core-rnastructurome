@@ -1,7 +1,5 @@
-name: rnaframework_wiggle
 channels:
   - conda-forge
   - bioconda
 dependencies:
   - bioconda::rnaframework=2.9.7
-  - bioconda::ucsc-bedgraphtobigwig

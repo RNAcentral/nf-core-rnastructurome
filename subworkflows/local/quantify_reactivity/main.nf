@@ -20,7 +20,7 @@ workflow QUANTIFY_REACTIVITY {
     ch_reference_gtf_map           // value:   map ref_key -> [meta, gtf]
     ch_reference_fasta_map         // value:   map ref_key -> [meta, fasta]
     ch_genome_transcript_fasta_map // value:   map ref_key -> [meta, fasta] (genome route, count_genome=false)
-    pipeline_config                // map
+    transcriptome                // boolean: transcriptome (Bowtie) route, including auto-detection
 
     main:
     ch_versions = channel.empty()
@@ -37,7 +37,7 @@ workflow QUANTIFY_REACTIVITY {
     // Used by both genome-route branches below (rf-count-genome and rf-count-direct).
     def ch_stranded_meta_by_id = ch_strandedness_by_id
 
-    if (!pipeline_config.transcriptome && pipeline_config.count_genome) {
+    if (!transcriptome && params.count_genome) {
         def ch_genome_fasta_map = collectToMap(ch_reference_genome_fasta_keyed)
 
         def ch_bam_stranded = ch_markdup_bam_bai
@@ -54,7 +54,7 @@ workflow QUANTIFY_REACTIVITY {
                 def bam     = combined[1]
                 def bai     = combined[2]
                 def ref_map = combined[3]
-                def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def ref_key = resolveReferenceKey(meta)
                 def fasta_t = ref_map[ref_key]
                 if (!fasta_t) error("No genome FASTA resolved for reference '${ref_key}' for rf-count-genome.")
                 [ [meta, bam, bai], fasta_t ]
@@ -82,7 +82,7 @@ workflow QUANTIFY_REACTIVITY {
                 def rc      = combined[1]
                 def summary = combined[2]
                 def gtf_map = combined[3]
-                def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def ref_key = resolveReferenceKey(meta)
                 def gtf_t   = gtf_map[ref_key]
                 if (!gtf_t) error("No GTF resolved for reference '${ref_key}' for rf-rctools extract.")
                 [ [meta, rc, [], summary], gtf_t ]
@@ -100,7 +100,7 @@ workflow QUANTIFY_REACTIVITY {
         ch_rfcount_rci     = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rci
         ch_rfcount_summary = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.summary
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.versions)
-    } else if (!pipeline_config.transcriptome) {
+    } else if (!transcriptome) {
         // Default genome route: rf-count directly on the dedup-reconciled, calmd-corrected
         // transcript-coordinate BAM from ALIGN_READS — no rf-rctools extract needed.
         def ch_transcript_bam_stranded = ch_transcript_bam_bai
@@ -117,7 +117,7 @@ workflow QUANTIFY_REACTIVITY {
                 def bam     = combined[1]
                 def bai     = combined[2]
                 def ref_map = combined[3]
-                def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def ref_key = resolveReferenceKey(meta)
                 def fasta_t = ref_map[ref_key]
                 if (!fasta_t) error("No transcript FASTA resolved for reference '${ref_key}' for rf-count.")
                 [ [meta, bam, bai], fasta_t ]
@@ -140,7 +140,7 @@ workflow QUANTIFY_REACTIVITY {
                 def bam     = combined[1]
                 def bai     = combined[2]
                 def ref_map = combined[3]
-                def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def ref_key = resolveReferenceKey(meta)
                 def fasta_t = ref_map[ref_key]
                 if (!fasta_t) error("No transcript FASTA resolved for reference '${ref_key}' for rf-count.")
                 [ [meta, bam, bai], fasta_t ]

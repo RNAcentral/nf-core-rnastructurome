@@ -3,7 +3,9 @@ process VIENNARNA {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container params.rnaframework_container
+    container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
+        'oras://community.wave.seqera.io/library/viennarna_llvm-openmp_python:878ae6b20f8c51d4' :
+        'community.wave.seqera.io/library/viennarna_llvm-openmp_python:fa04846b66c18202' }"
 
     input:
     tuple val(meta), path(fold_dir), path(xml, stageAs: "xml_input*/*"), path(drawn_ids)
@@ -55,6 +57,6 @@ process VIENNARNA {
     """
     mkdir -p ${prefix}_structures
     touch ${prefix}_structures/stub_ENST00000000001.svg
-    printf '"%s":\\n    viennarna: 2.6.4\\n' "${task.process}" > versions.yml
+    printf '"%s":\\n    viennarna: 2.7.2\\n' "${task.process}" > versions.yml
     """
 }

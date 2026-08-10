@@ -16,6 +16,7 @@ tools:
         RNAFramework is a toolkit for processing and analysing RNA structure probing data.
       homepage: https://rnaframework-docs.readthedocs.io/
       documentation: https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/
+      tool_dev_url: https://github.com/dincarnato/RNAFramework
       licence: ["GPL-3.0-or-later"]
 input:
   - - meta:

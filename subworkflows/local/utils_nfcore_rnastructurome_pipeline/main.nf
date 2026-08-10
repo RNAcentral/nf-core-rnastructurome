@@ -32,14 +32,10 @@ workflow PIPELINE_INITIALISATION {
     help              // boolean: Display help message and exit
     help_full         // boolean: Show the full help message
     show_hidden       // boolean: Show hidden parameters in the help message
-    pipeline_config_input // map: pipeline configuration captured at the entry workflow
 
     main:
 
-    def pipeline_config = defaultPipelineConfig() + (pipeline_config_input ?: [:])
     ch_versions = channel.empty()
-
-    validateRequiredPaths(input, outdir)
 
     // Print version and exit if required and dump pipeline parameters to JSON file
     UTILS_NEXTFLOW_PIPELINE (
@@ -91,9 +87,6 @@ workflow PIPELINE_INITIALISATION {
         nextflow_cli_args
     )
 
-    // Custom validation for pipeline parameters
-    validateInputParameters(pipeline_config)
-
     // Create channel from input file provided through `input`
 
     channel
@@ -101,17 +94,17 @@ workflow PIPELINE_INITIALISATION {
         .map {
             meta, fastq_1, fastq_2 ->
                 def resolved_meta = meta + [
-                    sample_id     : meta.sample_id ?: pipeline_config.sample_id,
+                    sample_id     : meta.sample_id ?: params.sample_id,
                     library_layout: fastq_2 ? 'PAIRED' : 'SINGLE',
-                    method        : meta.method ?: pipeline_config.method,
-                    principle     : meta.principle ?: pipeline_config.principle,
-                    chemical      : meta.chemical ?: pipeline_config.chemical,
-                    RT_enzyme     : meta.RT_enzyme ?: pipeline_config.RT_enzyme,
-                    pH            : hasMetadataValue(meta.pH) ? meta.pH : pipeline_config.pH,
-                    organism      : meta.organism ?: pipeline_config.organism,
+                    method        : meta.method ?: params.method,
+                    principle     : meta.principle ?: params.principle,
+                    chemical      : meta.chemical ?: params.chemical,
+                    RT_enzyme     : meta.RT_enzyme ?: params.RT_enzyme,
+                    pH            : hasMetadataValue(meta.pH) ? meta.pH : params.pH,
+                    organism      : meta.organism ?: params.organism,
                     adapter_3p    : meta.adapter_3p,
                     adapter_5p    : meta.adapter_5p,
-                    umi_pattern   : meta.umi_pattern ?: pipeline_config.umi_pattern,
+                    umi_pattern   : meta.umi_pattern ?: params.umi_pattern,
                     sample_group  : meta.sample_group,
                     replicate     : meta.replicate
                 ]
@@ -184,26 +177,6 @@ workflow PIPELINE_COMPLETION {
     FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-// Check and validate pipeline parameters
-def defaultPipelineConfig() {
-    [
-        sample_id  : null,
-        method     : null,
-        principle  : null,
-        chemical   : null,
-        RT_enzyme  : null,
-        pH         : null,
-        organism   : null,
-        umi_pattern: null,
-        genomes    : null,
-        genome     : null
-    ]
-}
-
-def validateInputParameters(pipeline_config) {
-    genomeExistsError(pipeline_config)
-}
-
 def hasMetadataValue(value) {
     if (value == null) {
         return false
@@ -212,21 +185,6 @@ def hasMetadataValue(value) {
         return !value.isEmpty()
     }
     return value.toString().trim()
-}
-
-def validateRequiredPaths(input, outdir) {
-    if (!isSpecifiedPath(input)) {
-        error("Missing required parameter: --input. Provide a samplesheet CSV path.")
-    }
-
-    if (!isSpecifiedPath(outdir)) {
-        error("Missing required parameter: --outdir. Provide an output directory path.")
-    }
-}
-
-def isSpecifiedPath(value) {
-    def normalised = value?.toString()?.trim()
-    return normalised && !normalised.equalsIgnoreCase('null')
 }
 
 // Validate channels from input samplesheet
@@ -241,61 +199,69 @@ def validateInputSamplesheet(input) {
 
     return [ metas[0], fastqs ]
 }
-// Get attribute from genome config file e.g. fasta
-def getGenomeAttribute(attribute, pipeline_config) {
-    if (pipeline_config.genomes && pipeline_config.genome && pipeline_config.genomes.containsKey(pipeline_config.genome)) {
-        if (pipeline_config.genomes[pipeline_config.genome].containsKey(attribute)) {
-            return pipeline_config.genomes[pipeline_config.genome][attribute]
-        }
-    }
-    return null
+// Tools credited in the MultiQC methods section, in pipeline order. Citation and reference live in one
+// entry so the two lists cannot drift; `when` mirrors the conditions the workflow actually branches on.
+def pipelineToolReferences(transcriptome) {
+    def counts_on_genome = !transcriptome && params.count_genome
+    [
+        [ when: true,
+          cite: 'FastQC (Andrews 2010)',
+          ref : '<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/.</li>' ],
+        [ when: params.umi_pattern as Boolean,
+          cite: 'UMI-tools (Smith et al. 2017)',
+          ref : '<li>Smith T, et al. (2017). UMI-tools: modelling sequencing errors in Unique Molecular Identifiers to improve quantification accuracy. Genome Research, 27(3), 491–499. doi: 10.1101/gr.209601.116</li>' ],
+        [ when: true,
+          cite: 'Cutadapt (Martin 2011)',
+          ref : '<li>Martin M (2011). Cutadapt removes adapter sequences from high-throughput sequencing reads. EMBnet.journal, 17(1), 10–12. doi: 10.14806/ej.17.1.200</li>' ],
+        [ when: !transcriptome && !params.count_genome,
+          cite: 'GffRead (Pertea & Pertea 2020)',
+          ref : '<li>Pertea G & Pertea M (2020). GFF Utilities: GffRead and GffCompare. F1000Research, 9, 304. doi: 10.12688/f1000research.23297.2</li>' ],
+        [ when: !transcriptome,
+          cite: 'STAR (Dobin et al. 2013)',
+          ref : '<li>Dobin A, et al. (2013). STAR: ultrafast universal RNA-seq aligner. Bioinformatics, 29(1), 15–21. doi: 10.1093/bioinformatics/bts635</li>' ],
+        [ when: transcriptome as Boolean,
+          cite: 'Bowtie (Langmead et al. 2009)',
+          ref : '<li>Langmead B, et al. (2009). Ultrafast and memory-efficient alignment of short DNA sequences to the human genome. Genome Biology, 10(3), R25. doi: 10.1186/gb-2009-10-3-r25</li>' ],
+        [ when: transcriptome as Boolean,
+          cite: 'Bowtie2 (Langmead & Salzberg 2012)',
+          ref : '<li>Langmead B & Salzberg SL (2012). Fast gapped-read alignment with Bowtie 2. Nature Methods, 9(4), 357–359. doi: 10.1038/nmeth.1923</li>' ],
+        [ when: true,
+          cite: 'SAMtools (Danecek et al. 2021)',
+          ref : '<li>Danecek P, et al. (2021). Twelve years of SAMtools and BCFtools. GigaScience, 10(2), giab008. doi: 10.1093/gigascience/giab008</li>' ],
+        [ when: counts_on_genome,
+          cite: 'BEDOPS (Neph et al. 2012)',
+          ref : '<li>Neph S, et al. (2012). BEDOPS: high-performance genomic feature operations. Bioinformatics, 28(14), 1919–1920. doi: 10.1093/bioinformatics/bts277</li>' ],
+        [ when: counts_on_genome,
+          cite: 'RSeQC (Wang et al. 2012)',
+          ref : '<li>Wang L, Wang S & Li W (2012). RSeQC: quality control of RNA-seq experiments. Bioinformatics, 28(16), 2184–2185. doi: 10.1093/bioinformatics/bts356</li>' ],
+        [ when: true,
+          cite: 'RNAFramework (Incarnato et al. 2018)',
+          ref : '<li>Incarnato D, et al. (2018). RNA Framework: an all-in-one toolkit for the analysis of RNA structures and post-transcriptional modifications. Nucleic Acids Research, 46(W1), W121–W127. doi: 10.1093/nar/gky486</li>' ],
+        [ when: !params.stop_after_jackknife,
+          cite: 'ViennaRNA (Lorenz et al. 2011)',
+          ref : '<li>Lorenz R, et al. (2011). ViennaRNA Package 2.0. Algorithms for Molecular Biology, 6, 26. doi: 10.1186/1748-7188-6-26</li>' ],
+        [ when: !params.stop_after_jackknife && params.r2dt,
+          cite: 'R2DT (Sweeney et al. 2021)',
+          ref : '<li>Sweeney BA, et al. (2021). R2DT is a framework for predicting and visualising RNA secondary structure using templates. Nature Communications, 12(1), 3494. doi: 10.1038/s41467-021-23555-5</li>' ],
+        [ when: !params.stop_after_jackknife,
+          cite: 'UCSC wigToBigWig (Kent et al. 2010)',
+          ref : '<li>Kent WJ, et al. (2010). BigWig and BigBed: enabling browsing of large distributed datasets. Bioinformatics, 26(17), 2204–2207. doi: 10.1093/bioinformatics/btq351</li>' ],
+        [ when: true,
+          cite: 'MultiQC (Ewels et al. 2016)',
+          ref : '<li>Ewels P, et al. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics, 32(19), 3047–3048. doi: 10.1093/bioinformatics/btw354</li>' ]
+    ].findAll { tool -> tool.when }
 }
 
-// Exit pipeline if incorrect --genome key provided
-def genomeExistsError(pipeline_config) {
-    if (pipeline_config.genomes && pipeline_config.genome && !pipeline_config.genomes.containsKey(pipeline_config.genome)) {
-        def error_string = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n" +
-            "  Genome '${pipeline_config.genome}' not found in any config files provided to the pipeline.\n" +
-            "  Currently, the available genome keys are:\n" +
-            "  ${pipeline_config.genomes.keySet().join(", ")}\n" +
-            "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        error(error_string)
-    }
-}
-// Generate methods description for MultiQC
-def toolCitationText(pipeline_config) {
-    def citation_text = [
-            "Tools used in the workflow included:",
-            "FastQC (Andrews 2010),",
-            "Cutadapt (Martin 2011),",
-            pipeline_config.umi_pattern ? "UMI-tools (Smith et al. 2017)," : "",
-            "Bowtie (Langmead et al. 2009),",
-            "Bowtie2 (Langmead & Salzberg 2012),",
-            "SAMtools (Danecek et al. 2021),",
-            "RNAFramework (Incarnato et al. 2018),",
-            "MultiQC (Ewels et al. 2016)",
-            "."
-        ].findAll { entry -> entry }.join(' ').trim()
-
-    return citation_text
+def toolCitationText(transcriptome) {
+    def tools = pipelineToolReferences(transcriptome).collect { tool -> tool.cite }
+    return "Tools used in the workflow included: ${tools.join(', ')}."
 }
 
-def toolBibliographyText(pipeline_config) {
-    def reference_text = [
-            "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/.</li>",
-            "<li>Martin M (2011). Cutadapt removes adapter sequences from high-throughput sequencing reads. EMBnet.journal, 17(1), 10–12. doi: 10.14806/ej.17.1.200</li>",
-            pipeline_config.umi_pattern ? "<li>Smith T, et al. (2017). UMI-tools: modelling sequencing errors in Unique Molecular Identifiers to improve quantification accuracy. Genome Research, 27(3), 491–499. doi: 10.1101/gr.209601.116</li>" : "",
-            "<li>Langmead B, et al. (2009). Ultrafast and memory-efficient alignment of short DNA sequences to the human genome. Genome Biology, 10(3), R25. doi: 10.1186/gb-2009-10-3-r25</li>",
-            "<li>Langmead B & Salzberg SL (2012). Fast gapped-read alignment with Bowtie 2. Nature Methods, 9(4), 357–359. doi: 10.1038/nmeth.1923</li>",
-            "<li>Danecek P, et al. (2021). Twelve years of SAMtools and BCFtools. GigaScience, 10(2), giab008. doi: 10.1093/gigascience/giab008</li>",
-            "<li>Incarnato D, et al. (2018). RNA Framework: an all-in-one toolkit for the analysis of RNA structures and post-transcriptional modifications. Nucleic Acids Research, 46(W1), W121–W127. doi: 10.1093/nar/gky486</li>",
-            "<li>Ewels P, et al. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics, 32(19), 3047–3048. doi: 10.1093/bioinformatics/btw354</li>"
-        ].findAll { entry -> entry }.join(' ').trim()
-
-    return reference_text
+def toolBibliographyText(transcriptome) {
+    return pipelineToolReferences(transcriptome).collect { tool -> tool.ref }.join(' ')
 }
 
-def methodsDescriptionText(mqc_methods_yaml, pipeline_config) {
+def methodsDescriptionText(mqc_methods_yaml, transcriptome) {
     // Convert  to a named map so can be used as with familiar NXF ${workflow} variable syntax in the MultiQC YML file
     def meta = [:]
     meta.workflow = workflow.toMap()
@@ -318,8 +284,8 @@ def methodsDescriptionText(mqc_methods_yaml, pipeline_config) {
     meta["tool_citations"] = ""
     meta["tool_bibliography"] = ""
 
-    meta["tool_citations"] = toolCitationText(pipeline_config).replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
-    meta["tool_bibliography"] = toolBibliographyText(pipeline_config)
+    meta["tool_citations"] = toolCitationText(transcriptome)
+    meta["tool_bibliography"] = toolBibliographyText(transcriptome)
 
 
     def methods_text = mqc_methods_yaml.text

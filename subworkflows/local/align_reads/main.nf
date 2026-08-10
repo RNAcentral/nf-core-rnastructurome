@@ -41,7 +41,7 @@ workflow ALIGN_READS {
     ch_bowtie2_index_map        // value:   map ref_key -> [meta, index]
     ch_reference_fasta_map      // value:   map ref_key -> [meta, fasta]
     ch_genome_transcript_fasta_fai_map // value: map ref_key -> [meta, fasta, fai] (genome route, count_genome=false)
-    pipeline_config             // map
+    transcriptome             // boolean: transcriptome (Bowtie) route, including auto-detection
 
     main:
     ch_multiqc_files = channel.empty()
@@ -50,9 +50,9 @@ workflow ALIGN_READS {
     def ch_rtstop_aligned_bam      = channel.empty()
     def ch_rtstop_transcript_bam   = channel.empty()
 
-    if (!pipeline_config.transcriptome) {
+    if (!transcriptome) {
         def ch_rtstop_star_split = buildStarAlignInputs(
-            ch_rtstop_trimmed_for_align, ch_star_index, ch_all_reference_gtf, pipeline_config
+            ch_rtstop_trimmed_for_align, ch_star_index, ch_all_reference_gtf
         ).multiMap { entry ->
             reads:      entry[0]
             index:      entry[1]
@@ -75,7 +75,7 @@ workflow ALIGN_READS {
                 def meta      = combined[0]
                 def reads     = combined[1]
                 def index_map = combined[2]
-                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
+                def ref_key   = resolveReferenceKey(meta)
                 def idx_tuple = index_map[ref_key]
                 if (!idx_tuple) error("No Bowtie index resolved for reference '${ref_key}'.")
                 [ [meta, reads], idx_tuple ]
@@ -93,9 +93,9 @@ workflow ALIGN_READS {
     def ch_map_aligned_bam    = channel.empty()
     def ch_map_transcript_bam = channel.empty()
 
-    if (!pipeline_config.transcriptome) {
+    if (!transcriptome) {
         def ch_map_star_split = buildStarAlignInputs(
-            ch_map_trimmed_for_align, ch_star_index, ch_all_reference_gtf, pipeline_config
+            ch_map_trimmed_for_align, ch_star_index, ch_all_reference_gtf
         ).multiMap { entry ->
             reads:      entry[0]
             index:      entry[1]
@@ -120,7 +120,7 @@ workflow ALIGN_READS {
                 def reads     = combined[1]
                 def index_map = combined[2]
                 def ref_map   = combined[3]
-                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
+                def ref_key   = resolveReferenceKey(meta)
                 def idx_tuple = index_map[ref_key]
                 def fasta_t   = ref_map[ref_key]
                 if (!idx_tuple) error("No Bowtie2 index resolved for reference '${ref_key}'.")
@@ -230,7 +230,7 @@ workflow ALIGN_READS {
     // transcript BAM at alignment time, before dedup runs on the genome BAM, so it still contains PCR
     // duplicates — filter it down to only the read names (QNAMEs) that survived dedup.
     def ch_transcript_bam_bai = channel.empty()
-    if (!pipeline_config.transcriptome && !pipeline_config.count_genome) {
+    if (!transcriptome && !params.count_genome) {
         // QNAME reconciliation only matters when the genome BAM lost reads to dedup: UMI samples
         // (UMITOOLS_DEDUP) or non-UMI samples with markdup enabled. Non-UMI + skip_markdup keeps every
         // read, so filtering the transcript BAM by the full QNAME set is a costly no-op — bypass it.
@@ -268,7 +268,7 @@ workflow ALIGN_READS {
         def ch_calmd_split = SAMTOOLS_SORT_TRANSCRIPT.out.bam
             .combine(ch_genome_transcript_fasta_fai_map)
             .map { meta, bam, fasta_fai_map ->
-                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
+                def ref_key   = resolveReferenceKey(meta)
                 def ref_entry = fasta_fai_map[ref_key]
                 if (!ref_entry) error("No transcript FASTA/FAI resolved for reference '${ref_key}' in SAMTOOLS_CALMD.")
                 [ [meta, bam], ref_entry ]
@@ -319,7 +319,7 @@ workflow ALIGN_READS {
     // strandedness, so skip the inference there.
     def ch_strandedness_by_id = channel.empty()
 
-    if (!pipeline_config.transcriptome && pipeline_config.count_genome) {
+    if (!transcriptome && params.count_genome) {
         BEDOPS_GTF2BED(ch_all_reference_gtf)
 
         def ch_reference_bed_map = collectToMap(
@@ -329,7 +329,7 @@ workflow ALIGN_READS {
         def ch_infer_inputs = ch_markdup_bam_bai
             .combine(ch_reference_bed_map)
             .map { meta, bam, bai, bed_map ->
-                def ref_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def ref_key = resolveReferenceKey(meta)
                 def bed_t   = bed_map[ref_key]
                 // Skip samples whose reference has no usable BED (e.g. viral synthetic GTFs)
                 bed_t ? [ [meta, bam, bai], bed_t[1] ] : null

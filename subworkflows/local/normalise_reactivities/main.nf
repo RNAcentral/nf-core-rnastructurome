@@ -15,7 +15,6 @@ workflow NORMALISE_REACTIVITIES {
     take:
     ch_rfcount_rc        // channel: [ val(meta), path(rc) ]
     ch_rfcount_rci       // channel: [ val(meta), path(rci) ]
-    pipeline_config      // map
 
     main:
     ch_versions = channel.empty()
@@ -87,7 +86,7 @@ workflow NORMALISE_REACTIVITIES {
     // treated group has no exact untreated match, fall back to one sharing the same sample_group base token
     // (e.g. "MDA-MB-231" from "MDA-MB-231_MTX") at the same replicate — erroring if ambiguous.
     def ch_resolved_untreated
-    if (pipeline_config.fuzzy_untreated_pairing as Boolean) {
+    if (params.fuzzy_untreated_pairing as Boolean) {
         // Each untreated sample keyed as [base_token, replicate, group, rc] for cross-matching.
         def ch_untreated_for_lookup = ch_rc_by_group
             .filter  { _group, condition, _meta, _rc, _rci -> condition == 'untreated' }
@@ -145,8 +144,8 @@ workflow NORMALISE_REACTIVITIES {
                 error("rf-norm requires an untreated sample for denatured controls in group '${group}'. No untreated was available (neither an exact sample_group+replicate match nor a fuzzy base-token fallback). Add an untreated sample or set --fuzzy_untreated_pairing false.")
             }
             def principle     = (base_meta.principle ?: '').toLowerCase()
-            def scoringMethod = resolveRfNormScoreMethod(pipeline_config, principle, hasUntreated)
-            def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
+            def scoringMethod = resolveRfNormScoreMethod(principle, hasUntreated)
+            def normMethod = resolveRfNormNormMethod(scoringMethod)
             def gmeta = base_meta + [
                 id                    : group,
                 rfnorm_has_untreated  : hasUntreated,
@@ -160,10 +159,10 @@ workflow NORMALISE_REACTIVITIES {
     // Reference-wide fallback: if a reference has exactly one untreated control, reuse it for every
     // treated group with none of its own (e.g. one shared control, several treated replicates).
     // Ambiguous cases (2+ distinct controls) fall through to the all-or-none check below.
-    if (pipeline_config.fuzzy_untreated_pairing as Boolean) {
+    if (params.fuzzy_untreated_pairing as Boolean) {
         ch_norm_input = ch_norm_input
             .map { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ->
-                def ref = resolveReferenceKey(gmeta, pipeline_config.organism)
+                def ref = resolveReferenceKey(gmeta)
                 [ ref, [ meta: gmeta, treated: treated_rcs, untreated: untreated_rc, denatured: denatured_rc, rci: rci_files ] ]
             }
             .groupTuple()
@@ -186,8 +185,8 @@ workflow NORMALISE_REACTIVITIES {
                     if (!untreated_rc && distinct.size() == 1) {
                         untreated_rc      = distinct[0]
                         def principle     = (gmeta.principle ?: '').toLowerCase()
-                        def scoringMethod = resolveRfNormScoreMethod(pipeline_config, principle, true)
-                        def normMethod    = resolveRfNormNormMethod(pipeline_config, scoringMethod)
+                        def scoringMethod = resolveRfNormScoreMethod(principle, true)
+                        def normMethod    = resolveRfNormNormMethod(scoringMethod)
                         gmeta = gmeta + [
                             rfnorm_has_untreated  : true,
                             rfnorm_scoring_method : scoringMethod,
@@ -203,7 +202,7 @@ workflow NORMALISE_REACTIVITIES {
     // reference, fed to every group's rf-norm via -nf for a common scale (vs. per-sample box-plot).
     // Enablement is per reference: true=always on, false=always off, null=AUTO (on only when the reference
     // has >1 treated sample to cross-normalise). References that stay off normalise independently.
-    def nfRaw      = pipeline_config.rfnorm_use_normfactor
+    def nfRaw      = params.rfnorm_use_normfactor
     def nfForceOn  = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['true', '1', 'yes'])
     def nfForceOff = (nfRaw != null) && (nfRaw.toString().toLowerCase() in ['false', '0', 'no'])
 
@@ -220,7 +219,7 @@ workflow NORMALISE_REACTIVITIES {
         // treated RC carrying its own controls, keeping the pairing intact regardless of groupTuple order.
         def ch_nf_pairs = ch_norm_input
             .flatMap { gmeta, treated_rcs, untreated_rc, denatured_rc, _rci ->
-                def ref   = resolveReferenceKey(gmeta, pipeline_config.organism)
+                def ref   = resolveReferenceKey(gmeta)
                 def tlist = treated_rcs instanceof List ? treated_rcs : [treated_rcs]
                 // A single resolved untreated/denatured control is shared across the group's treated RCs.
                 def untreated = (untreated_rc instanceof List ? (untreated_rc ? untreated_rc[0] : null) : untreated_rc) ?: null
@@ -255,8 +254,8 @@ workflow NORMALISE_REACTIVITIES {
                 // only some groups have a denatured control, drop it rather than mispair.
                 def denatured_list = denatured_all.every { d -> d } ? denatured_all : []
                 def principle      = (base_meta.principle ?: '').toLowerCase()
-                def scoringMethod  = resolveRfNormScoreMethod(pipeline_config, principle, hasUntreated)
-                def normMethod = resolveRfNormNormMethod(pipeline_config, scoringMethod)
+                def scoringMethod  = resolveRfNormScoreMethod(principle, hasUntreated)
+                def normMethod = resolveRfNormNormMethod(scoringMethod)
                 // Fuzzy pairing can resolve several treated samples to the SAME untreated/denatured control,
                 // so the positional order (with repeats) needed for -t/-u/-d is carried as names in meta,
                 // while the files themselves are staged deduplicated by name.
@@ -295,7 +294,7 @@ workflow NORMALISE_REACTIVITIES {
 
         ch_norm_input_final = ch_norm_input
             .map { gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ->
-                [ resolveReferenceKey(gmeta, pipeline_config.organism), gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ]
+                [ resolveReferenceKey(gmeta), gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files ]
             }
             .combine(ch_factor_by_ref, by: 0)
             .map { _ref, gmeta, treated_rcs, untreated_rc, denatured_rc, rci_files, factors ->

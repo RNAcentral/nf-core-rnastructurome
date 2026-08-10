@@ -16,7 +16,6 @@ workflow FOLD_STRUCTURES {
     take:
     ch_rfnorm_xml        // channel: [ val(meta), path(xml) ]  — one entry per rfnorm group
     ch_reference_gtf_map // value:   map of reference_key -> [ val(meta), path(gtf) ]
-    pipeline_config      // map
 
     main:
     ch_versions = channel.empty()
@@ -60,13 +59,13 @@ workflow FOLD_STRUCTURES {
     def ch_jackknife_csv   = channel.empty()
     def ch_rfeval_csv      = channel.empty()
 
-    if (pipeline_config.jackknife_reference) {
-        def ch_jackknife_reference = channel.value(file(pipeline_config.jackknife_reference.toString(), checkIfExists: true))
+    if (params.jackknife_reference) {
+        def ch_jackknife_reference = channel.value(file(params.jackknife_reference.toString(), checkIfExists: true))
 
         // Jackknife runs per rfnorm group (sample_group + replicate), not per fold group, since fold
         // groups flatten identically-named XMLs (e.g. 16S_rRNA.xml) across replicates.
         def ch_jackknife_input
-        if (pipeline_config.rfjackknife_pool_all as Boolean) {
+        if (params.rfjackknife_pool_all as Boolean) {
             ch_jackknife_input = ch_rfnorm_xml
                 .flatMap { _meta, xmls -> [xmls].flatten() }
                 .collect()
@@ -82,7 +81,7 @@ workflow FOLD_STRUCTURES {
         ch_versions     = ch_versions.mix(RNAFRAMEWORK_RFJACKKNIFE.out.versions.first())
         ch_jackknife_csv = RNAFRAMEWORK_RFJACKKNIFE.out.csv
 
-        if (pipeline_config.rfjackknife_pool_all as Boolean) {
+        if (params.rfjackknife_pool_all as Boolean) {
             // Parse optimal slope/intercept from the pooled jackknife CSV (FMI.csv is a semicolon-delimited
             // matrix: rows = slopes, columns = intercepts, cells = FMI) and inject into fold meta.
             def ch_calibration = RNAFRAMEWORK_RFJACKKNIFE.out.csv
@@ -124,14 +123,14 @@ workflow FOLD_STRUCTURES {
 
     // Optional rf-eval — evaluate agreement between reactivity data and a reference structure set.
     // Runs per rfnorm group when --rfeval_reference is provided.
-    if (pipeline_config.rfeval_reference) {
-        def ch_rfeval_reference = channel.value(file(pipeline_config.rfeval_reference.toString(), checkIfExists: true))
+    if (params.rfeval_reference) {
+        def ch_rfeval_reference = channel.value(file(params.rfeval_reference.toString(), checkIfExists: true))
 
         // With --rfeval_windows, rf-eval first slices each group's XML reactivities to the manifest
         // regions, so a sub-region reference (e.g. an Rfam element on a whole chromosome) is scored
         // against a matching windowed XML instead of the diluted full transcript.
-        def ch_rfeval_windows = pipeline_config.rfeval_windows
-            ? channel.value(file(pipeline_config.rfeval_windows.toString(), checkIfExists: true))
+        def ch_rfeval_windows = params.rfeval_windows
+            ? channel.value(file(params.rfeval_windows.toString(), checkIfExists: true))
             : channel.value([])
 
         RNAFRAMEWORK_RFEVAL (
@@ -152,7 +151,7 @@ workflow FOLD_STRUCTURES {
     def ch_bp_transcript    = channel.empty()
     def ch_structextract    = channel.empty()
 
-    if (!pipeline_config.stop_after_jackknife) {
+    if (!params.stop_after_jackknife) {
         RNAFRAMEWORK_RFFOLD (
             ch_fold_for_rffold
         )
@@ -163,7 +162,7 @@ workflow FOLD_STRUCTURES {
 
         // Optional rf-structextract — pull high-confidence, low-reactivity/low-Shannon motifs out of the
         // rf-fold output, pairing each fold dir (-ro) with the group's XML reactivities (-xf), deduped by filename.
-        if (pipeline_config.structextract) {
+        if (params.structextract) {
             def ch_structextract_input = RNAFRAMEWORK_RFFOLD.out.structures
                 .map { meta, fold_dir -> [ meta.id.toString(), meta, fold_dir ] }
                 .join(
@@ -190,7 +189,7 @@ workflow FOLD_STRUCTURES {
         def ch_dotplot_bp_resolved = RNAFRAMEWORK_RFFOLD.out.structures
             .combine(ch_reference_gtf_map)
             .map { meta, fold_dir, gtf_map ->
-                def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+                def reference_key = resolveReferenceKey(meta)
                 def gtf_tuple = gtf_map[reference_key]
                 if (!gtf_tuple) {
                     log.warn("No GTF for '${reference_key}': skipping genome-coordinate bp (transcript-coordinate bp still produced).")

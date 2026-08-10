@@ -932,11 +932,6 @@
                     "type": "string",
                     "description": "Restrict WIG output to specific bases using an IUPAC code or combination (e.g. `AC` for DMS probing) (`-kb`). Default: all bases (`N`)."
                 },
-                "rnaframework_container": {
-                    "type": "string",
-                    "description": "Container image used for local RNAframework modules.",
-                    "default": "ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35"
-                },
                 "rnaframework_r_path": {
                     "type": "string",
                     "description": "Path to R executable used by rf-count, rf-norm, and rf-fold plotting.",

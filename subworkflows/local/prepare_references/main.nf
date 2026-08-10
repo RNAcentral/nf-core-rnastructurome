@@ -33,7 +33,7 @@ workflow PREPARE_REFERENCES {
 
     take:
     ch_samplesheet_for_branching // channel: [ val(meta), [ reads ] ] (post-cat)
-    pipeline_config              // map
+    transcriptome              // boolean: transcriptome (Bowtie) route, including auto-detection
 
     main:
     ch_versions = channel.empty()
@@ -45,7 +45,7 @@ workflow PREPARE_REFERENCES {
     }
 
     def ch_reference_requests = uniqueReferenceResolution(
-        ch_samplesheet_for_branching.map { meta, _reads -> resolveReferenceResolution(meta, pipeline_config, 'fasta') },
+        ch_samplesheet_for_branching.map { meta, _reads -> resolveReferenceResolution(meta, 'fasta') },
         'transcript reference'
     )
 
@@ -70,12 +70,12 @@ workflow PREPARE_REFERENCES {
     def ch_ensembl_fasta_source_url = channel.empty()
     def ch_reference_genome_fasta_keyed = channel.empty()
 
-    if (pipeline_config.transcriptome) {
+    if (transcriptome) {
         ENSEMBL_TRANSCRIPTOME (
             ch_reference_ensembl_input,
             [
-                ensembl_release : pipeline_config.ensembl_release,
-                ensembl_base_url: pipeline_config.ensembl_base_url
+                ensembl_release : params.ensembl_release,
+                ensembl_base_url: params.ensembl_base_url
             ],
             file("${projectDir}/bin/ensembl_transcriptome.py", checkIfExists: true)
         )
@@ -86,12 +86,12 @@ workflow PREPARE_REFERENCES {
 
     // MODULE: ENSEMBL_GENOME — download soft-masked genome FASTA for STAR alignment.
     // ch_reference_genome_fasta_keyed is populated after sorting (see FASTA_SORT_ENSEMBL block below).
-    if (!pipeline_config.transcriptome) {
+    if (!transcriptome) {
         ENSEMBL_GENOME(
             ch_reference_ensembl_input,
             [
-                ensembl_release : pipeline_config.ensembl_release,
-                ensembl_base_url: pipeline_config.ensembl_base_url
+                ensembl_release : params.ensembl_release,
+                ensembl_base_url: params.ensembl_base_url
             ],
             file("${projectDir}/bin/ensembl_genome.py", checkIfExists: true)
         )
@@ -132,9 +132,9 @@ workflow PREPARE_REFERENCES {
     def ch_reference_gtf_local      = channel.empty()
     def ch_ensembl_gtf_source_urls  = channel.empty()
 
-    if (!(pipeline_config.stop_after_jackknife && pipeline_config.transcriptome)) {
+    if (!(params.stop_after_jackknife && transcriptome)) {
         def ch_reference_gtf_requests = uniqueReferenceResolution(
-            ch_samplesheet_for_branching.map { meta, _reads -> resolveReferenceResolution(meta, pipeline_config, 'gtf') },
+            ch_samplesheet_for_branching.map { meta, _reads -> resolveReferenceResolution(meta, 'gtf') },
             'GTF reference'
         )
 
@@ -156,8 +156,8 @@ workflow PREPARE_REFERENCES {
         ENSEMBL_GTF (
             ch_reference_gtf_ensembl_input,
             [
-                ensembl_release : pipeline_config.ensembl_release,
-                ensembl_base_url: pipeline_config.ensembl_base_url
+                ensembl_release : params.ensembl_release,
+                ensembl_base_url: params.ensembl_base_url
             ],
             file("${projectDir}/bin/ensembl_gtf.py", checkIfExists: true)
         )
@@ -195,7 +195,7 @@ workflow PREPARE_REFERENCES {
     ch_versions = ch_versions.mix(FASTA_SORT_LOCAL.out.versions)
 
     def ch_fasta_sort_ensembl_out = channel.empty()
-    if (pipeline_config.transcriptome) {
+    if (transcriptome) {
         FASTA_SORT_ENSEMBL (
             ENSEMBL_TRANSCRIPTOME.out.fasta,
             ch_fasta_sort_script
@@ -232,7 +232,7 @@ workflow PREPARE_REFERENCES {
     // faidx reject the raw plain-gzip download); local FASTA references use the user-supplied FASTA as-is.
     def ch_reference_genome_ncbi_keyed = FASTA_SORT_NCBI.out.fasta
         .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
-    if (!pipeline_config.transcriptome) {
+    if (!transcriptome) {
         // Genome route: use the sorted Ensembl genome FASTA for STAR index building.
         ch_reference_genome_fasta_keyed = FASTA_SORT_ENSEMBL.out.fasta
             .map { meta, fasta -> [ meta.id.toString(), [meta, fasta] ] }
@@ -249,7 +249,7 @@ workflow PREPARE_REFERENCES {
     // directly on transcript-coordinate BAMs instead of rf-count-genome + rf-rctools extract.
     def ch_genome_transcript_fasta_fai_map = channel.value([:])
     def ch_genome_transcript_fasta_map     = channel.value([:])
-    if (!pipeline_config.transcriptome && !pipeline_config.count_genome) {
+    if (!transcriptome && !params.count_genome) {
         def ch_gffread_split = ch_reference_genome_fasta_keyed
             .join(ch_reference_gtf_keyed)
             .map { _key, fasta_entry, gtf_entry -> [ gtf_entry, fasta_entry[1] ] }
@@ -280,7 +280,7 @@ workflow PREPARE_REFERENCES {
         .map { combined ->
             def meta = combined[0]
             def ref_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+            def reference_key = resolveReferenceKey(meta)
             def ref_tuple = ref_map[reference_key]
             if (!ref_tuple) {
                 error("No transcript FASTA resolved for reference '${reference_key}' in RT-stop branch.")
@@ -296,7 +296,7 @@ workflow PREPARE_REFERENCES {
         .map { combined ->
             def meta = combined[0]
             def ref_map = combined[2]
-            def reference_key = resolveReferenceKey(meta, pipeline_config.organism)
+            def reference_key = resolveReferenceKey(meta)
             def ref_tuple = ref_map[reference_key]
             if (!ref_tuple) {
                 error("No transcript FASTA resolved for reference '${reference_key}' in MaP branch.")
@@ -312,7 +312,7 @@ workflow PREPARE_REFERENCES {
     def ch_bowtie_index_map  = channel.value([:])
     def ch_bowtie2_index_map = channel.value([:])
 
-    if (!pipeline_config.transcriptome) {
+    if (!transcriptome) {
         // Build one STAR index per reference using the genome FASTA + GTF (Ensembl soft-masked
         // toplevel assembly, or the NCBI FASTA for bacteria/viruses).
         def ch_star_build = ch_reference_genome_fasta_keyed
@@ -333,14 +333,14 @@ workflow PREPARE_REFERENCES {
         ch_star_index = STAR_GENOMEGENERATE.out.index
     }
 
-    if (pipeline_config.transcriptome) {
+    if (transcriptome) {
         BOWTIE_BUILD(ch_rtstop_reference_fasta)
         ch_bowtie_index_map = collectToMap(
             BOWTIE_BUILD.out.index.map { meta, index -> [ meta.id.toString(), [meta, index] ] }
         )
     }
 
-    if (pipeline_config.transcriptome) {
+    if (transcriptome) {
         BOWTIE2_BUILD(ch_map_reference_fasta)
         ch_bowtie2_index_map = collectToMap(
             BOWTIE2_BUILD.out.index.map { meta, index -> [ meta.id.toString(), [meta, index] ] }

@@ -8,9 +8,10 @@ keywords:
 tools:
   - rnaframework:
       description: RNAFramework is a modular toolkit for the analysis of RNA structure probing data
-      homepage: https://rnaframework.readthedocs.io/
-      documentation: https://rnaframework.readthedocs.io/en/latest/rf-wiggle/
-      licence: ["GPL-3.0"]
+      homepage: https://rnaframework-docs.readthedocs.io/
+      documentation: https://rnaframework-docs.readthedocs.io/en/latest/rf-wiggle/
+      tool_dev_url: https://github.com/dincarnato/RNAFramework
+      licence: ["GPL-3.0-or-later"]
 input:
   - - meta:
         type: map

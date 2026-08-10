@@ -24,10 +24,6 @@ input:
       type: map
       description: |
         Value map of reference_key -> [ val(meta), path(gtf) ].
-  - pipeline_config:
-      type: map
-      description: |
-        Resolved pipeline configuration/parameters map.
 output:
   - fold_input:
       type: channel

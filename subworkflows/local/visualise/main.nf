@@ -13,7 +13,6 @@ workflow VISUALISE_STRUCTURES {
     ch_fold_input          // channel: [ val(meta), path(xmls) ]
     ch_reference_fasta_map // value:   map of reference_key -> [meta, fasta]
     ch_reference_gtf_map   // value:   map of reference_key -> [meta, gtf]
-    pipeline_config        // map
 
     main:
     ch_versions = channel.empty()
@@ -59,7 +58,7 @@ workflow VISUALISE_STRUCTURES {
                 def xmls      = combined[2]
                 def fasta_map = combined[3]
                 def gtf_map   = combined[4]
-                def ref_key   = resolveReferenceKey(meta, pipeline_config.organism)
+                def ref_key   = resolveReferenceKey(meta)
                 def fasta_t   = fasta_map[ref_key]
                 if (!fasta_t) {
                     log.warn("Skipping R2DT for '${meta.id}': no FASTA for '${ref_key}'")

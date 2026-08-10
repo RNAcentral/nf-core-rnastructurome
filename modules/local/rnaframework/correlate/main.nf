@@ -3,7 +3,9 @@ process RNAFRAMEWORK_RFCORRELATE {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container params.rnaframework_container
+    container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
+        'oras://community.wave.seqera.io/library/rnaframework:2.9.7--c6291321a66d00df' :
+        'community.wave.seqera.io/library/rnaframework:2.9.7--19886b45f9c67daa' }"
 
     input:
     tuple val(meta), path(xmls, stageAs: "input*/*")

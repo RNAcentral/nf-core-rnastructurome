@@ -13,7 +13,7 @@ tools:
       homepage: "https://rnaframework-docs.readthedocs.io"
       documentation: "https://rnaframework-docs.readthedocs.io"
       tool_dev_url: "https://github.com/dincarnato/RNAFramework"
-      licence: ["GPL-3.0"]
+      licence: ["GPL-3.0-or-later"]
       identifier: ""
 
 input:

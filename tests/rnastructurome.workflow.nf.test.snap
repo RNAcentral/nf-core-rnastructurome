@@ -136,7 +136,7 @@
                     "ucsc": 482
                 },
                 "VIENNARNA": {
-                    "viennarna": "2.6.4"
+                    "viennarna": "2.7.2"
                 },
                 "WIG_TO_GENOME_REACTIVITY": {
                     "python": "3.12.12"

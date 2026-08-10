@@ -2,9 +2,10 @@ process RNAFRAMEWORK_RFWIGGLE {
     tag "$meta.id"
     label 'process_single'
 
-    conda "${moduleDir}/../fold/environment.yml"
-    // Official RNAframework runtime image: bundles rnaframework + R + ViennaRNA/RNAplot.
-    container 'ghcr.io/dincarnato/rnaframework@sha256:43a5d1ee6a12232a1530d764a2b45d497c8c76f3a7627d7d9c0c0d52a6ca2a35'
+    conda "${moduleDir}/environment.yml"
+    container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
+        'oras://community.wave.seqera.io/library/rnaframework:2.9.7--c6291321a66d00df' :
+        'community.wave.seqera.io/library/rnaframework:2.9.7--19886b45f9c67daa' }"
 
     input:
     tuple val(meta), path(xml, stageAs: "xml/*")

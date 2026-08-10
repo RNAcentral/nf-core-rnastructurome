@@ -10,7 +10,6 @@ process ENSEMBL_TRANSCRIPTOME {
     input:
     tuple val(meta), val(ensembl_species)
     val ensembl_config_input
-    path ensembl_transcriptome_script
 
     output:
     tuple val(meta), path("${meta.id}.transcripts.fa.gz"), optional: true, emit: fasta
@@ -22,7 +21,7 @@ process ENSEMBL_TRANSCRIPTOME {
     script:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
-    python "${ensembl_transcriptome_script}" \
+    ensembl_transcriptome.py \
         --species "${ensembl_species}" \
         --release "${ensembl_config.ensembl_release}" \
         --base-url "${ensembl_config.ensembl_base_url}" \

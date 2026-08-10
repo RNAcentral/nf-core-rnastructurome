@@ -28,11 +28,6 @@ input:
         description: |
           Optional Groovy Map overriding the default Ensembl configuration
           (e.g. `ensembl_release`, `ensembl_base_url`)
-  - - ensembl_genome_script:
-        type: file
-        description: Python helper script that performs the genome download
-        pattern: "*.py"
-
 output:
   - fasta:
       - meta:

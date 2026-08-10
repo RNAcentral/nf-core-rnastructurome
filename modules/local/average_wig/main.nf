@@ -9,7 +9,6 @@ process AVERAGE_WIG {
 
     input:
     tuple val(meta), path(wigs, stageAs: "inputs/*.wig")
-    path average_script
 
     output:
     tuple val(meta), path("${prefix}.merged.wig"), emit: merged_wig
@@ -18,7 +17,7 @@ process AVERAGE_WIG {
     script:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    python3 "${average_script}" "${prefix}"
+    average_wig.py "${prefix}"
 
     printf '"%s":\n    python: %s\n' \
         "${task.process}" \

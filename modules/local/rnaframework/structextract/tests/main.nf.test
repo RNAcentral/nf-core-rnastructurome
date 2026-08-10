@@ -27,8 +27,6 @@ nextflow_process {
                         file(params.modules_testdata_base_path + 'genomics/sarscov2/illumina/bam/test.single_end.sorted.bam', checkIfExists: true)
                     ]
                 ])
-                input[1] = file("\${projectDir}/bin/viennarna_extract_xml.py", checkIfExists: true)
-                input[2] = file("\${projectDir}/bin/viennarna_colour_svg.py", checkIfExists: true)
                 """
             }
         }

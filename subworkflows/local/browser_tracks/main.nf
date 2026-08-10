@@ -31,8 +31,7 @@ workflow BROWSER_TRACKS {
     )
 
     MERGE_WIG (
-        RNAFRAMEWORK_RFWIGGLE.out.wig,
-        file("${projectDir}/bin/merge_wig.py", checkIfExists: true)
+        RNAFRAMEWORK_RFWIGGLE.out.wig
     )
 
     // Group per-replicate merged WIGs by sample_group. Single replicate bypasses AVERAGE_WIG
@@ -53,8 +52,7 @@ workflow BROWSER_TRACKS {
     }
 
     AVERAGE_WIG (
-        ch_reactivity_branches.multi,
-        file("${projectDir}/bin/average_wig.py", checkIfExists: true)
+        ch_reactivity_branches.multi
     )
 
     // MODULE: wig_to_genome + wigToBigWig — convert merged/averaged transcript WIG to genomic BigWig for IGV
@@ -77,8 +75,7 @@ workflow BROWSER_TRACKS {
         }
 
     WIG_TO_GENOME_REACTIVITY (
-        ch_reactivity_genomic_wig_input,
-        file("${projectDir}/bin/remap_wig_to_genome.py", checkIfExists: true)
+        ch_reactivity_genomic_wig_input
     )
 
     def ch_reactivity_genome_split = WIG_TO_GENOME_REACTIVITY.out.wig
@@ -97,7 +94,6 @@ workflow BROWSER_TRACKS {
 
     // MODULE: WIG_CHROM_SIZES + wigToBigWig — transcript-coordinate reactivity BigWig. Independent
     // .map{} subscriptions on the same sources ensure items aren't consumed by the genome operators above.
-    def ch_wig_chrom_sizes_script = file("${projectDir}/bin/wig_chrom_sizes.py", checkIfExists: true)
     def ch_reactivity_wig_for_sizes = ch_reactivity_branches.single
         .map { meta, wigs -> [ meta, wigs[0] ] }
         .mix(AVERAGE_WIG.out.merged_wig)
@@ -105,7 +101,7 @@ workflow BROWSER_TRACKS {
         .map { meta, wigs -> [ meta, wigs[0] ] }
         .mix(AVERAGE_WIG.out.merged_wig)
 
-    WIG_CHROM_SIZES_REACTIVITY(ch_reactivity_wig_for_sizes, ch_wig_chrom_sizes_script)
+    WIG_CHROM_SIZES_REACTIVITY(ch_reactivity_wig_for_sizes)
 
     def ch_reactivity_transcript_bw_split = ch_reactivity_wig_for_transcript_bw
         .map { meta, wig -> [ meta.id.toString(), meta, wig ] }
@@ -148,8 +144,7 @@ workflow BROWSER_TRACKS {
             }
 
         WIG_TO_GENOME_SHANNON (
-            ch_shannon_genomic_wig_input,
-            file("${projectDir}/bin/remap_wig_to_genome.py", checkIfExists: true)
+            ch_shannon_genomic_wig_input
         )
         ch_versions = ch_versions.mix(WIG_TO_GENOME_SHANNON.out.versions.first())
 
@@ -171,7 +166,7 @@ workflow BROWSER_TRACKS {
         def ch_shannon_wig_for_sizes = MERGE_SHANNON_WIG.out.merged_wig
         def ch_shannon_wig_for_transcript_bw = MERGE_SHANNON_WIG.out.merged_wig
 
-        WIG_CHROM_SIZES_SHANNON(ch_shannon_wig_for_sizes, ch_wig_chrom_sizes_script)
+        WIG_CHROM_SIZES_SHANNON(ch_shannon_wig_for_sizes)
 
         def ch_shannon_transcript_bw_split = ch_shannon_wig_for_transcript_bw
             .map { meta, wig -> [ meta.id.toString(), meta, wig ] }

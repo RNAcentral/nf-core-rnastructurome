@@ -19,10 +19,6 @@ input:
         type: file
         description: One or more per-transcript BP arc files
         pattern: "*.bp"
-  - merge_script:
-      type: file
-      description: Python script that performs the merging
-      pattern: "merge_bp.py"
 output:
   bp:
     - - meta:

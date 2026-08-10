@@ -9,7 +9,6 @@ process FASTA_SORT {
 
     input:
     tuple val(meta), path(fasta)
-    path sort_script
 
     output:
     tuple val(meta), path("*.sorted.fa"), emit: fasta
@@ -18,7 +17,7 @@ process FASTA_SORT {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    python3 "${sort_script}" "${fasta}" "${prefix}" "${meta.organism ?: meta.id}"
+    fasta_sort.py "${fasta}" "${prefix}" "${meta.organism ?: meta.id}"
 
     printf '"%s":\n    python: %s\n' \
         "${task.process}" \

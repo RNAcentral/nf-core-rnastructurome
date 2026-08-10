@@ -10,7 +10,6 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     input:
     tuple val(meta), path(rc, stageAs: "input/*"), path(rci, stageAs: "input/*"), path(summary)
     tuple val(meta_ref), path(gtf)
-    path covered_bed_script
 
     output:
     tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc"),                       emit: rc
@@ -89,7 +88,7 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
         # Real per-transcript lengths from the GTF (spliced length = sum of exon lengths). These match
         # the RC exactly because it was built from this same GTF. 4-column BED (id 0 length id) keeps
         # the clean transcript ID instead of renaming the region to <id>_0-<end>.
-        python3 "${covered_bed_script}" "${gtf}" "${feature_name}" "${attr_name}"
+        rctools_covered_bed.py "${gtf}" "${feature_name}" "${attr_name}"
 
         if [[ ! -s covered.bed ]]; then
             echo "ERROR: covered transcripts did not match any GTF ${attr_name} for ${prefix}." >&2

@@ -136,8 +136,7 @@ workflow FOLD_STRUCTURES {
         RNAFRAMEWORK_RFEVAL (
             ch_rfnorm_xml,
             ch_rfeval_reference,
-            ch_rfeval_windows,
-            file("${projectDir}/bin/rnaframework_rfeval_window.py", checkIfExists: true)
+            ch_rfeval_windows
         )
         ch_versions    = ch_versions.mix(RNAFRAMEWORK_RFEVAL.out.versions.first())
         ch_rfeval_csv  = RNAFRAMEWORK_RFEVAL.out.csv
@@ -175,9 +174,7 @@ workflow FOLD_STRUCTURES {
                 }
 
             RNAFRAMEWORK_RFSTRUCTEXTRACT(
-                ch_structextract_input,
-                file("${projectDir}/bin/viennarna_extract_xml.py", checkIfExists: true),
-                file("${projectDir}/bin/viennarna_colour_svg.py",  checkIfExists: true)
+                ch_structextract_input
             )
             ch_versions      = ch_versions.mix(RNAFRAMEWORK_RFSTRUCTEXTRACT.out.versions.first())
             ch_structextract = RNAFRAMEWORK_RFSTRUCTEXTRACT.out.motifs
@@ -200,23 +197,19 @@ workflow FOLD_STRUCTURES {
         def ch_dotplot_bp_genome = ch_dotplot_bp_resolved.filter { _meta, _fold_dir, gtf -> gtf }
 
         RNAFRAMEWORK_DOTPLOT2BP (
-            ch_dotplot_bp_genome,
-            file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
+            ch_dotplot_bp_genome
         )
 
         RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT (
-            ch_dotplot_bp_resolved,
-            file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
+            ch_dotplot_bp_resolved
         )
 
         MERGE_BP (
-            RNAFRAMEWORK_DOTPLOT2BP.out.bp,
-            file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
+            RNAFRAMEWORK_DOTPLOT2BP.out.bp
         )
 
         MERGE_BP_TRANSCRIPT (
-            RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.bp,
-            file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
+            RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.bp
         )
 
         ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())

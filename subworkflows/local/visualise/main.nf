@@ -28,9 +28,7 @@ workflow VISUALISE_STRUCTURES {
         .map { _id, meta, dir, xmls -> [ meta, dir, xmls, ch_empty_drawn_ids ] }
 
     VIENNARNA(
-        ch_rnaplot_input,
-        file("${projectDir}/bin/viennarna_extract_xml.py",   checkIfExists: true),
-        file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
+        ch_rnaplot_input
     )
     ch_versions = ch_versions.mix(VIENNARNA.out.versions.first())
 
@@ -70,9 +68,7 @@ workflow VISUALISE_STRUCTURES {
             }
 
         R2DT(
-            ch_r2dt_input,
-            file("${projectDir}/bin/r2dt_colour_svg.py",         checkIfExists: true),
-            file("${projectDir}/bin/r2dt_extract_sequences.py",  checkIfExists: true)
+            ch_r2dt_input
         )
         ch_versions = ch_versions.mix(R2DT.out.versions.first())
     }

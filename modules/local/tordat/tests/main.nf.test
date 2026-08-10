@@ -19,7 +19,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/tordat/tests/fixtures/xml/TX1.xml", checkIfExists: true),
                     file("${projectDir}/modules/local/tordat/tests/fixtures/fold_group", type: 'dir', checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/bin/rnaframework_to_rdat.py", checkIfExists: true)
                 """
             }
         }
@@ -62,7 +61,6 @@ nextflow_process {
                     ],
                     file("${projectDir}/modules/local/tordat/tests/fixtures/fold_group", type: 'dir', checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/bin/rnaframework_to_rdat.py", checkIfExists: true)
                 """
             }
         }
@@ -114,7 +112,6 @@ nextflow_process {
                     file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true),
                     file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
                 ])
-                input[1] = file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
                 """
             }
         }

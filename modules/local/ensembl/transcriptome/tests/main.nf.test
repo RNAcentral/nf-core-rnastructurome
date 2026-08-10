@@ -23,7 +23,6 @@ nextflow_process {
                     ensembl_release : 'current',
                     ensembl_base_url: "file://${projectDir}/modules/local/ensembl/transcriptome/tests/fixtures/ensembl/pub"
                 ]
-                input[2] = file("${projectDir}/bin/ensembl_transcriptome.py", checkIfExists: true)
                 """
             }
         }
@@ -57,7 +56,6 @@ nextflow_process {
                     ensembl_release : 'current',
                     ensembl_base_url: "file://${projectDir}/modules/local/ensembl/transcriptome/tests/fixtures/ensembl/pub"
                 ]
-                input[2] = file("${projectDir}/bin/ensembl_transcriptome.py", checkIfExists: true)
                 """
             }
         }

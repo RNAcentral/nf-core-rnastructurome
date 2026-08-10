@@ -9,7 +9,6 @@ process RNAFRAMEWORK_TORDAT {
 
     input:
     tuple val(meta), path(xml, stageAs: "xml_inputs/rep??/*"), path(fold_dir, stageAs: "fold_dir")
-    path tordat_script
 
     output:
     tuple val(meta), path("${prefix}_rdat/*.rdat"), optional: true, emit: rdat
@@ -25,7 +24,7 @@ process RNAFRAMEWORK_TORDAT {
     def extra_args = task.ext.args ?: ''
     def gtf_arg    = gtf_str ? "--gtf \"${gtf_str}\"" : ''
     """
-    python "${tordat_script}" \\
+    rnaframework_to_rdat.py \\
         --xml-dir xml_inputs \\
         --structures-dir fold_dir/dotbracket \\
         --prefix "${prefix}" \\

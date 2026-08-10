@@ -252,8 +252,7 @@ workflow RNASTRUCTUROME {
             }
 
         RNAFRAMEWORK_TORDAT (
-            ch_rdat_input,
-            file("${projectDir}/bin/rnaframework_to_rdat.py", checkIfExists: true)
+            ch_rdat_input
         )
     }
 

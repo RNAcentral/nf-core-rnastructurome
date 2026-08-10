@@ -9,7 +9,6 @@ process WIG_TO_GENOME {
 
     input:
     tuple val(meta), path(wig), path(gtf)
-    path remap_script
 
     output:
     tuple val(meta), path("${prefix}.genomic.wig"),          emit: wig
@@ -20,7 +19,7 @@ process WIG_TO_GENOME {
     def args = task.ext.args ?: ''
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    python "${remap_script}" \
+    remap_wig_to_genome.py \
         --wig "${wig}" \
         --gtf "${gtf}" \
         --output-wig "${prefix}.genomic.wig" \

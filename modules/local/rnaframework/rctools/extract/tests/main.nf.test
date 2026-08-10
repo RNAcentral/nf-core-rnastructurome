@@ -30,7 +30,6 @@ nextflow_process {
                     [ id:'ref' ],
                     file("${projectDir}/modules/local/rnaframework/rctools/extract/tests/fixtures/test.gtf", checkIfExists: true)
                 ])
-                input[2] = file("${projectDir}/bin/rctools_covered_bed.py", checkIfExists: true)
                 """
             }
         }
@@ -71,7 +70,6 @@ nextflow_process {
                     [ id:'ref' ],
                     file("${projectDir}/modules/local/rnaframework/rctools/extract/tests/fixtures/test.gtf", checkIfExists: true)
                 ])
-                input[2] = file("${projectDir}/bin/rctools_covered_bed.py", checkIfExists: true)
                 """
             }
         }
@@ -105,7 +103,6 @@ nextflow_process {
                     [ id:'ref' ],
                     file("${projectDir}/modules/local/rnaframework/rctools/extract/tests/fixtures/test.gtf", checkIfExists: true)
                 ])
-                input[2] = file("${projectDir}/bin/rctools_covered_bed.py", checkIfExists: true)
                 """
             }
         }

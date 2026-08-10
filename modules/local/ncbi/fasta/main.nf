@@ -9,7 +9,6 @@ process NCBI_FASTA {
 
     input:
     tuple val(meta), val(accessions)
-    path ncbi_fasta_script
 
     output:
     tuple val(meta), path("${meta.id}.transcripts.fa.gz"), emit: fasta
@@ -21,7 +20,7 @@ process NCBI_FASTA {
     def acc_arg = accessions ? "--accessions \"${accessions}\"" : ""
     def args = task.ext.args ?: ''
     """
-    python "${ncbi_fasta_script}" \
+    ncbi_fasta.py \
         ${acc_arg} \
         --organism "${meta.original_organism}" \
         --output "${meta.id}.transcripts.fa.gz" \

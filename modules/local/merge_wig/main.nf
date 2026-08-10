@@ -9,7 +9,6 @@ process MERGE_WIG {
 
     input:
     tuple val(meta), path(wig)
-    path merge_script
 
     output:
     tuple val(meta), path("*.merged.wig"), emit: merged_wig
@@ -18,7 +17,7 @@ process MERGE_WIG {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    python3 "${merge_script}" "${prefix}"
+    merge_wig.py "${prefix}"
 
     printf '"%s":\\n    python: %s\\n' \\
         "${task.process}" \\

@@ -9,8 +9,6 @@ process VIENNARNA {
 
     input:
     tuple val(meta), path(fold_dir), path(xml, stageAs: "xml_input*/*"), path(drawn_ids)
-    path xml_script
-    path colour_script
 
     output:
     tuple val(meta), path("${prefix}_structures/*.svg"), optional: true, emit: plots
@@ -31,11 +29,11 @@ process VIENNARNA {
         local _db="\$1"
         local _id=\$(basename "\$_db" .db)
         grep -qxF "\$_id" .r2dt_drawn.txt 2>/dev/null && return
-        python3 "${xml_script}" "\${_id}" xml_input*/"\${_id}".xml > "\${_id}.shape" || true
+        viennarna_extract_xml.py "\${_id}" xml_input*/"\${_id}".xml > "\${_id}.shape" || true
         "${rnaplot}" --output-format=svg < "\$_db" || true
         if [[ -f "\${_id}_ss.svg" ]]; then
             mv "\${_id}_ss.svg" "${prefix}_structures/\${_id}.svg"
-            python3 "${colour_script}" "\${_id}.shape" "${prefix}_structures/\${_id}.svg" || true
+            viennarna_colour_svg.py "\${_id}.shape" "${prefix}_structures/\${_id}.svg" || true
         fi
     }
     export -f _process_db

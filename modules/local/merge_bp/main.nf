@@ -9,7 +9,6 @@ process MERGE_BP {
 
     input:
     tuple val(meta), path(bp_files, stageAs: "inputs/*.bp")
-    path merge_script
 
     output:
     tuple val(meta), path("${task.ext.prefix ?: meta.id}.bp"), optional: true, emit: bp
@@ -18,7 +17,7 @@ process MERGE_BP {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    python3 "${merge_script}" "${prefix}"
+    merge_bp.py "${prefix}"
 
     printf '"%s":\n    python: %s\n' \
         "${task.process}" \

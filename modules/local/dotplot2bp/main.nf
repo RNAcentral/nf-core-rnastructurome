@@ -9,7 +9,6 @@ process RNAFRAMEWORK_DOTPLOT2BP {
 
     input:
     tuple val(meta), path(fold_dir), path(gtf)
-    path dotplot2bp_script
 
     output:
     tuple val(meta), path("${meta.id}_bp/dotplot/*.bp"),    optional: true, emit: bp
@@ -21,7 +20,7 @@ process RNAFRAMEWORK_DOTPLOT2BP {
     // Transcript-coordinate conversion (--transcript-coords) needs no GTF; genome-coordinate does.
     def gtf_arg = gtf ? "--gtf \"${gtf}\"" : ''
     """
-    python "${dotplot2bp_script}" \
+    rnaframework_dotplot2bp.py \
         --organism "${meta.organism ?: meta.id}" \
         --prefix "${meta.id}" \
         --fold-dir "${fold_dir}" \

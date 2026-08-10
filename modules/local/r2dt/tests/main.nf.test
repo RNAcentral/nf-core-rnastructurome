@@ -24,8 +24,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/r2dt/tests/fixtures/sequences.fa",       checkIfExists: true),
                     []
                 ])
-                input[1] = file("${projectDir}/bin/r2dt_colour_svg.py",        checkIfExists: true)
-                input[2] = file("${projectDir}/bin/r2dt_extract_sequences.py", checkIfExists: true)
                 """
             }
         }
@@ -58,8 +56,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/r2dt/tests/fixtures/sequences.fa",       checkIfExists: true),
                     []
                 ])
-                input[1] = file("${projectDir}/bin/r2dt_colour_svg.py",        checkIfExists: true)
-                input[2] = file("${projectDir}/bin/r2dt_extract_sequences.py", checkIfExists: true)
                 """
             }
         }
@@ -90,8 +86,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/r2dt/tests/fixtures/sequences.fa",       checkIfExists: true),
                     []
                 ])
-                input[1] = file("${projectDir}/bin/r2dt_colour_svg.py",        checkIfExists: true)
-                input[2] = file("${projectDir}/bin/r2dt_extract_sequences.py", checkIfExists: true)
                 """
             }
         }

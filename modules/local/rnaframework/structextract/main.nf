@@ -9,8 +9,6 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
 
     input:
     tuple val(meta), path(fold_dir), path(xmls, stageAs: 'xml_input/*')
-    path xml_script
-    path colour_script
 
     output:
     tuple val(meta), path("${prefix}_structextract/"),       optional: true, emit: motifs
@@ -56,7 +54,7 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
             [[ -e "\${db}" ]] || continue
             tid=\$(basename "\${db}" .db)
             # Full-transcript per-position reactivity (averaged across any matching replicate XMLs).
-            python3 "${xml_script}" "\${tid}" xml_input/"\${tid}".xml >| "\${tid}.full.shape" 2>/dev/null || true
+            viennarna_extract_xml.py "\${tid}" xml_input/"\${tid}".xml >| "\${tid}.full.shape" 2>/dev/null || true
             ( cd ${prefix}_structextract && "${rnaplot}" --output-format=svg < "\$(basename "\${db}")" ) || true
             for svg in ${prefix}_structextract/"\${tid}"_*_ss.svg; do
                 [[ -e "\${svg}" ]] || continue
@@ -65,7 +63,7 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
                 if [[ -s "\${tid}.full.shape" ]]; then
                     awk -v s="\${s}" -v e="\${e}" 'BEGIN{FS=OFS="\\t"} \$1>=s && \$1<=e {print \$1-s+1, \$2}' \\
                         "\${tid}.full.shape" >| motif.shape
-                    python3 "${colour_script}" motif.shape "\${svg}" || true
+                    viennarna_colour_svg.py motif.shape "\${svg}" || true
                 fi
             done
         done

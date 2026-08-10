@@ -9,7 +9,6 @@ process NCBI_GTF {
 
     input:
     tuple val(meta), path(fasta)
-    path ncbi_gtf_script
 
     output:
     tuple val(meta), path("${meta.id}.annotation.gtf"), emit: gtf
@@ -17,7 +16,7 @@ process NCBI_GTF {
 
     script:
     """
-    python "${ncbi_gtf_script}" \
+    ncbi_gtf.py \
         --fasta "${fasta}" \
         --output "${meta.id}.annotation.gtf"
 

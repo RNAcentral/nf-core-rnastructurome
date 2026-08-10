@@ -7,8 +7,6 @@ process R2DT {
 
     input:
     tuple val(meta), path(fold_dir), path(xml_files, stageAs: "xml_input*/*"), path(fasta), path(gtf)
-    path colour_script
-    path extract_script
 
     output:
     tuple val(meta), path("${prefix}_r2dt/"), optional: true, emit: diagrams
@@ -28,7 +26,7 @@ process R2DT {
     def gtf_arg  = gtf ? "--gtf ${gtf} --allowed-biotypes \"${biotypes}\"" : ''
     """
     # ── 1. Extract sequences for transcripts present in fold dotbracket output ──
-    python3 ${extract_script} \\
+    r2dt_extract_sequences.py \\
         --fold-dir ${fold_dir} \\
         --fasta    ${fasta} \\
         ${gtf_arg} \\
@@ -87,7 +85,7 @@ END_VERSIONS
     # with a retry loop. r2dt_colour_svg.py globs --svg-dir itself (reliable) and no-ops
     # cleanly with "0 SVGs coloured" if nothing is there.
     mkdir -p ${prefix}_r2dt
-    python3 ${colour_script} \\
+    r2dt_colour_svg.py \\
         --svg-dir       r2dt_raw/results/svg \\
         --xml-search-dir . \\
         --out-dir       ${prefix}_r2dt \\

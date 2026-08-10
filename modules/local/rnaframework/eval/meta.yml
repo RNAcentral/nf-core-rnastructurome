@@ -47,11 +47,6 @@ input:
         each window before rf-eval runs. Pass `[]` to disable.
       pattern: "*.{tsv,txt}"
       ontologies: []
-  - window_script:
-      type: file
-      description: Helper script that performs the slicing (bin/rnaframework_rfeval_window.py).
-      pattern: "*.py"
-      ontologies: []
 output:
   csv:
     - - meta:

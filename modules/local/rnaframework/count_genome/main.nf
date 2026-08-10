@@ -10,7 +10,6 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     input:
     tuple val(meta), path(bam), path(bai)
     tuple val(meta_ref), path(fasta)
-    path summary_script
 
     output:
     tuple val(meta), path("*_rfcount_genome/*.rc"),             optional: true, emit: rc
@@ -73,7 +72,7 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
 
     summary_tsv="${outdir}/${prefix}.rfcount_genome_summary.tsv"
     # match_mode=prefix: the summary's sample column carries the staged BAM's filename suffix.
-    awk -f "${summary_script}" \\
+    rfcount_parse_summary.awk \\
         -v sample="${prefix}" -v is_map="${is_map}" -v match_mode="prefix" \\
         "\${cleaned_log}" > "\${summary_tsv}"
 

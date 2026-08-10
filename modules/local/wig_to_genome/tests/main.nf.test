@@ -23,7 +23,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/wig_to_genome/tests/fixtures/transcript.wig", checkIfExists: true),
                     file("${projectDir}/modules/local/wig_to_genome/tests/fixtures/annotation.gtf", checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/bin/remap_wig_to_genome.py", checkIfExists: true)
                 """
             }
         }
@@ -74,7 +73,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/wig_to_genome/tests/fixtures/transcript.wig", checkIfExists: true),
                     file("${projectDir}/modules/local/wig_to_genome/tests/fixtures/annotation.gtf", checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/bin/remap_wig_to_genome.py", checkIfExists: true)
                 """
             }
         }

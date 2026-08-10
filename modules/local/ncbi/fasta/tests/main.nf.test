@@ -19,7 +19,6 @@ nextflow_process {
                     [ id:'test_virus', organism:'test virus', original_organism:'test virus' ],
                     'NC_TEST1.1,NC_TEST2.1'
                 ])
-                input[1] = file("${projectDir}/bin/ncbi_fasta.py", checkIfExists: true)
                 """
             }
         }

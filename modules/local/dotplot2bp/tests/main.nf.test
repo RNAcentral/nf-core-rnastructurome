@@ -19,7 +19,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/dotplot2bp/tests/fixtures/fold_group", type: 'dir', checkIfExists: true),
                     file("${projectDir}/modules/local/dotplot2bp/tests/fixtures/annotation.gtf", checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/bin/rnaframework_dotplot2bp.py", checkIfExists: true)
                 """
             }
         }

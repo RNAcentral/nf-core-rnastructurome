@@ -18,7 +18,6 @@ process RNAFRAMEWORK_RFEVAL {
     tuple val(meta), path(xml, stageAs: "xml_input*/*")
     path structures
     path windows
-    path window_script
 
     output:
     tuple val(meta), path("${prefix}_rfeval/*.csv"),          optional: true, emit: csv
@@ -36,7 +35,7 @@ process RNAFRAMEWORK_RFEVAL {
     // With a windows manifest, slice reactivities to each reference region first so a
     // sub-region structure is scored against a matching XML, not the full transcript.
     def window_cmd = windows
-        ? "python3 \"${window_script}\" --windows \"${windows}\" --xml-glob 'xml_input*/*.xml' --outdir ${prefix}_rfeval_windows"
+        ? "rnaframework_rfeval_window.py --windows \"${windows}\" --xml-glob 'xml_input*/*.xml' --outdir ${prefix}_rfeval_windows"
         : ''
     def reactivity_dir = windows ? "${prefix}_rfeval_windows/" : 'xml_input*/'
     def python_version = windows ? pythonVersionCmd() : ''

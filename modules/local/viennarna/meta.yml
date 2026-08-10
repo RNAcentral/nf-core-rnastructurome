@@ -48,18 +48,6 @@ input:
           avoid duplication)
         pattern: "r2dt_drawn_ids.txt"
         ontologies: []
-  - xml_script:
-      type: file
-      description: Python script that extracts per-position reactivities from XML
-      pattern: "viennarna_extract_xml.py"
-      ontologies:
-        - edam: http://edamontology.org/format_3996
-  - colour_script:
-      type: file
-      description: Python script that colours SVG diagrams by reactivity
-      pattern: "viennarna_colour_svg.py"
-      ontologies:
-        - edam: http://edamontology.org/format_3996
 output:
   plots:
     - - meta:

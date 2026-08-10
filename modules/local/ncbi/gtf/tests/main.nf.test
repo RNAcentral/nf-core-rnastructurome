@@ -19,7 +19,6 @@ nextflow_process {
                     [ id:'test_virus', organism:'test virus' ],
                     file("${projectDir}/modules/local/ncbi/gtf/tests/fixtures/test_virus.fa.gz", checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/bin/ncbi_gtf.py", checkIfExists: true)
                 """
             }
         }

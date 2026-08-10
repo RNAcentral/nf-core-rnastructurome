@@ -10,7 +10,6 @@ process RNAFRAMEWORK_RFCOUNT {
     input:
     tuple val(meta), path(bam), path(bai)
     tuple val(meta_ref), path(fasta)
-    path summary_script
 
     output:
     tuple val(meta), path("*_rfcount/*.rc"), emit: rc
@@ -72,7 +71,7 @@ process RNAFRAMEWORK_RFCOUNT {
     fi
 
     summary_tsv="${outdir}/${prefix}.rfcount_summary.tsv"
-    awk -f "${summary_script}" \\
+    rfcount_parse_summary.awk \\
         -v sample="${prefix}" -v is_map="${is_map}" -v match_mode="exact" \\
         "\${cleaned_log}" > "\${summary_tsv}"
 

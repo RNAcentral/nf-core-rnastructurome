@@ -10,7 +10,6 @@ process ENSEMBL_GENOME {
     input:
     tuple val(meta), val(ensembl_species)
     val  ensembl_config_input
-    path ensembl_genome_script
 
     output:
     tuple val(meta), path("${meta.id}.genome.fa"), optional: true, emit: fasta
@@ -24,7 +23,7 @@ process ENSEMBL_GENOME {
     script:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
-    python "${ensembl_genome_script}" \
+    ensembl_genome.py \
         --species   "${ensembl_species}" \
         --release   "${ensembl_config.ensembl_release}" \
         --base-url  "${ensembl_config.ensembl_base_url}" \

@@ -29,7 +29,6 @@ nextflow_process {
                     [ id:'ref' ],
                     file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
                 ])
-                input[2] = file("${projectDir}/bin/rfcount_parse_summary.awk", checkIfExists: true)
                 """
             }
         }

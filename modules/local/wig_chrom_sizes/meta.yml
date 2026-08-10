@@ -24,11 +24,6 @@ input:
         type: file
         description: WIG track file to derive chromosome sizes from
         pattern: "*.{wig,wig.gz}"
-  - - chrom_sizes_script:
-        type: file
-        description: Python helper script that computes the chrom.sizes file
-        pattern: "*.py"
-
 output:
   - sizes:
       - meta:

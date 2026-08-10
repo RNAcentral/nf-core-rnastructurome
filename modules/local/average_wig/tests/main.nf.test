@@ -17,7 +17,6 @@ nextflow_process {
             }
             process {
                 """
-                input[1] = file("${projectDir}/bin/average_wig.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'group1' ],
                     file("${projectDir}/modules/local/average_wig/tests/fixtures/single_input.wig", checkIfExists: true)
@@ -52,7 +51,6 @@ nextflow_process {
             }
             process {
                 """
-                input[1] = file("${projectDir}/bin/average_wig.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'group1' ],
                     [
@@ -95,7 +93,6 @@ nextflow_process {
             }
             process {
                 """
-                input[1] = file("${projectDir}/bin/average_wig.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'group1' ],
                     file("${projectDir}/modules/local/average_wig/tests/fixtures/single_input.wig", checkIfExists: true)

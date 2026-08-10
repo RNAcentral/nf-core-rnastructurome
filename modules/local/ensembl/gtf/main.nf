@@ -10,7 +10,6 @@ process ENSEMBL_GTF {
     input:
     tuple val(meta), val(ensembl_species)
     val ensembl_config_input
-    path ensembl_gtf_script
 
     output:
     tuple val(meta), path("${meta.id}.annotation.gtf"),   optional: true, emit: gtf
@@ -22,7 +21,7 @@ process ENSEMBL_GTF {
     script:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
-    python "${ensembl_gtf_script}" \
+    ensembl_gtf.py \
         --species "${ensembl_species}" \
         --release "${ensembl_config.ensembl_release}" \
         --base-url "${ensembl_config.ensembl_base_url}" \
@@ -71,7 +70,6 @@ process GTF_SANITIZE {
 
     input:
     tuple val(meta), path(gtf)
-    path sanitize_script
 
     output:
     tuple val(meta), path("${meta.id}.sanitized.gtf"), emit: gtf
@@ -79,7 +77,7 @@ process GTF_SANITIZE {
 
     script:
     """
-    python3 "${sanitize_script}" "${gtf}" "${meta.id}.sanitized.gtf"
+    sanitize_gtf_ids.py "${gtf}" "${meta.id}.sanitized.gtf"
 
     printf '"%s":\\n    python: %s\\n' \
         "${task.process}" \

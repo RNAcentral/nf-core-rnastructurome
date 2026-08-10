@@ -9,7 +9,6 @@ process WIG_CHROM_SIZES {
 
     input:
     tuple val(meta), path(wig)
-    path chrom_sizes_script
 
     output:
     tuple val(meta), path("${prefix}.chrom.sizes"), emit: sizes
@@ -21,7 +20,7 @@ process WIG_CHROM_SIZES {
     script:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    python "${chrom_sizes_script}" \\
+    wig_chrom_sizes.py \\
         "${wig}" \\
         -o "${prefix}.chrom.sizes"
 

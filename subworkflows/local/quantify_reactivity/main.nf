@@ -25,9 +25,7 @@ workflow QUANTIFY_REACTIVITY {
     main:
     ch_versions = channel.empty()
 
-    def summary_script = file("${projectDir}/bin/rfcount_parse_summary.awk", checkIfExists: true)
-
-    def ch_rfcount_rc        = channel.empty()
+    def ch_rfcount_rc       = channel.empty()
     def ch_rfcount_rci       = channel.empty()
     def ch_rfcount_summary   = channel.empty()
     def ch_rfcount_plots     = channel.empty()
@@ -63,7 +61,7 @@ workflow QUANTIFY_REACTIVITY {
             bam:   entry[0]
             fasta: entry[1]
         }
-        RNAFRAMEWORK_RFCOUNT_GENOME(ch_rg_split.bam, ch_rg_split.fasta, summary_script)
+        RNAFRAMEWORK_RFCOUNT_GENOME(ch_rg_split.bam, ch_rg_split.fasta)
         ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT_GENOME.out.plots
         ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT_GENOME.out.versions)
 
@@ -93,8 +91,7 @@ workflow QUANTIFY_REACTIVITY {
         }
         RNAFRAMEWORK_RFRCTOOLS_EXTRACT(
             ch_rct_split.rc,
-            ch_rct_split.gtf,
-            file("${projectDir}/bin/rctools_covered_bed.py", checkIfExists: true)
+            ch_rct_split.gtf
         )
         ch_rfcount_rc      = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rc
         ch_rfcount_rci     = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rci
@@ -126,7 +123,7 @@ workflow QUANTIFY_REACTIVITY {
             bam:   entry[0]
             fasta: entry[1]
         }
-        RNAFRAMEWORK_RFCOUNT_STAR(ch_rd_split.bam, ch_rd_split.fasta, summary_script)
+        RNAFRAMEWORK_RFCOUNT_STAR(ch_rd_split.bam, ch_rd_split.fasta)
         ch_rfcount_rc      = RNAFRAMEWORK_RFCOUNT_STAR.out.rc
         ch_rfcount_rci     = RNAFRAMEWORK_RFCOUNT_STAR.out.rci
         ch_rfcount_summary = RNAFRAMEWORK_RFCOUNT_STAR.out.summary
@@ -149,7 +146,7 @@ workflow QUANTIFY_REACTIVITY {
             bam:   entry[0]
             fasta: entry[1]
         }
-        RNAFRAMEWORK_RFCOUNT(ch_rc_split.bam, ch_rc_split.fasta, summary_script)
+        RNAFRAMEWORK_RFCOUNT(ch_rc_split.bam, ch_rc_split.fasta)
         ch_rfcount_rc      = RNAFRAMEWORK_RFCOUNT.out.rc
         ch_rfcount_rci     = RNAFRAMEWORK_RFCOUNT.out.rci
         ch_rfcount_summary = RNAFRAMEWORK_RFCOUNT.out.summary

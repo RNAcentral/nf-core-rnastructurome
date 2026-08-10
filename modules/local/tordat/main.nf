@@ -11,7 +11,7 @@ process RNAFRAMEWORK_TORDAT {
     tuple val(meta), path(xml, stageAs: "xml_inputs/rep??/*"), path(fold_dir, stageAs: "fold_dir")
 
     output:
-    tuple val(meta), path("${prefix}_rdat/*.rdat"), optional: true, emit: rdat
+    tuple val(meta), path("${prefix}_rdat/*.rdat"), emit: rdat, optional: true
     path "versions.yml", emit: versions
 
     script:

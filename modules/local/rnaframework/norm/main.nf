@@ -12,9 +12,9 @@ process RNAFRAMEWORK_RFNORM {
 
     output:
     tuple val(meta), path("${prefix}_norm/*.xml"), emit: xml
-    tuple val(meta), path("${prefix}_norm/rfnorm.log"), optional: true, emit: log
-    tuple val(meta), path("${prefix}_norm/plots/*.pdf"), optional: true, emit: plots
-    path "versions.yml"                           , emit: versions
+    tuple val(meta), path("${prefix}_norm/rfnorm.log"), emit: log, optional: true
+    tuple val(meta), path("${prefix}_norm/plots/*.pdf"), emit: plots, optional: true
+    path "versions.yml", emit: versions
 
     script:
     def args          = task.ext.args ?: ''

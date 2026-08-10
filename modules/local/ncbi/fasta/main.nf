@@ -12,8 +12,8 @@ process NCBI_FASTA {
 
     output:
     tuple val(meta), path("${meta.id}.transcripts.fa.gz"), emit: fasta
-    tuple val(meta), path("ncbi_source_accessions.txt"),   emit: source_accessions
-    path "versions.yml",                                   emit: versions
+    tuple val(meta), path("ncbi_source_accessions.txt"), emit: source_accessions
+    path "versions.yml", emit: versions
 
     script:
     // accessions may be null for unseen organisms — the script falls back to esearch

@@ -12,10 +12,10 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     tuple val(meta_ref), path(gtf)
 
     output:
-    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc"),                       emit: rc
-    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc.rci"), optional: true,   emit: rci
-    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rfcount_genome_summary.tsv"), optional: true, emit: summary
-    path "versions.yml",                                                                    emit: versions
+    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc"), emit: rc
+    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc.rci"), emit: rci, optional: true
+    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rfcount_genome_summary.tsv"), emit: summary, optional: true
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

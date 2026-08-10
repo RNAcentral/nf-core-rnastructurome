@@ -9,10 +9,10 @@ process R2DT {
     tuple val(meta), path(fold_dir), path(xml_files, stageAs: "xml_input*/*"), path(fasta), path(gtf)
 
     output:
-    tuple val(meta), path("${prefix}_r2dt/"), optional: true, emit: diagrams
-    tuple val(meta), path("r2dt_drawn_ids.txt"),              emit: drawn_ids
-    tuple val(meta), path("${prefix}_r2dt.log"),                        emit: log
-    path "versions.yml",                                       emit: versions
+    tuple val(meta), path("${prefix}_r2dt/"), emit: diagrams, optional: true
+    tuple val(meta), path("r2dt_drawn_ids.txt"), emit: drawn_ids
+    tuple val(meta), path("${prefix}_r2dt.log"), emit: log
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

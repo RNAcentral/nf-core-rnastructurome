@@ -12,11 +12,11 @@ process ENSEMBL_TRANSCRIPTOME {
     val ensembl_config_input
 
     output:
-    tuple val(meta), path("${meta.id}.transcripts.fa.gz"), optional: true, emit: fasta
-    tuple val(meta), path("ensembl_source_url.txt"),      optional: true, emit: source_urls
-    tuple val(meta), path("${meta.id}.not_found"),         optional: true, emit: not_found
-    path "ensembl_warnings.log",                           optional: true, emit: warnings
-    path "versions.yml",                                                    emit: versions
+    tuple val(meta), path("${meta.id}.transcripts.fa.gz"), emit: fasta, optional: true
+    tuple val(meta), path("ensembl_source_url.txt"), emit: source_urls, optional: true
+    tuple val(meta), path("${meta.id}.not_found"), emit: not_found, optional: true
+    path "ensembl_warnings.log", emit: warnings, optional: true
+    path "versions.yml", emit: versions
 
     script:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])

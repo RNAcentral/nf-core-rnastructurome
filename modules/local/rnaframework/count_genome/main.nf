@@ -12,15 +12,15 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     tuple val(meta_ref), path(fasta)
 
     output:
-    tuple val(meta), path("*_rfcount_genome/*.rc"),             optional: true, emit: rc
-    tuple val(meta), path("*_rfcount_genome/*.rc.rci"),         optional: true, emit: rci
-    tuple val(meta), path("*_rfcount_genome/index.rci"),        optional: true, emit: index_rci
-    tuple val(meta), path("*_rfcount_genome/error.out"),        optional: true, emit: error_log
-    tuple val(meta), path("*_rfcount_genome/samtools.log"),     optional: true, emit: samtools_log
-    tuple val(meta), path("*_rfcount_genome/*.rfcount_genome_summary.tsv"), optional: true, emit: summary
-    tuple val(meta), path("*_rfcount_genome/*.rfcount_genome.log"),         optional: true, emit: log
-    tuple val(meta), path("*_rfcount_genome/plots/*.pdf"),                  optional: true, emit: plots
-    path "versions.yml",                                                        emit: versions
+    tuple val(meta), path("*_rfcount_genome/*.rc"), emit: rc, optional: true
+    tuple val(meta), path("*_rfcount_genome/*.rc.rci"), emit: rci, optional: true
+    tuple val(meta), path("*_rfcount_genome/index.rci"), emit: index_rci, optional: true
+    tuple val(meta), path("*_rfcount_genome/error.out"), emit: error_log, optional: true
+    tuple val(meta), path("*_rfcount_genome/samtools.log"), emit: samtools_log, optional: true
+    tuple val(meta), path("*_rfcount_genome/*.rfcount_genome_summary.tsv"), emit: summary, optional: true
+    tuple val(meta), path("*_rfcount_genome/*.rfcount_genome.log"), emit: log, optional: true
+    tuple val(meta), path("*_rfcount_genome/plots/*.pdf"), emit: plots, optional: true
+    path "versions.yml", emit: versions
 
     script:
     def args   = task.ext.args ?: ''

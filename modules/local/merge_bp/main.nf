@@ -11,7 +11,7 @@ process MERGE_BP {
     tuple val(meta), path(bp_files, stageAs: "inputs/*.bp")
 
     output:
-    tuple val(meta), path("${task.ext.prefix ?: meta.id}.bp"), optional: true, emit: bp
+    tuple val(meta), path("${task.ext.prefix ?: meta.id}.bp"), emit: bp, optional: true
     path "versions.yml", emit: versions
 
     script:

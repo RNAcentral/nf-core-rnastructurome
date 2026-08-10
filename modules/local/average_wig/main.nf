@@ -12,7 +12,7 @@ process AVERAGE_WIG {
 
     output:
     tuple val(meta), path("${prefix}.merged.wig"), emit: merged_wig
-    path "versions.yml",                           emit: versions
+    path "versions.yml", emit: versions
 
     script:
     prefix = task.ext.prefix ?: "${meta.id}"

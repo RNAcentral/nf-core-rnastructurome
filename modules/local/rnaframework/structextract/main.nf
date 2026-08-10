@@ -11,9 +11,9 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
     tuple val(meta), path(fold_dir), path(xmls, stageAs: 'xml_input/*')
 
     output:
-    tuple val(meta), path("${prefix}_structextract/"),       optional: true, emit: motifs
-    tuple val(meta), path("${prefix}.rfstructextract.log"),  optional: true, emit: log
-    path "versions.yml",                                                     emit: versions
+    tuple val(meta), path("${prefix}_structextract/"), emit: motifs, optional: true
+    tuple val(meta), path("${prefix}.rfstructextract.log"), emit: log, optional: true
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

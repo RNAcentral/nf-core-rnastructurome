@@ -12,7 +12,7 @@ process NCBI_GTF {
 
     output:
     tuple val(meta), path("${meta.id}.annotation.gtf"), emit: gtf
-    path "versions.yml",                                emit: versions
+    path "versions.yml", emit: versions
 
     script:
     """

@@ -11,9 +11,9 @@ process WIG_TO_GENOME {
     tuple val(meta), path(wig), path(gtf)
 
     output:
-    tuple val(meta), path("${prefix}.genomic.wig"),          emit: wig
+    tuple val(meta), path("${prefix}.genomic.wig"), emit: wig
     tuple val(meta), path("${prefix}_genomic.chrom.sizes"), emit: chrom_sizes
-    path "versions.yml",                                    emit: versions
+    path "versions.yml", emit: versions
 
     script:
     def args = task.ext.args ?: ''

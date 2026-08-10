@@ -12,10 +12,10 @@ process ENSEMBL_GENOME {
     val  ensembl_config_input
 
     output:
-    tuple val(meta), path("${meta.id}.genome.fa"), optional: true, emit: fasta
-    tuple val(meta), path("ensembl_source_url.txt"),  optional: true, emit: source_url
-    tuple val(meta), path("${meta.id}.not_found"),    optional: true, emit: not_found
-    path "versions.yml",                                               emit: versions
+    tuple val(meta), path("${meta.id}.genome.fa"), emit: fasta, optional: true
+    tuple val(meta), path("ensembl_source_url.txt"), emit: source_url, optional: true
+    tuple val(meta), path("${meta.id}.not_found"), emit: not_found, optional: true
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

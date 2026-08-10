@@ -12,7 +12,7 @@ process WIG_CHROM_SIZES {
 
     output:
     tuple val(meta), path("${prefix}.chrom.sizes"), emit: sizes
-    path "versions.yml",                             emit: versions
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

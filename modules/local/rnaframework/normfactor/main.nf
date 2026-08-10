@@ -11,9 +11,9 @@ process RNAFRAMEWORK_RFNORMFACTOR {
     tuple val(meta), path(treated), path(untreated), path(denatured), path(rci_files)
 
     output:
-    tuple val(meta), path("${prefix}.norm_factors.txt"), optional: true, emit: factors
-    tuple val(meta), path("${prefix}.rfnormfactor.log"), optional: true, emit: log
-    path "versions.yml"                                , emit: versions
+    tuple val(meta), path("${prefix}.norm_factors.txt"), emit: factors, optional: true
+    tuple val(meta), path("${prefix}.rfnormfactor.log"), emit: log, optional: true
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

@@ -12,11 +12,11 @@ process ENSEMBL_GTF {
     val ensembl_config_input
 
     output:
-    tuple val(meta), path("${meta.id}.annotation.gtf"),   optional: true, emit: gtf
-    tuple val(meta), path("${meta.id}.annotation.gtf.gz"), optional: true, emit: gtf_gz
-    tuple val(meta), path("ensembl_source_url.txt"),       optional: true, emit: source_urls
-    tuple val(meta), path("${meta.id}.not_found"),          optional: true, emit: not_found
-    path "versions.yml",                                                     emit: versions
+    tuple val(meta), path("${meta.id}.annotation.gtf"), emit: gtf, optional: true
+    tuple val(meta), path("${meta.id}.annotation.gtf.gz"), emit: gtf_gz, optional: true
+    tuple val(meta), path("ensembl_source_url.txt"), emit: source_urls, optional: true
+    tuple val(meta), path("${meta.id}.not_found"), emit: not_found, optional: true
+    path "versions.yml", emit: versions
 
     script:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
@@ -73,7 +73,7 @@ process GTF_SANITIZE {
 
     output:
     tuple val(meta), path("${meta.id}.sanitized.gtf"), emit: gtf
-    path "versions.yml",                               emit: versions
+    path "versions.yml", emit: versions
 
     script:
     """

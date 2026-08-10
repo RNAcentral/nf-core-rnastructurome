@@ -12,10 +12,10 @@ process RNAFRAMEWORK_RFJACKKNIFE {
     path reference
 
     output:
-    tuple val(meta), path("${prefix}_jackknife/*.csv"),          emit: csv
-    tuple val(meta), path("${prefix}_jackknife/*.pdf"), optional: true, emit: heatmap
-    tuple val(meta), path("${prefix}_jackknife/rfjackknife.log"), optional: true, emit: log
-    path "versions.yml",                                         emit: versions
+    tuple val(meta), path("${prefix}_jackknife/*.csv"), emit: csv
+    tuple val(meta), path("${prefix}_jackknife/*.pdf"), emit: heatmap, optional: true
+    tuple val(meta), path("${prefix}_jackknife/rfjackknife.log"), emit: log, optional: true
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

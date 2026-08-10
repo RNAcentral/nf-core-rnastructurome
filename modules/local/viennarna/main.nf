@@ -11,8 +11,8 @@ process VIENNARNA {
     tuple val(meta), path(fold_dir), path(xml, stageAs: "xml_input*/*"), path(drawn_ids)
 
     output:
-    tuple val(meta), path("${prefix}_structures/*.svg"), optional: true, emit: plots
-    path "versions.yml",                                                    emit: versions
+    tuple val(meta), path("${prefix}_structures/*.svg"), emit: plots, optional: true
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

@@ -11,16 +11,16 @@ process RNAFRAMEWORK_RFFOLD {
     tuple val(meta), path(xml, stageAs: "input*/*")
 
     output:
-    tuple val(meta), path("${prefix}_fold/"),                                        emit: structures
-    tuple val(meta), path("${prefix}_fold_publish/dotbracket/*"),  optional: true,   emit: dotbracket
-    tuple val(meta), path("${prefix}_fold_publish/structures/*"), optional: true, emit: structure_plots
-    tuple val(meta), path("${prefix}_fold_publish/summaries/*"),   optional: true,   emit: summaries
-    tuple val(meta), path("${prefix}_fold_publish/dotplot/*"),     optional: true,   emit: dotplot
-    tuple val(meta), path("${prefix}_fold_publish/shannon/*.wig"), optional: true,   emit: shannon_wig
-    tuple val(meta), path("${prefix}_fold_publish/rffold.log"),    optional: true,   emit: log
-    tuple val(meta), path("${prefix}_fold_publish/missing_transcripts.txt"), optional: true, emit: missing_transcripts
-    tuple val(meta), path("${prefix}_fold_publish/partial_fold_warning.log"), optional: true, emit: partial_warning
-    path "versions.yml",                                                             emit: versions
+    tuple val(meta), path("${prefix}_fold/"), emit: structures
+    tuple val(meta), path("${prefix}_fold_publish/dotbracket/*"), emit: dotbracket, optional: true
+    tuple val(meta), path("${prefix}_fold_publish/structures/*"), emit: structure_plots, optional: true
+    tuple val(meta), path("${prefix}_fold_publish/summaries/*"), emit: summaries, optional: true
+    tuple val(meta), path("${prefix}_fold_publish/dotplot/*"), emit: dotplot, optional: true
+    tuple val(meta), path("${prefix}_fold_publish/shannon/*.wig"), emit: shannon_wig, optional: true
+    tuple val(meta), path("${prefix}_fold_publish/rffold.log"), emit: log, optional: true
+    tuple val(meta), path("${prefix}_fold_publish/missing_transcripts.txt"), emit: missing_transcripts, optional: true
+    tuple val(meta), path("${prefix}_fold_publish/partial_fold_warning.log"), emit: partial_warning, optional: true
+    path "versions.yml", emit: versions
 
     script:
     def args = task.ext.args ?: ''

@@ -11,8 +11,8 @@ process RNAFRAMEWORK_DOTPLOT2BP {
     tuple val(meta), path(fold_dir), path(gtf)
 
     output:
-    tuple val(meta), path("${meta.id}_bp/dotplot/*.bp"),    optional: true, emit: bp
-    tuple val(meta), path("${meta.id}_bp/conversion_warnings.log"), optional: true, emit: warnings
+    tuple val(meta), path("${meta.id}_bp/dotplot/*.bp"), emit: bp, optional: true
+    tuple val(meta), path("${meta.id}_bp/conversion_warnings.log"), emit: warnings, optional: true
     path "versions.yml", emit: versions
 
     script:

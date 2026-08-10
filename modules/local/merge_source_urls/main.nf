@@ -12,7 +12,7 @@ process MERGE_SOURCE_URLS {
 
     output:
     tuple val(meta), path("ensembl_source_url.txt"), emit: urls
-    path "versions.yml",                               emit: versions
+    path "versions.yml", emit: versions
 
     script:
     """

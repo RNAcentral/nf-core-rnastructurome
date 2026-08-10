@@ -13,14 +13,14 @@ process RNAFRAMEWORK_RFCOUNT {
 
     output:
     tuple val(meta), path("*_rfcount/*.rc"), emit: rc
-    tuple val(meta), path("*_rfcount/*.rc.rci"), optional: true, emit: rci
-    tuple val(meta), path("*_rfcount/index.rci"), optional: true, emit: index_rci
-    tuple val(meta), path("*_rfcount/error.out"), optional: true, emit: error_log
-    tuple val(meta), path("*_rfcount/samtools.log"), optional: true, emit: samtools_log
-    tuple val(meta), path("*_rfcount/*.rfcount_summary.tsv"), optional: true, emit: summary
-    tuple val(meta), path("*_rfcount/*.rfcount.log"),         optional: true, emit: log
-    tuple val(meta), path("*_rfcount/plots/*.pdf"),           optional: true, emit: plots
-    path "versions.yml"          , emit: versions
+    tuple val(meta), path("*_rfcount/*.rc.rci"), emit: rci, optional: true
+    tuple val(meta), path("*_rfcount/index.rci"), emit: index_rci, optional: true
+    tuple val(meta), path("*_rfcount/error.out"), emit: error_log, optional: true
+    tuple val(meta), path("*_rfcount/samtools.log"), emit: samtools_log, optional: true
+    tuple val(meta), path("*_rfcount/*.rfcount_summary.tsv"), emit: summary, optional: true
+    tuple val(meta), path("*_rfcount/*.rfcount.log"), emit: log, optional: true
+    tuple val(meta), path("*_rfcount/plots/*.pdf"), emit: plots, optional: true
+    path "versions.yml", emit: versions
 
     script:
     def args   = task.ext.args ?: ''

@@ -11,10 +11,10 @@ process RNAFRAMEWORK_RFCORRELATE {
     tuple val(meta), path(xmls, stageAs: "input*/*")
 
     output:
-    tuple val(meta), path("${prefix}_correlate/matrix.csv"), optional: true, emit: matrix
-    tuple val(meta), path("${prefix}_correlate/"),           optional: true, emit: results
-    tuple val(meta), path("${prefix}.rfcorrelate.log"),      optional: true, emit: log
-    path "versions.yml",                                                     emit: versions
+    tuple val(meta), path("${prefix}_correlate/matrix.csv"), emit: matrix, optional: true
+    tuple val(meta), path("${prefix}_correlate/"), emit: results, optional: true
+    tuple val(meta), path("${prefix}.rfcorrelate.log"), emit: log, optional: true
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

@@ -20,11 +20,11 @@ process RNAFRAMEWORK_RFEVAL {
     path windows
 
     output:
-    tuple val(meta), path("${prefix}_rfeval/*.csv"),          optional: true, emit: csv
-    tuple val(meta), path("${prefix}_rfeval/plots/*.pdf"),    optional: true, emit: plots
-    tuple val(meta), path("${prefix}_rfeval/rfeval.log"),     optional: true, emit: log
-    tuple val(meta), path("${prefix}_rfeval_windows/*.xml"),  optional: true, emit: windows
-    path "versions.yml",                                                       emit: versions
+    tuple val(meta), path("${prefix}_rfeval/*.csv"), emit: csv, optional: true
+    tuple val(meta), path("${prefix}_rfeval/plots/*.pdf"), emit: plots, optional: true
+    tuple val(meta), path("${prefix}_rfeval/rfeval.log"), emit: log, optional: true
+    tuple val(meta), path("${prefix}_rfeval_windows/*.xml"), emit: windows, optional: true
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

@@ -4,8 +4,8 @@ process VIENNARNA {
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'oras://community.wave.seqera.io/library/viennarna_llvm-openmp_python:878ae6b20f8c51d4' :
-        'community.wave.seqera.io/library/viennarna_llvm-openmp_python:fa04846b66c18202' }"
+        'oras://community.wave.seqera.io/library/viennarna_findutils_llvm-openmp_python:708e32eb1af5e5a1' :
+        'community.wave.seqera.io/library/viennarna_findutils_llvm-openmp_python:d5cfe7db8eb4e492' }"
 
     input:
     tuple val(meta), path(fold_dir), path(xml, stageAs: "xml_input*/*"), path(drawn_ids)

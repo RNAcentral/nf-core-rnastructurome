@@ -3,3 +3,4 @@ channels:
   - bioconda
 dependencies:
   - bioconda::rnaframework=2.9.7
+  - conda-forge::findutils

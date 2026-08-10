@@ -6,3 +6,4 @@ dependencies:
   - bioconda::viennarna=2.7.2
   - conda-forge::perl
   - conda-forge::llvm-openmp
+  - conda-forge::findutils

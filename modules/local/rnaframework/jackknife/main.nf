@@ -4,8 +4,8 @@ process RNAFRAMEWORK_RFJACKKNIFE {
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'oras://community.wave.seqera.io/library/rnaframework:2.9.7--c6291321a66d00df' :
-        'community.wave.seqera.io/library/rnaframework:2.9.7--19886b45f9c67daa' }"
+        'oras://community.wave.seqera.io/library/rnaframework_findutils:affb2f7a4bac9a7a' :
+        'community.wave.seqera.io/library/rnaframework_findutils:3db7cd7277dc8f08' }"
 
     input:
     tuple val(meta), path(xml, stageAs: "input*/*")

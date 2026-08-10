@@ -1,4 +1,3 @@
-name: rnaframework_dotplot2bp
 channels:
   - conda-forge
 dependencies:

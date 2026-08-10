@@ -1,4 +1,3 @@
-name: ensembl_gtf
 channels:
   - conda-forge
 dependencies:

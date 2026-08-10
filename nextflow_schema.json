@@ -519,8 +519,8 @@
                 },
                 "rfnorm_norm_method": {
                     "type": "integer",
-                    "enum": [1, 2, 3, 4],
-                    "description": "Override rf-norm normalization method (`-nm`). 1=2-8%, 2=90% Winsorizing, 3=Box-plot, 4=Mitchell (MaP only)."
+                    "enum": [2, 3, 4],
+                    "description": "Override rf-norm normalization method (`-nm`). 2=90% Winsorizing, 3=Box-plot, 4=Mitchell (MaP only)."
                 },
                 "rfnorm_raw": {
                     "type": "boolean",

@@ -36,7 +36,6 @@ workflow PREPARE_REFERENCES {
     transcriptome              // boolean: transcriptome (Bowtie) route, including auto-detection
 
     main:
-    ch_versions = channel.empty()
 
     // Branch by probing principle (for transcriptome-route reference-FASTA selection)
     def principle_branches = ch_samplesheet_for_branching.branch { meta, _reads ->
@@ -78,7 +77,6 @@ workflow PREPARE_REFERENCES {
                 ensembl_base_url: params.ensembl_base_url
             ]
         )
-        ch_versions = ch_versions.mix(ENSEMBL_TRANSCRIPTOME.out.versions)
         ch_ensembl_not_found        = ENSEMBL_TRANSCRIPTOME.out.not_found
         ch_ensembl_fasta_source_url = ENSEMBL_TRANSCRIPTOME.out.source_urls
     }
@@ -93,7 +91,6 @@ workflow PREPARE_REFERENCES {
                 ensembl_base_url: params.ensembl_base_url
             ]
         )
-        ch_versions = ch_versions.mix(ENSEMBL_GENOME.out.versions)
         ch_ensembl_not_found        = ENSEMBL_GENOME.out.not_found
         ch_ensembl_fasta_source_url = ENSEMBL_GENOME.out.source_url
     }
@@ -115,12 +112,10 @@ workflow PREPARE_REFERENCES {
     NCBI_FASTA (
         ch_reference_ncbi_input
     )
-    ch_versions = ch_versions.mix(NCBI_FASTA.out.versions)
 
     NCBI_GTF (
         NCBI_FASTA.out.fasta
     )
-    ch_versions = ch_versions.mix(NCBI_GTF.out.versions)
 
     // GTF resolution is skipped entirely when stop_after_jackknife + transcriptome, since every
     // GTF-consuming step is gated behind one of those, avoiding wasted Ensembl lookups.
@@ -156,7 +151,6 @@ workflow PREPARE_REFERENCES {
                 ensembl_base_url: params.ensembl_base_url
             ]
         )
-        ch_versions = ch_versions.mix(ENSEMBL_GTF.out.versions)
         ch_ensembl_gtf_source_urls = ENSEMBL_GTF.out.source_urls
 
         // NCBI references get their annotation from NCBI_GTF's synthetic GTF (already run above);
@@ -177,20 +171,17 @@ workflow PREPARE_REFERENCES {
     GTF_SANITIZE (
         gtf_sanitize_branches.needs_sanitize
     )
-    ch_versions = ch_versions.mix(GTF_SANITIZE.out.versions)
     ch_all_reference_gtf = GTF_SANITIZE.out.gtf.mix(gtf_sanitize_branches.clean)
 
     FASTA_SORT_LOCAL (
         ch_reference_local
     )
-    ch_versions = ch_versions.mix(FASTA_SORT_LOCAL.out.versions)
 
     def ch_fasta_sort_ensembl_out = channel.empty()
     if (transcriptome) {
         FASTA_SORT_ENSEMBL (
             ENSEMBL_TRANSCRIPTOME.out.fasta
         )
-        ch_versions = ch_versions.mix(FASTA_SORT_ENSEMBL.out.versions)
         ch_fasta_sort_ensembl_out = FASTA_SORT_ENSEMBL.out.fasta
     } else {
         // Genome route: sort the Ensembl genome FASTA so it is published to reference/
@@ -198,14 +189,12 @@ workflow PREPARE_REFERENCES {
         FASTA_SORT_ENSEMBL (
             ENSEMBL_GENOME.out.fasta
         )
-        ch_versions = ch_versions.mix(FASTA_SORT_ENSEMBL.out.versions)
         ch_fasta_sort_ensembl_out = FASTA_SORT_ENSEMBL.out.fasta
     }
 
     FASTA_SORT_NCBI (
         NCBI_FASTA.out.fasta
     )
-    ch_versions = ch_versions.mix(FASTA_SORT_NCBI.out.versions)
 
     def ch_reference_fasta_keyed = FASTA_SORT_LOCAL.out.fasta
         .mix(ch_fasta_sort_ensembl_out)
@@ -350,5 +339,4 @@ workflow PREPARE_REFERENCES {
     local_fasta_sorted      = FASTA_SORT_LOCAL.out.fasta     // channel: [ val(meta), path(fasta) ] (--fasta route naming)
     ncbi_source_accessions  = NCBI_FASTA.out.source_accessions // channel: [ val(meta), path(acc) ]
     ensembl_gtf_source_urls = ch_ensembl_gtf_source_urls     // channel: [ val(meta), path(urls) ] — empty when stop_after_jackknife + transcriptome
-    versions                = ch_versions
 }

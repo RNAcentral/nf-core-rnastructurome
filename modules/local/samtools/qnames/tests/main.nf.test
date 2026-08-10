@@ -30,7 +30,7 @@ nextflow_process {
                 { assert process.success },
                 { assert process.out.qnames.size() == 1 },
                 { assert process.out.qnames[0][1].toString().endsWith('.qnames.txt') },
-                { assert path(process.out.versions[0]).text.contains('samtools:') }
+                { assert process.out.versions_samtools[0][1] == 'samtools' && process.out.versions_samtools[0][2] }
             )
         }
     }

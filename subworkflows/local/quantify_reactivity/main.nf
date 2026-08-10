@@ -23,7 +23,6 @@ workflow QUANTIFY_REACTIVITY {
     transcriptome                // boolean: transcriptome (Bowtie) route, including auto-detection
 
     main:
-    ch_versions = channel.empty()
 
     def ch_rfcount_rc       = channel.empty()
     def ch_rfcount_rci       = channel.empty()
@@ -63,7 +62,6 @@ workflow QUANTIFY_REACTIVITY {
         }
         RNAFRAMEWORK_RFCOUNT_GENOME(ch_rg_split.bam, ch_rg_split.fasta)
         ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT_GENOME.out.plots
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT_GENOME.out.versions)
 
         // rf-rctools extract: genome RC → transcript-level RC using the reference GTF, calling extract
         // with the BASENAME for strand-aware extraction. Also rewrites the summary's genome-level
@@ -96,7 +94,6 @@ workflow QUANTIFY_REACTIVITY {
         ch_rfcount_rc      = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rc
         ch_rfcount_rci     = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.rci
         ch_rfcount_summary = RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.summary
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFRCTOOLS_EXTRACT.out.versions)
     } else if (!transcriptome) {
         // Default genome route: rf-count directly on the dedup-reconciled, calmd-corrected
         // transcript-coordinate BAM from ALIGN_READS — no rf-rctools extract needed.
@@ -128,7 +125,6 @@ workflow QUANTIFY_REACTIVITY {
         ch_rfcount_rci     = RNAFRAMEWORK_RFCOUNT_STAR.out.rci
         ch_rfcount_summary = RNAFRAMEWORK_RFCOUNT_STAR.out.summary
         ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT_STAR.out.plots
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT_STAR.out.versions)
     } else {
         def ch_rfcount_inputs = ch_markdup_bam_bai
             .combine(ch_reference_fasta_map)
@@ -151,7 +147,6 @@ workflow QUANTIFY_REACTIVITY {
         ch_rfcount_rci     = RNAFRAMEWORK_RFCOUNT.out.rci
         ch_rfcount_summary = RNAFRAMEWORK_RFCOUNT.out.summary
         ch_rfcount_plots   = RNAFRAMEWORK_RFCOUNT.out.plots
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCOUNT.out.versions)
     }
 
     emit:
@@ -159,5 +154,4 @@ workflow QUANTIFY_REACTIVITY {
     rci      = ch_rfcount_rci      // channel: [ val(meta), path(rci) ]
     summary  = ch_rfcount_summary  // channel: [ val(meta), path(summary_tsv) ]
     plots    = ch_rfcount_plots    // channel: [ val(meta), path(plots) ]
-    versions = ch_versions
 }

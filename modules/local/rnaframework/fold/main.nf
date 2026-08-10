@@ -20,7 +20,7 @@ process RNAFRAMEWORK_RFFOLD {
     tuple val(meta), path("${prefix}_fold_publish/rffold.log"), emit: log, optional: true
     tuple val(meta), path("${prefix}_fold_publish/missing_transcripts.txt"), emit: missing_transcripts, optional: true
     tuple val(meta), path("${prefix}_fold_publish/partial_fold_warning.log"), emit: partial_warning, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-fold -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
 
     script:
     def args = task.ext.args ?: ''
@@ -143,9 +143,6 @@ process RNAFRAMEWORK_RFFOLD {
     rmdir ${prefix}_fold/plots 2>/dev/null || true
 
     rffold_publish.sh ${prefix}_fold ${prefix}_fold_publish
-
-    rnaframework_version=\$(rf-fold -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -155,8 +152,5 @@ process RNAFRAMEWORK_RFFOLD {
     touch ${prefix}_fold/rffold.log ${prefix}_fold/dotbracket/example.db ${prefix}_fold/shannon/example.wig
 
     rffold_publish.sh ${prefix}_fold ${prefix}_fold_publish
-
-    rnaframework_version=\$(rf-fold -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

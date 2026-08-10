@@ -16,7 +16,7 @@ process ENSEMBL_GTF {
     tuple val(meta), path("${meta.id}.annotation.gtf.gz"), emit: gtf_gz, optional: true
     tuple val(meta), path("ensembl_source_url.txt"), emit: source_urls, optional: true
     tuple val(meta), path("${meta.id}.not_found"), emit: not_found, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('ensembl'), val("${(defaultEnsemblConfig() + (ensembl_config_input ?: [:])).ensembl_release}"), topic: versions, emit: versions_ensembl
 
     script:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
@@ -30,25 +30,15 @@ process ENSEMBL_GTF {
         --not-found-file "${meta.id}.not_found"
 
     [[ -f "${meta.id}.annotation.gtf.gz" ]] && gzip -dc "${meta.id}.annotation.gtf.gz" > "${meta.id}.annotation.gtf" || true
-
-    printf '%s\n' \
-        '"${task.process}":' \
-        '    ensembl_release: "${ensembl_config.ensembl_release}"' \
-        > versions.yml
     """
 
     stub:
-    def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
     touch ${meta.id}.annotation.gtf.gz
     touch ${meta.id}.annotation.gtf
     printf '%s\n' \
         "stub://${meta.id}.annotation.gtf.gz" \
         > ensembl_source_url.txt
-    printf '%s\n' \
-        '"${task.process}":' \
-        '    ensembl_release: "${ensembl_config.ensembl_release}"' \
-        > versions.yml
     """
 }
 
@@ -73,24 +63,15 @@ process GTF_SANITIZE {
 
     output:
     tuple val(meta), path("${meta.id}.sanitized.gtf"), emit: gtf
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('python'), eval("python3 --version 2>&1 | sed 's/^Python //'"), topic: versions, emit: versions_python
 
     script:
     """
     sanitize_gtf_ids.py "${gtf}" "${meta.id}.sanitized.gtf"
-
-    printf '"%s":\\n    python: %s\\n' \
-        "${task.process}" \
-        "\$(python3 --version 2>&1 | sed 's/^Python //')" \
-        > versions.yml
     """
 
     stub:
     """
     touch ${meta.id}.sanitized.gtf
-    printf '"%s":\\n    python: %s\\n' \
-        "${task.process}" \
-        "\$(python3 --version 2>&1 | sed 's/^Python //')" \
-        > versions.yml
     """
 }

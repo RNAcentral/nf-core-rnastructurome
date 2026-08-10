@@ -13,7 +13,7 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
     output:
     tuple val(meta), path("${prefix}_structextract/"), emit: motifs, optional: true
     tuple val(meta), path("${prefix}.rfstructextract.log"), emit: log, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-structextract -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
 
     when:
     task.ext.when == null || task.ext.when
@@ -78,9 +78,6 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
         mkdir -p ${prefix}_structextract/images
         find ${prefix}_structextract -maxdepth 1 -name '*.svg' -exec mv {} ${prefix}_structextract/images/ \\;
     fi
-
-    rnaframework_version=\$(rf-structextract -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -90,8 +87,5 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
     touch ${prefix}_structextract/dotbracket/${prefix}.db
     touch ${prefix}_structextract/images/${prefix}_1-50_ss.svg
     touch ${prefix}.rfstructextract.log
-
-    rnaframework_version=\$(rf-structextract -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

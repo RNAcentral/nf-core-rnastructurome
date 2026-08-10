@@ -12,27 +12,17 @@ process MERGE_SHANNON_WIG {
 
     output:
     tuple val(meta), path("*.merged.wig"), emit: merged_wig
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('python'), eval("python --version 2>&1 | sed 's/^Python //'"), topic: versions, emit: versions_python
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     merge_shannon_wig.py ${prefix}
-
-    printf '"%s":\\n    python: %s\\n' \\
-        "${task.process}" \\
-        "\$(python --version 2>&1 | sed 's/^Python //')" \\
-        > versions.yml
     """
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.merged.wig
-
-    printf '"%s":\\n    python: %s\\n' \\
-        "${task.process}" \\
-        "\$(python --version 2>&1 | sed 's/^Python //')" \\
-        > versions.yml
     """
 }

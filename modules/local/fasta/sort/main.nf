@@ -12,27 +12,17 @@ process FASTA_SORT {
 
     output:
     tuple val(meta), path("*.sorted.fa"), emit: fasta
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('python'), eval("python3 --version | cut -d' ' -f2"), topic: versions, emit: versions_python
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     fasta_sort.py "${fasta}" "${prefix}" "${meta.organism ?: meta.id}"
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python3 --version | cut -d' ' -f2)" \
-        > versions.yml
     """
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.sorted.fa
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python3 --version | cut -d' ' -f2)" \
-        > versions.yml
     """
 }

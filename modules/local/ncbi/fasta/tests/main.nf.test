@@ -41,7 +41,7 @@ nextflow_process {
                     assert srcLines.any { it.contains('NC_TEST1.1') }
                     assert srcLines.any { it.contains('NC_TEST2.1') }
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }

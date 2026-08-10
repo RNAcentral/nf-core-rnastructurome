@@ -12,7 +12,7 @@ process RNAFRAMEWORK_TORDAT {
 
     output:
     tuple val(meta), path("${prefix}_rdat/*.rdat"), emit: rdat, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('python'), eval("python --version 2>&1 | sed 's/^Python //'"), topic: versions, emit: versions_python
 
     script:
     prefix = task.ext.prefix ?: "${meta.id}"
@@ -34,11 +34,6 @@ process RNAFRAMEWORK_TORDAT {
         --rfnorm-scoring-method "${scoring_sm}" \\
         --rfnorm-norm-method "${norm_nm}" \\
         ${extra_args}
-
-    printf '"%s":\n    python: %s\n' \\
-        "${task.process}" \\
-        "\$(python --version 2>&1 | sed 's/^Python //')" \\
-        > versions.yml
     """
 
     stub:
@@ -46,10 +41,5 @@ process RNAFRAMEWORK_TORDAT {
     """
     mkdir -p ${prefix}_rdat
     touch ${prefix}_rdat/stub.rdat
-
-    printf '"%s":\n    python: %s\n' \\
-        "${task.process}" \\
-        "\$(python --version 2>&1 | sed 's/^Python //')" \\
-        > versions.yml
     """
 }

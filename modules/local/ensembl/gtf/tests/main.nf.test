@@ -37,7 +37,7 @@ nextflow_process {
                     assert gtfText.contains('\texon\t')
                 },
                 { assert path(process.out.source_urls[0][1]).text.contains('/current/gtf/homo_sapiens/Homo_sapiens.test.115.gtf.gz') },
-                { assert path(process.out.versions[0]).text.contains('ensembl_release: "current"') }
+                { assert process.out.versions_ensembl[0][1] == 'ensembl' && process.out.versions_ensembl[0][2] == 'current' }
             )
         }
     }

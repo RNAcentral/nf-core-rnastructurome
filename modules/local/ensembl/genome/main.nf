@@ -15,7 +15,7 @@ process ENSEMBL_GENOME {
     tuple val(meta), path("${meta.id}.genome.fa"), emit: fasta, optional: true
     tuple val(meta), path("ensembl_source_url.txt"), emit: source_url, optional: true
     tuple val(meta), path("${meta.id}.not_found"), emit: not_found, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('ensembl'), val("${(defaultEnsemblConfig() + (ensembl_config_input ?: [:])).ensembl_release}"), topic: versions, emit: versions_ensembl
 
     when:
     task.ext.when == null || task.ext.when
@@ -30,24 +30,14 @@ process ENSEMBL_GENOME {
         --output    "${meta.id}.genome.fa" \
         --source-url    "ensembl_source_url.txt" \
         --not-found-file "${meta.id}.not_found"
-
-    printf '%s\\n' \\
-        '"${task.process}":' \\
-        '    ensembl_release: "${ensembl_config.ensembl_release}"' \\
-        > versions.yml
     """
 
     stub:
-    def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
     touch ${meta.id}.genome.fa
     printf '%s\\n' \
         "stub://${meta.id}.genome.fa" \
         > ensembl_source_url.txt
-    printf '%s\\n' \\
-        '"${task.process}":' \\
-        '    ensembl_release: "${ensembl_config.ensembl_release}"' \\
-        > versions.yml
     """
 }
 

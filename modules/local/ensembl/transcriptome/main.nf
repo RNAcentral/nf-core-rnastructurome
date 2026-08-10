@@ -16,7 +16,7 @@ process ENSEMBL_TRANSCRIPTOME {
     tuple val(meta), path("ensembl_source_url.txt"), emit: source_urls, optional: true
     tuple val(meta), path("${meta.id}.not_found"), emit: not_found, optional: true
     path "ensembl_warnings.log", emit: warnings, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('ensembl'), val("${(defaultEnsemblConfig() + (ensembl_config_input ?: [:])).ensembl_release}"), topic: versions, emit: versions_ensembl
 
     script:
     def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
@@ -29,24 +29,14 @@ process ENSEMBL_TRANSCRIPTOME {
         --source-urls "ensembl_source_url.txt" \
         --warnings-log "ensembl_warnings.log" \
         --not-found-file "${meta.id}.not_found"
-
-    printf '%s\n' \
-        '"${task.process}":' \
-        '    ensembl_release: "${ensembl_config.ensembl_release}"' \
-        > versions.yml
     """
 
     stub:
-    def ensembl_config = defaultEnsemblConfig() + (ensembl_config_input ?: [:])
     """
     touch ${meta.id}.transcripts.fa.gz
     printf '%s\n' \
         "stub://${meta.id}.transcripts.fa.gz" \
         > ensembl_source_url.txt
-    printf '%s\n' \
-        '"${task.process}":' \
-        '    ensembl_release: "${ensembl_config.ensembl_release}"' \
-        > versions.yml
     """
 }
 

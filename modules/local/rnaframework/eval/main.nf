@@ -1,10 +1,3 @@
-// Version probe must not abort the task or leak a shell error into versions.yml,
-// so failures fall back to 'unknown' the same way the rf-eval probe does.
-def pythonVersionCmd() {
-    '''python_version=$(python3 --version 2>/dev/null | sed 's/^Python //') || true
-    printf '    python: %s\\n' "${python_version:-unknown}" >> versions.yml'''
-}
-
 process RNAFRAMEWORK_RFEVAL {
     tag "$meta.id"
     label 'process_medium'
@@ -24,7 +17,8 @@ process RNAFRAMEWORK_RFEVAL {
     tuple val(meta), path("${prefix}_rfeval/plots/*.pdf"), emit: plots, optional: true
     tuple val(meta), path("${prefix}_rfeval/rfeval.log"), emit: log, optional: true
     tuple val(meta), path("${prefix}_rfeval_windows/*.xml"), emit: windows, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-eval -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
+    tuple val("${task.process}"), val('python'), eval("python3 --version | sed 's/^Python //'"), topic: versions, emit: versions_python
 
     when:
     task.ext.when == null || task.ext.when
@@ -38,7 +32,6 @@ process RNAFRAMEWORK_RFEVAL {
         ? "rnaframework_rfeval_window.py --windows \"${windows}\" --xml-glob 'xml_input*/*.xml' --outdir ${prefix}_rfeval_windows"
         : ''
     def reactivity_dir = windows ? "${prefix}_rfeval_windows/" : 'xml_input*/'
-    def python_version = windows ? pythonVersionCmd() : ''
     """
     export TERM="\${TERM:-xterm}"
     log_tmp="\$(mktemp "${prefix}_rfeval.XXXXXX.log")"
@@ -62,10 +55,6 @@ process RNAFRAMEWORK_RFEVAL {
 
     mkdir -p ${prefix}_rfeval
     mv "\${log_tmp}" ${prefix}_rfeval/rfeval.log
-
-    rnaframework_version=\$(rf-eval -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
-    ${python_version}
     """
 
     stub:
@@ -73,7 +62,6 @@ process RNAFRAMEWORK_RFEVAL {
     def stub_windows = windows
         ? "mkdir -p ${prefix}_rfeval_windows && touch ${prefix}_rfeval_windows/stub_element.xml"
         : ''
-    def stub_python = windows ? pythonVersionCmd() : ''
     """
     mkdir -p ${prefix}_rfeval/plots
     ${stub_windows}
@@ -85,9 +73,5 @@ process RNAFRAMEWORK_RFEVAL {
     END_CSV
 
     touch ${prefix}_rfeval/rfeval.log
-
-    rnaframework_version=\$(rf-eval -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
-    ${stub_python}
     """
 }

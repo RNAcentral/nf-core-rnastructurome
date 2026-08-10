@@ -43,7 +43,7 @@ nextflow_process {
                     assert values[9] == '1'
                     assert !lines.any { it.startsWith('REACTIVITY_ERROR\t') }
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }
@@ -95,7 +95,7 @@ nextflow_process {
                     assert errorValues[8] == '0.1'
                     assert errorValues[9] == '0.05'
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }

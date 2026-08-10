@@ -13,7 +13,7 @@ process RNAFRAMEWORK_DOTPLOT2BP {
     output:
     tuple val(meta), path("${meta.id}_bp/dotplot/*.bp"), emit: bp, optional: true
     tuple val(meta), path("${meta.id}_bp/conversion_warnings.log"), emit: warnings, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('python'), eval("python --version 2>&1 | sed 's/^Python //'"), topic: versions, emit: versions_python
 
     script:
     def args = task.ext.args ?: ''
@@ -26,21 +26,11 @@ process RNAFRAMEWORK_DOTPLOT2BP {
         --fold-dir "${fold_dir}" \
         ${gtf_arg} \
         ${args}
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python --version 2>&1 | sed 's/^Python //')" \
-        > versions.yml
     """
 
     stub:
     """
     mkdir -p ${meta.id}_bp/dotplot
     touch ${meta.id}_bp/dotplot/stub.bp
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python --version 2>&1 | sed 's/^Python //')" \
-        > versions.yml
     """
 }

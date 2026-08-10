@@ -70,8 +70,8 @@ nextflow_process {
                 { assert process.out.windows.size() == 1 },
                 // versions.yml must stay valid YAML — a failed probe reports 'unknown',
                 // it never leaks a shell error message onto the line
-                { assert path(process.out.versions[0]).yaml['RNAFRAMEWORK_RFEVAL'].containsKey('python') },
-                { assert !path(process.out.versions[0]).text.contains('command not found') }
+                { assert process.out.versions_python[0][1] == 'python' },
+                { assert !process.out.versions_python[0][2].contains('command not found') }
             )
         }
     }

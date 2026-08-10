@@ -20,7 +20,7 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     tuple val(meta), path("*_rfcount_genome/*.rfcount_genome_summary.tsv"), emit: summary, optional: true
     tuple val(meta), path("*_rfcount_genome/*.rfcount_genome.log"), emit: log, optional: true
     tuple val(meta), path("*_rfcount_genome/plots/*.pdf"), emit: plots, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-count-genome -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
 
     script:
     def args   = task.ext.args ?: ''
@@ -97,12 +97,6 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
         cp "\${cleaned_log}" "${outdir}/${prefix}.rfcount_genome.log"
     fi
     rm -f "\${cleaned_log}" "\${rfcount_log_tmp}"
-
-    rnaframework_version=\$(rf-count-genome -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        rnaframework: \${rnaframework_version:-unknown}
-    END_VERSIONS
     """
 
     stub:
@@ -119,11 +113,5 @@ process RNAFRAMEWORK_RFCOUNT_GENOME {
     sample	covered	pct_mutated	pct_a_muts	pct_c_muts	pct_g_muts	pct_u_muts
     ${prefix}	1	25.0	25.0	25.0	25.0
     END_SUMMARY
-
-    rnaframework_version=\$(rf-count-genome -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        rnaframework: \${rnaframework_version:-unknown}
-    END_VERSIONS
     """
 }

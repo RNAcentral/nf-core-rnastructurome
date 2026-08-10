@@ -37,7 +37,7 @@ nextflow_process {
                     assert faText.contains('ACGTacgtACGTacgtNNNN')
                 },
                 { assert path(process.out.source_url[0][1]).text.contains('/homo_sapiens/dna/Homo_sapiens.test.dna_sm.toplevel.fa.gz') },
-                { assert path(process.out.versions[0]).text.contains('ensembl_release: "current"') }
+                { assert process.out.versions_ensembl[0][1] == 'ensembl' && process.out.versions_ensembl[0][2] == 'current' }
             )
         }
     }
@@ -65,7 +65,7 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.fasta.size() == 1 },
-                { assert path(process.out.versions[0]).text.contains('ensembl_release: "current"') }
+                { assert process.out.versions_ensembl[0][1] == 'ensembl' && process.out.versions_ensembl[0][2] == 'current' }
             )
         }
     }

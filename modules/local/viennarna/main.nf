@@ -12,7 +12,7 @@ process VIENNARNA {
 
     output:
     tuple val(meta), path("${prefix}_structures/*.svg"), emit: plots, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('viennarna'), eval("RNAplot --version 2>&1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_viennarna
 
     when:
     task.ext.when == null || task.ext.when
@@ -43,11 +43,6 @@ process VIENNARNA {
     find ${fold_dir}/dotbracket -maxdepth 1 -name '*.db' -print0 \\
         | xargs -0 -P ${task.cpus} -I{} bash -c '_process_db "\$@"' _ {} \\
         || true
-
-    printf '"%s":\\n    viennarna: %s\\n' \\
-        "${task.process}" \\
-        "\$("${rnaplot}" --version 2>&1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1 || echo 'unknown')" \\
-        > versions.yml
     """
 
     stub:
@@ -55,6 +50,5 @@ process VIENNARNA {
     """
     mkdir -p ${prefix}_structures
     touch ${prefix}_structures/stub_ENST00000000001.svg
-    printf '"%s":\\n    viennarna: 2.7.2\\n' "${task.process}" > versions.yml
     """
 }

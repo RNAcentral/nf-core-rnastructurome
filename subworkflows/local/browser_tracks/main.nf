@@ -23,7 +23,6 @@ workflow BROWSER_TRACKS {
     ch_reference_gtf_map   // value:   map of reference_key -> [meta, gtf]
 
     main:
-    ch_versions = channel.empty()
 
     // MODULE: rf-wiggle — convert rf-norm XML reactivities to WIG + chrom.sizes
     RNAFRAMEWORK_RFWIGGLE (
@@ -116,10 +115,6 @@ workflow BROWSER_TRACKS {
         ch_reactivity_transcript_bw_split.sizes
     )
 
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFWIGGLE.out.versions.first())
-    ch_versions = ch_versions.mix(MERGE_WIG.out.versions.first())
-    ch_versions = ch_versions.mix(AVERAGE_WIG.out.versions.first())
-    ch_versions = ch_versions.mix(WIG_TO_GENOME_REACTIVITY.out.versions.first())
 
     // MODULE: merge_shannon_wig + wigToBigWig — merge per-transcript Shannon entropy WIG files and
     // convert to genome- and transcript-coordinate BigWigs.
@@ -146,7 +141,6 @@ workflow BROWSER_TRACKS {
         WIG_TO_GENOME_SHANNON (
             ch_shannon_genomic_wig_input
         )
-        ch_versions = ch_versions.mix(WIG_TO_GENOME_SHANNON.out.versions.first())
 
         def ch_shannon_genome_split = WIG_TO_GENOME_SHANNON.out.wig
             .map { meta, wig -> [ meta.id.toString(), meta, wig ] }
@@ -181,7 +175,4 @@ workflow BROWSER_TRACKS {
             ch_shannon_transcript_bw_split.sizes
         )
     }
-
-    emit:
-    versions = ch_versions
 }

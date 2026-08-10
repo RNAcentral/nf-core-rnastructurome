@@ -12,27 +12,17 @@ process MERGE_BP {
 
     output:
     tuple val(meta), path("${task.ext.prefix ?: meta.id}.bp"), emit: bp, optional: true
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('python'), eval("python3 --version | cut -d' ' -f2"), topic: versions, emit: versions_python
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     merge_bp.py "${prefix}"
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python3 --version | cut -d' ' -f2)" \
-        > versions.yml
     """
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.bp
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python3 --version | cut -d' ' -f2)" \
-        > versions.yml
     """
 }

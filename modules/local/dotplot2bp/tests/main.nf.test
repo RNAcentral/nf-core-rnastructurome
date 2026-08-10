@@ -56,7 +56,7 @@ nextflow_process {
                     assert lines.contains('chr2\t100\t100\t202\t202\t1')
                     assert lines.contains('chr2\t101\t101\t201\t201\t0')
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }

@@ -38,7 +38,7 @@ nextflow_process {
                         '2'
                     ]
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }
@@ -78,7 +78,7 @@ nextflow_process {
                         '2 7'
                     ]
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }
@@ -105,7 +105,7 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.merged_wig.size() == 1 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }

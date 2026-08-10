@@ -15,7 +15,6 @@ workflow VISUALISE_STRUCTURES {
     ch_reference_gtf_map   // value:   map of reference_key -> [meta, gtf]
 
     main:
-    ch_versions = channel.empty()
 
     // Always draw every structure with ViennaRNA, independent of R2DT (empty drawn-id list means
     // "draw all"), so the two renderers run in parallel rather than ViennaRNA filling R2DT's gaps.
@@ -30,7 +29,6 @@ workflow VISUALISE_STRUCTURES {
     VIENNARNA(
         ch_rnaplot_input
     )
-    ch_versions = ch_versions.mix(VIENNARNA.out.versions.first())
 
     // R2DT (container-only): additionally draw template-based diagrams for every
     // structure, published alongside the ViennaRNA renderings for comparison.
@@ -70,9 +68,5 @@ workflow VISUALISE_STRUCTURES {
         R2DT(
             ch_r2dt_input
         )
-        ch_versions = ch_versions.mix(R2DT.out.versions.first())
     }
-
-    emit:
-    versions = ch_versions
 }

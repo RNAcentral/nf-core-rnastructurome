@@ -12,7 +12,7 @@ process SAMTOOLS_QNAMES {
 
     output:
     tuple val(meta), path("*.qnames.txt"), emit: qnames
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('samtools'), eval("samtools version | sed -n '1s/samtools //p'"), topic: versions, emit: versions_samtools
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
@@ -20,21 +20,11 @@ process SAMTOOLS_QNAMES {
     def sort_mem = task.memory ? Math.max(1, task.memory.toGiga().intValue() - 2) : 4
     """
     samtools view -@ ${task.cpus} ${bam} | cut -f1 | LC_ALL=C sort -u -T . -S ${sort_mem}G > ${prefix}.qnames.txt
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        samtools: \$(samtools version | sed -n '1s/samtools //p')
-    END_VERSIONS
     """
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.qnames.txt
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        samtools: \$(samtools version | sed -n '1s/samtools //p')
-    END_VERSIONS
     """
 }

@@ -15,7 +15,6 @@ workflow CORRELATE_REPLICATES {
     ch_fold_input  // channel: [ val(meta), list(path(xml)) ] — grouped by sample_group (FOLD_STRUCTURES.out.fold_input)
 
     main:
-    ch_versions = channel.empty()
 
     def ch_correlate_input = ch_fold_input
         .filter { meta, _xmls -> (meta.fold_replicate_sizes?.size() ?: 0) >= 2 }
@@ -33,8 +32,6 @@ workflow CORRELATE_REPLICATES {
 
     RNAFRAMEWORK_RFCORRELATE_PEARSON(ch_correlate_input)
     RNAFRAMEWORK_RFCORRELATE_SPEARMAN(ch_correlate_input)
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCORRELATE_PEARSON.out.versions.first())
-    ch_versions = ch_versions.mix(RNAFRAMEWORK_RFCORRELATE_SPEARMAN.out.versions.first())
 
     // Summarise both methods' overall pairwise correlations into one combined MultiQC table.
     // Join per sample_group so each row carries mean Pearson + mean Spearman side by side.
@@ -60,5 +57,4 @@ workflow CORRELATE_REPLICATES {
     matrix_pearson  = RNAFRAMEWORK_RFCORRELATE_PEARSON.out.matrix  // channel: [ val(meta), path(matrix.csv) ]
     matrix_spearman = RNAFRAMEWORK_RFCORRELATE_SPEARMAN.out.matrix // channel: [ val(meta), path(matrix.csv) ]
     multiqc  = ch_multiqc                                          // channel: path(rfcorrelate_mqc.yaml)
-    versions = ch_versions                                        // channel: [ path(versions.yml) ]
 }

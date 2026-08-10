@@ -18,7 +18,6 @@ workflow FOLD_STRUCTURES {
     ch_reference_gtf_map // value:   map of reference_key -> [ val(meta), path(gtf) ]
 
     main:
-    ch_versions = channel.empty()
 
     // Group rfnorm XMLs by sample_group so biological replicates are folded together.
     // The group key intentionally excludes replicate.
@@ -78,7 +77,6 @@ workflow FOLD_STRUCTURES {
             ch_jackknife_input,
             ch_jackknife_reference
         )
-        ch_versions     = ch_versions.mix(RNAFRAMEWORK_RFJACKKNIFE.out.versions.first())
         ch_jackknife_csv = RNAFRAMEWORK_RFJACKKNIFE.out.csv
 
         if (params.rfjackknife_pool_all as Boolean) {
@@ -138,7 +136,6 @@ workflow FOLD_STRUCTURES {
             ch_rfeval_reference,
             ch_rfeval_windows
         )
-        ch_versions    = ch_versions.mix(RNAFRAMEWORK_RFEVAL.out.versions.first())
         ch_rfeval_csv  = RNAFRAMEWORK_RFEVAL.out.csv
     }
 
@@ -154,7 +151,6 @@ workflow FOLD_STRUCTURES {
         RNAFRAMEWORK_RFFOLD (
             ch_fold_for_rffold
         )
-        ch_versions     = ch_versions.mix(RNAFRAMEWORK_RFFOLD.out.versions.first())
         ch_fold_structures = RNAFRAMEWORK_RFFOLD.out.structures
         ch_shannon_wig     = RNAFRAMEWORK_RFFOLD.out.shannon_wig
         ch_rffold_log      = RNAFRAMEWORK_RFFOLD.out.log
@@ -176,7 +172,6 @@ workflow FOLD_STRUCTURES {
             RNAFRAMEWORK_RFSTRUCTEXTRACT(
                 ch_structextract_input
             )
-            ch_versions      = ch_versions.mix(RNAFRAMEWORK_RFSTRUCTEXTRACT.out.versions.first())
             ch_structextract = RNAFRAMEWORK_RFSTRUCTEXTRACT.out.motifs
         }
 
@@ -212,10 +207,6 @@ workflow FOLD_STRUCTURES {
             RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.bp
         )
 
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP.out.versions.first())
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT.out.versions.first())
-        ch_versions = ch_versions.mix(MERGE_BP.out.versions.first())
-        ch_versions = ch_versions.mix(MERGE_BP_TRANSCRIPT.out.versions.first())
 
         ch_bp_dotplot    = RNAFRAMEWORK_DOTPLOT2BP.out.bp
         ch_bp            = MERGE_BP.out.bp
@@ -233,5 +224,4 @@ workflow FOLD_STRUCTURES {
     bp            = ch_bp              // channel: [ val(meta), path(bp) ]          — empty when stop_after_jackknife
     bp_transcript = ch_bp_transcript   // channel: [ val(meta), path(bp) ]          — empty when stop_after_jackknife
     structextract = ch_structextract   // channel: [ val(meta), path(dir) ]         — empty unless --structextract
-    versions      = ch_versions                            // channel: [ path(versions.yml) ]
 }

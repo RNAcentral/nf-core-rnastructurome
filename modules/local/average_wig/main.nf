@@ -12,27 +12,17 @@ process AVERAGE_WIG {
 
     output:
     tuple val(meta), path("${prefix}.merged.wig"), emit: merged_wig
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('python'), eval("python3 --version | cut -d' ' -f2"), topic: versions, emit: versions_python
 
     script:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     average_wig.py "${prefix}"
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python3 --version | cut -d' ' -f2)" \
-        > versions.yml
     """
 
     stub:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.merged.wig
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python3 --version | cut -d' ' -f2)" \
-        > versions.yml
     """
 }

@@ -89,8 +89,11 @@ workflow PIPELINE_INITIALISATION {
 
     // Create channel from input file provided through `input`
 
+    def samplesheet_rows = samplesheetToList(input, "${projectDir}/assets/schema_input.json")
+    warnOnSamplesheetOverrides(samplesheet_rows)
+
     channel
-        .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
+        .fromList(samplesheet_rows)
         .map {
             meta, fastq_1, fastq_2 ->
                 def resolved_meta = meta + [
@@ -177,6 +180,35 @@ workflow PIPELINE_COMPLETION {
     FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
+def normaliseMetadataValue(value) {
+    return value.toString().trim().toLowerCase()
+}
+
+// The per-sample params are fallbacks for rows leaving the column blank — a row that sets it wins.
+// Warn once per field so the precedence is visible rather than silent. Compared case-insensitively,
+// as principle/method are read downstream: warning about a value the user did not actually
+// contradict is worse than staying quiet.
+def warnOnSamplesheetOverrides(rows) {
+    ['sample_id', 'method', 'principle', 'chemical', 'RT_enzyme', 'pH', 'organism', 'umi_pattern'].each { field ->
+        def param_value = params[field]
+        if (!hasMetadataValue(param_value)) {
+            return
+        }
+        def conflicting = rows
+            .collect { row -> row[0] }
+            .findAll { meta ->
+                hasMetadataValue(meta[field]) &&
+                    normaliseMetadataValue(meta[field]) != normaliseMetadataValue(param_value)
+            }
+        if (conflicting) {
+            log.warn(
+                "--${field}=${param_value} is overridden by the samplesheet for ${conflicting.size()} sample(s) " +
+                "(e.g. '${conflicting[0].id}' = ${conflicting[0][field]}); the samplesheet takes precedence."
+            )
+        }
+    }
+}
+
 def hasMetadataValue(value) {
     if (value == null) {
         return false

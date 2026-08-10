@@ -1,13 +1,12 @@
 repository_type: pipeline
-
-nf_core_version: 4.0.2
-
+nf_core_version: 4.0.3
 lint:
   # iGenomes support intentionally removed (Ensembl / NCBI / custom genome routes
   # are used instead), so the igenomes config files do not exist.
   files_exist:
     - conf/igenomes.config
     - conf/igenomes_ignored.config
+    - .github/workflows/linting_comment.yml
   files_unchanged:
     - .gitignore
     - .github/workflows/linting_comment.yml
@@ -17,6 +16,7 @@ lint:
     - assets/nf-core-rnastructurome_logo_light.png
     - docs/images/nf-core-rnastructurome_logo_light.png
     - docs/images/nf-core-rnastructurome_logo_dark.png
+    - .github/workflows/branch.yml
   # bowtie_all: JSON false parses as Python False, Groovy false parses as string
   # "false" — nf-core string-compares them and flags a mismatch for multi-type params.
   nextflow_config:
@@ -31,12 +31,10 @@ lint:
     - bin/r2dt_colour_svg.py
     - bin/viennarna_colour_svg.py
     - modules/local/r2dt/tests/test_r2dt_colour_svg.py
-
 template:
   org: nf-core
   name: rnastructurome
-  description: This pipeline analyses chemical-based high-throughput RNA structure
-    probing data
+  description: This pipeline analyses chemical-based high-throughput RNA structure probing data
   author: RNAcentral
   version: 1.0.0
   force: true

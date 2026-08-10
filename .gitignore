@@ -15,3 +15,5 @@ results/
 tmp/*
 
 ecoli_calibration/
+data/
+.lineage/

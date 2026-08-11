@@ -43,8 +43,11 @@ All paths are relative to the top-level output directory specified with `--outdi
 ├── fold/
 │   ├── <group>/
 │   │   ├── structures/r2dt/*.svg
+│   │   ├── structures/r2dt.log
 │   │   ├── structures/viennarna/*.svg
 │   │   ├── rdat/*.rdat
+│   │   ├── bp/*.bp
+│   │   ├── shannon/*.wig
 │   │   ├── rffold.log
 │   │   └── extracted_structures/      (if --structextract)
 │   │       ├── dotbracket/*.db        (extracted motifs, dot-bracket)
@@ -273,6 +276,8 @@ The headline number is the pairwise correlation (here Pearson 0.765 between the 
   - `structures/viennarna/<transcript>.svg`: RNAplot 2D structure diagram drawn by ViennaRNA.
   - `structures/r2dt.log`: log of transcripts drawn/skipped by R2DT.
   - `rdat/<transcript>.rdat`: RDAT-format file (compatible with RMDB) which summarises results (sequence, dot-bracket notation, reactivities) and key parameters for how it was produced.
+  - `bp/<transcript>.bp`: Per-transcript base-pair arcs in transcript coordinates, keeping pairs at 10% probability or above. These are merged into the transcript-coordinate `.bp` file below.
+  - `shannon/<transcript>.wig`: Per-transcript Shannon entropy in transcript coordinates. These are merged into the genome or transcript-coordinate BigWigs below.
   - `rffold.log`: Raw `rf-fold` console output.
 - `fold/genome_bp/`
   - `<sample_group>_genome.bp`: Base-pair arcs merged into a single file per sample group in genome coordinates, suitable for arc diagram visualisation in a genome browser such as IGV.

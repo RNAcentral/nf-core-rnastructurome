@@ -41,7 +41,8 @@ process RNAFRAMEWORK_RFCOUNT {
     set -o pipefail
     set +e
     rf-count \\
-        -p ${task.cpus} \\
+        -p 1 \\
+        -wt ${task.cpus} \\
         -f "\${FASTA_PATH}" \\
         -o ${outdir} \\
         -ow \\

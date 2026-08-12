@@ -80,7 +80,7 @@ workflow BROWSER_TRACKS {
     def ch_reactivity_genome_split = WIG_TO_GENOME_REACTIVITY.out.wig
         .map { meta, wig -> [ meta.id.toString(), meta, wig ] }
         .join(WIG_TO_GENOME_REACTIVITY.out.chrom_sizes.map { meta, sizes -> [ meta.id.toString(), sizes ] })
-        .filter { _id, _meta, _wig, sizes -> sizes.toFile().length() > 0 }
+        .filter { _id, _meta, _wig, sizes -> sizes.size() > 0 }
         .multiMap { _id, meta, wig, sizes ->
             wig:   [ meta, wig ]
             sizes: sizes
@@ -145,7 +145,7 @@ workflow BROWSER_TRACKS {
         def ch_shannon_genome_split = WIG_TO_GENOME_SHANNON.out.wig
             .map { meta, wig -> [ meta.id.toString(), meta, wig ] }
             .join(WIG_TO_GENOME_SHANNON.out.chrom_sizes.map { meta, sizes -> [ meta.id.toString(), sizes ] })
-            .filter { _id, _meta, _wig, sizes -> sizes.toFile().length() > 0 }
+            .filter { _id, _meta, _wig, sizes -> sizes.size() > 0 }
             .multiMap { _id, meta, wig, sizes ->
                 wig:   [ meta, wig ]
                 sizes: sizes

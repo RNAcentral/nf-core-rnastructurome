@@ -27,9 +27,11 @@ include {
     parseRfcountCoveredTranscripts
     parseRfnormLog
     parseRffoldLog
+    parseRfevalMetrics
     countProgressionMultiqc
     rfnormStatsMultiqc
     rffoldStatsMultiqc
+    rfevalStatsMultiqc
     filterSummaryParams
     addModuleOptionsSummary
 } from './rnastructurome_functions.nf'
@@ -305,6 +307,19 @@ workflow RNASTRUCTUROME {
         )
     }
 
+    // RF-eval summary table: one row per rfnorm group. Only present when reference structures
+    // were supplied, so the section is absent from the report on a normal run.
+    if (params.rfeval_reference) {
+        def ch_rfeval_stats_mqc = FOLD_STRUCTURES.out.rfeval_metrics
+            .map { meta, tsv -> [ meta.id.toString(), parseRfevalMetrics(tsv) ] }
+            .collect()
+            .map { rows -> rfevalStatsMultiqc(rows) }
+
+        ch_multiqc_files = ch_multiqc_files.mix(
+            ch_rfeval_stats_mqc.collectFile(name: 'rfeval_stats_mqc.yaml', sort: true)
+        )
+    }
+
     // rf-correlate — replicate-reproducibility QC (see CORRELATE_REPLICATES subworkflow).
     if (params.correlate_replicates) {
         CORRELATE_REPLICATES(FOLD_STRUCTURES.out.fold_input)
@@ -378,7 +393,7 @@ workflow RNASTRUCTUROME {
     mapped_bam       = ch_dedup_bam                            // channel: [ val(meta), path(bam) ]
     normalized_xml   = NORMALISE_REACTIVITIES.out.xml           // channel: [ val(meta), path(xml) ]
     jackknife_csv    = FOLD_STRUCTURES.out.jackknife_csv        // channel: [ val(meta), path(csv) ] — empty when --jackknife_reference not set
-    rfeval_csv       = FOLD_STRUCTURES.out.rfeval_csv           // channel: [ val(meta), path(csv) ] — empty when --rfeval_reference not set
+    rfeval_metrics   = FOLD_STRUCTURES.out.rfeval_metrics       // channel: [ val(meta), path(tsv) ] — empty when --rfeval_reference not set
     fold_structures  = FOLD_STRUCTURES.out.structures           // channel: [ val(meta), path(dir) ]
     fold_bp          = FOLD_STRUCTURES.out.bp_dotplot           // channel: [ val(meta), path(bp) ]
     merged_bp        = FOLD_STRUCTURES.out.bp                  // channel: [ val(meta), path(*_merged.bp) ]

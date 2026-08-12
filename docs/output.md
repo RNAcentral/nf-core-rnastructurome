@@ -64,7 +64,8 @@ All paths are relative to the top-level output directory specified with `--outdi
 │   ├── <group>_rfeval_windows/        reactivity XMLs sliced to each reference region
 │   │                                  (if --rfeval_windows provided)
 │   └── <group>_rfeval/
-│       └── rfeval.log
+│       ├── <group>_rfeval.metrics.tsv
+│       ├── rfeval.log
 ├── multiqc/
 └── pipeline_info/
 ```
@@ -438,11 +439,13 @@ Here the optimal pair is slope `4.4` / intercept `-1.4` (mFMI `0.867`). mFMI run
 <summary>Output files</summary>
 
 - `eval/<group>_rfeval/`
-  - `rfeval.log`: Raw `rf-eval` console output. The evaluation metrics (Unpaired Coefficient, DSCI, and AUROC) are reported here in the "Overall metrics" block; this log is currently the only published output of the step.
+  - `<group>_rfeval.metrics.tsv`: Per-structure agreement metrics, each paired with its rotation baseline. The main result of the step.
+  - `rfeval.log`: Raw `rf-eval` console output. Two labelled blocks: the reference structures, then the rotation baseline (which reports a much larger structure count, since it scores every decoy). Its "Overall metrics" block pools all structures into one score; ignore it, for the reason below.
+  - `plots/`: Metric plots — per-structure DSCI plots under `plots/dsci/`, plus `roc.pdf` and `summary.pdf` (only with `--rfeval_img`).
 
 </details>
 
-[`rf-eval`](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/) evaluates how well normalised reactivity profiles agree with a set of reference structures. It reports three metrics, each running from 0 to 1, where around `0.5` is chance-level (a reactivity profile with no relationship to the known structure) and higher means better agreement:
+[`rf-eval`](https://rnaframework-docs.readthedocs.io/en/latest/rf-eval/) evaluates how well normalised reactivity profiles agree with a set of reference structures. It reports three metrics, each running from 0 to 1:
 
 - **Unpaired Coefficient**: fraction of highly reactive bases that are unpaired
 - **DSCI**: probability that a randomly selected unpaired base has higher reactivity than a paired base
@@ -450,20 +453,33 @@ Here the optimal pair is slope `4.4` / intercept `-1.4` (mFMI `0.867`). mFMI run
 
 This step only runs when `--rfeval_reference` is provided.
 
+#### Reading the scores
+
+Only AUROC has a fixed chance level. It is centred on `0.5` under no association, so it can be read directly. **DSCI and the unpaired coefficient cannot.** Both depend on each structure's paired/unpaired ratio and helix layout: in practice the DSCI baseline ranges from below `0.25` to above `0.40` across structures, and the unpaired-coefficient baseline from below `0.50` to above `0.65`. A DSCI of `0.36` may be a strong result for one element and unremarkable for another, and the two are not comparable.
+
+Every run therefore also scores each structure against circular rotations of its own reactivity profile — the same structure, the same reactivity values, but no correspondence between them. This gives a per-structure baseline, reported for all three metrics as `<metric>_baseline_mean` and `<metric>_baseline_sd`, with `baseline_num` in the last column giving the number of decoys behind them. **Read the gap between a score and its own baseline mean, in units of the baseline sd** — the same gap is weaker evidence on a structure with a wide baseline than on a tight one.
+
+There is deliberately no pooled "overall" row: structures have different baselines, so averaging them produces a number that cannot be interpreted against anything.
+
+Rotation is used rather than shuffling because reactivity is spatially autocorrelated: a plain shuffle destroys that and produces a baseline roughly 1.1-1.5x too narrow, making results look stronger than they are. Rotations are enumerated rather than sampled, capped at 200 per structure, so short structures use every distinct rotation available (a 48-nt element allows 39) and `baseline_num` varies with structure length.
+
 #### Example metrics
 
-Below is the "Overall metrics" block from `rfeval.log` for one of the bacterial _E. coli_ sample groups, evaluated against the reference 16S and 23S rRNA structures:
+Zika virus MR766 in vivo, scored against six Rfam reference elements with `--rfeval_windows` (baseline columns abridged):
+
+Each metric is followed by the mean and sd of its own baseline (`_baseline_mean`, `_baseline_sd`), with `baseline_num` giving the decoy count:
 
 ```text
-[i] Successfully evaluated 1 structure(s)
-[i] Overall metrics:
-
-  [*] Coefficient unpaired: 0.816
-  [*] DSCI:                 0.871
-  [*] AUC:                  0.873
+structure       coeff_unpaired  mean    sd      dsci    mean    sd      auroc   mean    sd      baseline_num
+zika_5UTR       0.8750          0.5479  0.0930  0.6006  0.3782  0.0568  0.7127  0.4969  0.0595  152
+zika_CRE_3UTR   0.8333          0.5398  0.0797  0.4085  0.2733  0.0385  0.6495  0.4947  0.0418  89
+zika_DB_3UTR    0.8750          0.4923  0.0615  0.8074  0.4128  0.0610  0.8495  0.4785  0.0589  65
+zika_cHP        0.8571          0.6630  0.2282  0.5673  0.3783  0.0976  0.7260  0.5003  0.1129  39
+zika_xrRNA1_PK  0.9375          0.4891  0.1363  0.6728  0.3540  0.0791  0.8002  0.4905  0.0797  63
+zika_xrRNA2_PK  0.8235          0.4941  0.1474  0.6571  0.3362  0.0897  0.8286  0.4923  0.0888  60
 ```
 
-All three metrics sit at 0.82-0.87 here, comfortably above the ~0.5 chance level, so the DMS reactivities agree well with the reference rRNA structure.
+The baselines change how these read. `zika_CRE_3UTR` scores a modest DSCI of `0.41`, but against a baseline of `0.27 ± 0.04` that is over 3 sd out — at face value it looks like the weakest element, and it is not. Conversely `zika_cHP` scores a respectable-looking `0.57` against `0.38 ± 0.10`, under 2 sd, and its unpaired coefficient of `0.86` sits barely above a baseline of `0.66 ± 0.23`: it is the one element here not clearly supported by the data, and it is also the shortest (48 nt) and worst covered. Note too that the AUROC baselines all land within `0.01` of `0.50`, exactly where an uninformative baseline must sit — a useful check that the reference structures and reactivities are correctly aligned.
 
 ## MultiQC
 

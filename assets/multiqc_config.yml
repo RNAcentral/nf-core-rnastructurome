@@ -14,6 +14,9 @@ report_section_order:
   # 3. RF-fold statistics (per fold group)
   "nf-core-rnastructurome-rffold-stats":
     order: 1500
+  # 3b. RF-eval agreement with reference structures (only when --rfeval_reference is set)
+  "nf-core-rnastructurome-rfeval":
+    order: 1450
   # 4. Raw read QC (FastQC pre-trim)
   fastqc_sequence_counts_plot:
     order: 1400

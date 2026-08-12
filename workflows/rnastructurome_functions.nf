@@ -698,6 +698,79 @@ def rffoldStatsMultiqc(rows) {
     )
 }
 
+// Summarise one group's rf-eval metrics TSV for the MultiQC table. The per-structure rows live in the
+// published TSV; here we reduce to a group-level view: how many structures were scored, and the median
+// observed score for DSCI and AUROC against the median of their rotation baselines.
+def parseRfevalMetrics(metricsFile) {
+    def lines = metricsFile.readLines().findAll { line -> line.trim() }
+    if (lines.size() < 2) {
+        return [ structures: 0, median_dsci: 0, median_dsci_baseline: 0, median_auroc: 0, median_auroc_baseline: 0 ]
+    }
+    def header = lines[0].split('\t').toList()
+    def columns = [
+        dsci                 : header.indexOf('dsci'),
+        dsci_baseline        : header.indexOf('dsci_baseline_mean'),
+        auroc                : header.indexOf('auroc'),
+        auroc_baseline       : header.indexOf('auroc_baseline_mean')
+    ]
+    def values = [:]
+    columns.each { name, _index -> values[name] = [] }
+
+    lines.drop(1).each { line ->
+        def parts = line.split('\t').toList()
+        // rf-eval's own "Overall" row would double-count against the per-structure rows
+        if (parts[0] == 'Overall') {
+            return
+        }
+        columns.each { name, index ->
+            if (index >= 0 && index < parts.size() && parts[index]) {
+                values[name] << (parts[index] as Double)
+            }
+        }
+    }
+    [
+        structures           : values.dsci.size(),
+        median_dsci          : roundedMedian(values.dsci),
+        median_dsci_baseline : roundedMedian(values.dsci_baseline),
+        median_auroc         : roundedMedian(values.auroc),
+        median_auroc_baseline: roundedMedian(values.auroc_baseline)
+    ]
+}
+
+def roundedMedian(values) {
+    if (!values) {
+        return 0
+    }
+    def sorted = values.sort(false)
+    def mid = sorted.size().intdiv(2)
+    def value = sorted.size() % 2 == 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+    Math.round(value * 1000) / 1000.0
+}
+
+def rfevalStatsMultiqc(rows) {
+    def normalised = normaliseMqcRows(rows)
+    if (!normalised) {
+        return ''
+    }
+    buildSimpleMultiqcTable(
+        normalised,
+        'nf-core-rnastructurome-rfeval',
+        'nf-core/rnastructurome RF-eval Structure Agreement',
+        'Agreement between measured reactivities and the reference structures given by --rfeval_reference, ' +
+        'per normalisation group. Per-structure scores are in the published <code>eval/*_rfeval.metrics.tsv</code>. ' +
+        'Each score is paired with its baseline: the same structure scored against rotations of its own ' +
+        'reactivity profile, which is what it would score by chance. Read the gap, not the score — DSCI in ' +
+        'particular has no fixed chance level, so its baseline differs from one structure to the next.',
+        [
+            structures           : [title: 'Structures',        description: 'Reference structures scored in this group', scale: 'Blues', format: '{:,.0f}'],
+            median_dsci          : [title: 'Median DSCI',       description: 'Median per-structure DSCI', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}'],
+            median_dsci_baseline : [title: 'DSCI Baseline',     description: 'Median DSCI across rotation decoys — what these structures score by chance', scale: 'Greys', min: 0, max: 1, format: '{:,.3f}'],
+            median_auroc         : [title: 'Median AUROC',      description: 'Median per-structure AUROC', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}'],
+            median_auroc_baseline: [title: 'AUROC Baseline',    description: 'Median AUROC across rotation decoys; sits at ~0.5 by construction, so it doubles as a sanity check', scale: 'Greys', min: 0, max: 1, format: '{:,.3f}']
+        ]
+    )
+}
+
 // Parse an rf-correlate matrix.csv into the off-diagonal summary for the MultiQC reproducibility table
 // (replicate count, mean/min pairwise correlation). Header: Sample,<label0>,...; rows: <label_i>,<corr_i0>,...
 def parseRfcorrelateMatrix(matrixFile) {

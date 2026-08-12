@@ -48,25 +48,27 @@ input:
       pattern: "*.{tsv,txt}"
       ontologies: []
 output:
-  csv:
+  metrics:
     - - meta:
           type: map
           description: Groovy Map containing sample/group information
-      - "*.csv":
+      - "*_rfeval.metrics.tsv":
           type: file
           description: |
-            Per-transcript evaluation metrics: Unpaired Coefficient, DSCI, and AUROC.
-          pattern: "*.csv"
+            Per-structure evaluation metrics: unpaired coefficient, DSCI and AUROC.
+            With a null baseline (`ext.args2`), each of DSCI and AUROC also carries
+            the null mean, standard deviation, z-score and empirical p-value.
+          pattern: "*.tsv"
           ontologies: []
   plots:
     - - meta:
           type: map
           description: Groovy Map containing sample/group information
-      - "plots/*.pdf":
+      - "plots/**.pdf":
           type: file
           description: |
-            Optional metric plots — reactivity distributions, ROC curves, and
-            score histograms (requires -g flag and R).
+            Optional metric plots — per-structure DSCI plots under plots/dsci/,
+            plus ROC and summary plots (requires -g flag and R).
           pattern: "*.pdf"
           ontologies: []
   log:

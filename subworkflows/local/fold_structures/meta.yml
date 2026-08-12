@@ -45,10 +45,12 @@ output:
       type: channel
       description: |
         rf-jackknife results; empty when --jackknife_reference not set. Structure: [ val(meta), path(csv) ]
-  - rfeval_csv:
+  - rfeval_metrics:
       type: channel
       description: |
-        rf-eval results; empty when --rfeval_reference not set. Structure: [ val(meta), path(csv) ]
+        rf-eval agreement metrics per structure, with null z-scores and empirical p-values when
+        --rfeval_null_replicates is set; empty when --rfeval_reference not set.
+        Structure: [ val(meta), path(tsv) ]
   - bp_dotplot:
       type: channel
       description: |

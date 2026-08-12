@@ -13,8 +13,8 @@ process RNAFRAMEWORK_RFEVAL {
     path windows
 
     output:
-    tuple val(meta), path("${prefix}_rfeval/*.csv"), emit: csv, optional: true
-    tuple val(meta), path("${prefix}_rfeval/plots/*.pdf"), emit: plots, optional: true
+    tuple val(meta), path("${prefix}_rfeval/${prefix}_rfeval.metrics.tsv"), emit: metrics
+    tuple val(meta), path("${prefix}_rfeval/plots/**.pdf"), emit: plots, optional: true
     tuple val(meta), path("${prefix}_rfeval/rfeval.log"), emit: log, optional: true
     tuple val(meta), path("${prefix}_rfeval_windows/*.xml"), emit: windows, optional: true
     tuple val("${task.process}"), val('rnaframework'), eval("rf-eval -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
@@ -24,19 +24,53 @@ process RNAFRAMEWORK_RFEVAL {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
-    prefix   = task.ext.prefix ?: "${meta.id}"
+    def args  = task.ext.args ?: ''
+    def args2 = task.ext.args2 ?: ''
+    prefix    = task.ext.prefix ?: "${meta.id}"
     // With a windows manifest, slice reactivities to each reference region first so a
     // sub-region structure is scored against a matching XML, not the full transcript.
     def window_cmd = windows
-        ? "rnaframework_rfeval_window.py --windows \"${windows}\" --xml-glob 'xml_input*/*.xml' --outdir ${prefix}_rfeval_windows"
+        ? "rnaframework_rfeval_window.py --windows \"${windows}\" --xml-glob 'rfeval_xml/*.xml' --outdir ${prefix}_rfeval_windows"
         : ''
-    def reactivity_dir = windows ? "${prefix}_rfeval_windows/" : 'xml_input*/'
+    def reactivity_dir = windows ? "${prefix}_rfeval_windows" : 'rfeval_xml'
+    // The baseline scores hundreds of decoys per structure, so strip -g from its flags:
+    // plotting every decoy would dominate the runtime and publish nothing useful.
+    def baseline_args = args.replaceAll(/-g\s+-R\s+\S+/, '').replaceAll(/(^|\s)-g(\s|$)/, ' ').trim()
+    def baseline_cmd = args2 ? """
+    printf '\\n===== rf-eval: rotation baseline =====\\n' >> "\${log_tmp}"
+    printf 'Decoys below are rotations of each profile, not real structures.\\n\\n' >> "\${log_tmp}"
+
+    rnaframework_rfeval_baseline.py \\
+        --xml-glob '${reactivity_dir}/*.xml' \\
+        --db ${structures} \\
+        --outdir ${prefix}_rfeval_baseline/decoys \\
+        --decoy-db ${prefix}_rfeval_baseline/decoy.db \\
+        ${args2}
+
+    rf-eval \\
+        -p ${task.cpus} \\
+        -o ${prefix}_rfeval_baseline/scores \\
+        -ow \\
+        -no \\
+        -s ${prefix}_rfeval_baseline/decoy.db \\
+        -r ${prefix}_rfeval_baseline/decoys \\
+        ${baseline_args} >> "\${log_tmp}" 2>&1
+""" : ''
+    def baseline_metrics_arg = args2 ? "--baseline-metrics ${prefix}_rfeval_baseline/scores/metrics.txt" : ''
     """
     export TERM="\${TERM:-xterm}"
     log_tmp="\$(mktemp "${prefix}_rfeval.XXXXXX.log")"
 
+    # stageAs indexes each XML into its own xml_input<N>/ dir; rf-eval takes a single
+    # -r folder, so gather them into one before slicing or scoring.
+    mkdir -p rfeval_xml
+    for f in xml_input*/*.xml; do
+        if [ -e "\$f" ]; then ln -sf "\$PWD/\$f" rfeval_xml/; fi
+    done
+
     ${window_cmd}
+
+    printf '===== rf-eval: reference structures =====\\n' >> "\${log_tmp}"
 
     rf-eval \\
         -p ${task.cpus} \\
@@ -44,11 +78,16 @@ process RNAFRAMEWORK_RFEVAL {
         -ow \\
         -s ${structures} \\
         -r ${reactivity_dir} \\
-        ${args} 2>&1 | tee "\${log_tmp}"
+        ${args} 2>&1 | tee -a "\${log_tmp}"
+${baseline_cmd}
+    rnaframework_rfeval_metrics.py \\
+        --metrics ${prefix}_rfeval/metrics.txt \\
+        ${baseline_metrics_arg} \\
+        --output ${prefix}_rfeval/${prefix}_rfeval.metrics.tsv
 
     # Strip ANSI/CR progress noise; drop [+] status and | progress-bar lines
     perl -pe 's/\\r/\\n/g; s/\\e\\[[0-9;]*[A-Za-z]//g' "\${log_tmp}" \\
-        | grep -vE '^\\[+\\]|^\\|' \\
+        | grep -vE '^\\[\\+\\]|^\\|' \\
         | cat -s \\
         > "\${log_tmp}.clean"
     mv "\${log_tmp}.clean" "\${log_tmp}"
@@ -59,18 +98,21 @@ process RNAFRAMEWORK_RFEVAL {
 
     stub:
     prefix = task.ext.prefix ?: "${meta.id}"
+    def baseline_on = task.ext.args2 as Boolean
     def stub_windows = windows
         ? "mkdir -p ${prefix}_rfeval_windows && touch ${prefix}_rfeval_windows/stub_element.xml"
         : ''
+    def header = baseline_on
+        ? 'structure\\tcoeff_unpaired\\tcoeff_unpaired_baseline_mean\\tcoeff_unpaired_baseline_sd\\tdsci\\tdsci_baseline_mean\\tdsci_baseline_sd\\tauroc\\tauroc_baseline_mean\\tauroc_baseline_sd\\tbaseline_num'
+        : 'structure\\tcoeff_unpaired\\tdsci\\tauroc'
+    def row = baseline_on
+        ? 'stub_element\\t0.8200\\t0.7500\\t0.0500\\t0.7900\\t0.3800\\t0.0600\\t0.8500\\t0.5000\\t0.0600\\t40'
+        : 'stub_element\\t0.8200\\t0.7900\\t0.8500'
     """
     mkdir -p ${prefix}_rfeval/plots
     ${stub_windows}
 
-    cat <<-END_CSV > ${prefix}_rfeval/${prefix}_eval.csv
-    transcript,unpaired_coeff,DSCI,AUROC
-    ENST00000000001,0.82,0.79,0.85
-    ENST00000000002,0.74,0.71,0.78
-    END_CSV
+    printf '${header}\\n${row}\\n' > ${prefix}_rfeval/${prefix}_rfeval.metrics.tsv
 
     touch ${prefix}_rfeval/rfeval.log
     """

@@ -56,7 +56,7 @@ workflow FOLD_STRUCTURES {
     // its completion. With --rfjackknife_pool_all, the optimal slope/intercept is injected into fold meta.
     def ch_fold_for_rffold = ch_fold_input
     def ch_jackknife_csv   = channel.empty()
-    def ch_rfeval_csv      = channel.empty()
+    def ch_rfeval_metrics  = channel.empty()
 
     if (params.jackknife_reference) {
         def ch_jackknife_reference = channel.value(file(params.jackknife_reference.toString(), checkIfExists: true))
@@ -136,7 +136,7 @@ workflow FOLD_STRUCTURES {
             ch_rfeval_reference,
             ch_rfeval_windows
         )
-        ch_rfeval_csv  = RNAFRAMEWORK_RFEVAL.out.csv
+        ch_rfeval_metrics = RNAFRAMEWORK_RFEVAL.out.metrics
     }
 
     def ch_fold_structures  = channel.empty()
@@ -219,7 +219,7 @@ workflow FOLD_STRUCTURES {
     shannon_wig   = ch_shannon_wig      // channel: [ val(meta), path(wig) ]        — empty when stop_after_jackknife
     rffold_log    = ch_rffold_log       // channel: [ val(meta), path(log) ]        — empty when stop_after_jackknife
     jackknife_csv = ch_jackknife_csv    // channel: [ val(meta), path(csv) ]        — empty when --jackknife_reference not set
-    rfeval_csv    = ch_rfeval_csv       // channel: [ val(meta), path(csv) ]        — empty when --rfeval_reference not set
+    rfeval_metrics = ch_rfeval_metrics  // channel: [ val(meta), path(tsv) ]        — empty when --rfeval_reference not set
     bp_dotplot    = ch_bp_dotplot       // channel: [ val(meta), path(bp) ]         — empty when stop_after_jackknife
     bp            = ch_bp              // channel: [ val(meta), path(bp) ]          — empty when stop_after_jackknife
     bp_transcript = ch_bp_transcript   // channel: [ val(meta), path(bp) ]          — empty when stop_after_jackknife

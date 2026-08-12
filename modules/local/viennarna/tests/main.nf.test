@@ -16,8 +16,6 @@ nextflow_process {
         when {
             process {
                 """
-                input[1] = file("${projectDir}/bin/viennarna_extract_xml.py", checkIfExists: true)
-                input[2] = file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'group1' ],
                     file("${projectDir}/modules/local/viennarna/tests/fixtures/fold_group",                       type: 'dir',  checkIfExists: true),
@@ -37,7 +35,7 @@ nextflow_process {
                     def fileList = svgs instanceof List ? svgs : [svgs]
                     assert fileList.any { it.toString().endsWith('.svg') }
                 },
-                { assert path(process.out.versions[0]).text.contains('viennarna:') }
+                { assert process.out.versions_viennarna[0][1] == 'viennarna' && process.out.versions_viennarna[0][2] }
             )
         }
     }
@@ -49,8 +47,6 @@ nextflow_process {
         when {
             process {
                 """
-                input[1] = file("${projectDir}/bin/viennarna_extract_xml.py", checkIfExists: true)
-                input[2] = file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'group_multi' ],
                     file("${projectDir}/modules/local/viennarna/tests/fixtures/fold_group",                       type: 'dir',  checkIfExists: true),
@@ -68,7 +64,7 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.plots.size() == 1 },
-                { assert path(process.out.versions[0]).text.contains('viennarna:') }
+                { assert process.out.versions_viennarna[0][1] == 'viennarna' && process.out.versions_viennarna[0][2] }
             )
         }
     }
@@ -83,8 +79,6 @@ nextflow_process {
             }
             process {
                 """
-                input[1] = file("${projectDir}/bin/viennarna_extract_xml.py", checkIfExists: true)
-                input[2] = file("${projectDir}/bin/viennarna_colour_svg.py",    checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'group_publish' ],
                     file("${projectDir}/modules/local/viennarna/tests/fixtures/fold_group",                       type: 'dir',  checkIfExists: true),

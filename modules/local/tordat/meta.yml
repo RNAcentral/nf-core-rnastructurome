@@ -22,10 +22,6 @@ input:
     - fold_dir:
         type: directory
         description: Directory of RNAFramework rf-fold output containing dot-bracket structures
-  - tordat_script:
-      type: file
-      description: Python script that performs the XML-to-RDAT conversion
-      pattern: "rnaframework_to_rdat.py"
 output:
   rdat:
     - - meta:

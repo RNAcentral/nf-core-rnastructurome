@@ -30,12 +30,6 @@ input:
         description: GTF annotation with transcript exon coordinates
         pattern: "*.{gtf,gtf.gz}"
         ontologies: []
-  - remap_script:
-      type: file
-      description: Python script used for coordinate remapping
-      pattern: "remap_wig_to_genome.py"
-      ontologies:
-        - edam: http://edamontology.org/format_3996
 output:
   wig:
     - - meta:

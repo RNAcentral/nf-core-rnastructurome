@@ -47,7 +47,6 @@ workflow RNASTRUCTUROME {
     transcriptome          // boolean: transcriptome (Bowtie) route, including auto-detection
     main:
 
-    ch_versions = channel.empty()
     ch_multiqc_files = channel.empty()
     // SUBWORKFLOW: FASTQ_QC_TRIM — cat → FastQC → UMI → cutadapt → FastQC
     FASTQ_QC_TRIM (
@@ -64,7 +63,6 @@ workflow RNASTRUCTUROME {
         ch_samplesheet_for_branching,
         transcriptome
     )
-    ch_versions = ch_versions.mix(PREPARE_REFERENCES.out.versions)
 
     def ch_reference_fasta_map          = PREPARE_REFERENCES.out.fasta_map
     def ch_reference_gtf_map            = PREPARE_REFERENCES.out.gtf_map
@@ -106,7 +104,6 @@ workflow RNASTRUCTUROME {
         ch_genome_transcript_fasta_map,
         transcriptome
     )
-    ch_versions = ch_versions.mix(QUANTIFY_REACTIVITY.out.versions)
 
     def ch_rfcount_rc      = QUANTIFY_REACTIVITY.out.rc
     def ch_rfcount_rci     = QUANTIFY_REACTIVITY.out.rci
@@ -168,14 +165,12 @@ workflow RNASTRUCTUROME {
         ch_rfcount_rc,
         ch_rfcount_rci
     )
-    ch_versions = ch_versions.mix(NORMALISE_REACTIVITIES.out.versions)
 
     // SUBWORKFLOW: FOLD_STRUCTURES — group by sample_group, optional jackknife, rf-fold, dotplot→bp
     FOLD_STRUCTURES (
         NORMALISE_REACTIVITIES.out.xml,
         ch_reference_gtf_map
     )
-    ch_versions = ch_versions.mix(FOLD_STRUCTURES.out.versions)
 
     if (!params.stop_after_jackknife) {
         // SUBWORKFLOW: VISUALISE_STRUCTURES — R2DT / ViennaRNA 2D structure diagrams
@@ -186,7 +181,6 @@ workflow RNASTRUCTUROME {
             ch_reference_fasta_map,
             ch_reference_gtf_map
         )
-        ch_versions = ch_versions.mix(VISUALISE_STRUCTURES.out.versions)
 
         // SUBWORKFLOW: BROWSER_TRACKS — rf-wiggle → BigWig genome/transcript tracks (+ Shannon)
         BROWSER_TRACKS (
@@ -194,7 +188,6 @@ workflow RNASTRUCTUROME {
             FOLD_STRUCTURES.out.shannon_wig,
             ch_reference_gtf_map
         )
-        ch_versions = ch_versions.mix(BROWSER_TRACKS.out.versions)
     }
 
     if (!params.stop_after_jackknife) {
@@ -252,8 +245,7 @@ workflow RNASTRUCTUROME {
             }
 
         RNAFRAMEWORK_TORDAT (
-            ch_rdat_input,
-            file("${projectDir}/bin/rnaframework_to_rdat.py", checkIfExists: true)
+            ch_rdat_input
         )
     }
 
@@ -316,11 +308,9 @@ workflow RNASTRUCTUROME {
     // rf-correlate — replicate-reproducibility QC (see CORRELATE_REPLICATES subworkflow).
     if (params.correlate_replicates) {
         CORRELATE_REPLICATES(FOLD_STRUCTURES.out.fold_input)
-        ch_versions      = ch_versions.mix(CORRELATE_REPLICATES.out.versions)
         ch_multiqc_files = ch_multiqc_files.mix(CORRELATE_REPLICATES.out.multiqc)
     }
 
-    // RNAframework module versions collected via ch_versions below
 
     // MODULE: multiqc — aggregate pipeline quality control reports
     ch_multiqc_config        = channel.fromPath(
@@ -359,22 +349,11 @@ workflow RNASTRUCTUROME {
             .map { files, config, logo -> [ [ id: 'multiqc' ], files, config, logo, [], [] ] }
     )
 
-    // Collect software versions: topic-pattern modules (CUTADAPT_*, BOWTIE2_*, UMITOOLS_*, all SAMTOOLS_*,
-    // FASTQC) are captured automatically by channel.topic("versions") below; old `emit: versions` modules
-    // (BOWTIE_BUILD/ALIGN, local modules) must be mixed in explicitly.
-    if (!params.stop_after_jackknife) {
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_TORDAT.out.versions.first())
-    }
-
-    // Collate and save software versions
-    def topic_versions = channel.topic("versions")
+    // Collate and save software versions. Every module — nf-core and local alike — reports via the
+    // `versions` topic, so there is nothing to mix in per-process; softwareVersionsToYAML is called
+    // with an empty channel purely to contribute the workflow/Nextflow version block.
+    def topic_versions_string = channel.topic("versions")
         .distinct()
-        .branch { entry ->
-            versions_file: entry instanceof Path
-            versions_tuple: true
-        }
-
-    def topic_versions_string = topic_versions.versions_tuple
         .map { process, tool, version ->
             [ process[process.lastIndexOf(':')+1..-1], "  ${tool}: ${version}" ]
         }
@@ -384,7 +363,7 @@ workflow RNASTRUCTUROME {
             "${process}:\n${tool_versions.join('\n')}"
         }
 
-    softwareVersionsToYAML(ch_versions.mix(topic_versions.versions_file))
+    softwareVersionsToYAML(channel.empty())
         .mix(topic_versions_string)
         .collectFile(
             storeDir: "${params.outdir}/pipeline_info",
@@ -403,7 +382,6 @@ workflow RNASTRUCTUROME {
     fold_structures  = FOLD_STRUCTURES.out.structures           // channel: [ val(meta), path(dir) ]
     fold_bp          = FOLD_STRUCTURES.out.bp_dotplot           // channel: [ val(meta), path(bp) ]
     merged_bp        = FOLD_STRUCTURES.out.bp                  // channel: [ val(meta), path(*_merged.bp) ]
-    versions         = ch_versions                             // channel: [ path(versions.yml) ]
 
 }
 

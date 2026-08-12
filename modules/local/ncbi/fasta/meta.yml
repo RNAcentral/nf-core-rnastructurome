@@ -23,10 +23,6 @@ input:
     - accessions:
         type: string
         description: Comma-separated list of NCBI accession numbers to fetch
-  - ncbi_fasta_script:
-      type: file
-      description: Python script that performs the NCBI fetch
-      pattern: "ncbi_fasta.py"
 output:
   fasta:
     - - meta:

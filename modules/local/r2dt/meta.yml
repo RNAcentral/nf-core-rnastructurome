@@ -45,18 +45,6 @@ input:
         description: Transcript FASTA used for R2DT template matching
         pattern: "*.fa{,.gz}"
         ontologies: []
-  - colour_script:
-      type: file
-      description: Python script that colours SVG diagrams by reactivity
-      pattern: "r2dt_colour_svg.py"
-      ontologies:
-        - edam: http://edamontology.org/format_3996
-  - extract_script:
-      type: file
-      description: Python script that extracts per-position reactivities from XML
-      pattern: "r2dt_extract_sequences.py"
-      ontologies:
-        - edam: http://edamontology.org/format_3996
 output:
   diagrams:
     - - meta:

@@ -10,13 +10,12 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     input:
     tuple val(meta), path(rc, stageAs: "input/*"), path(rci, stageAs: "input/*"), path(summary)
     tuple val(meta_ref), path(gtf)
-    path covered_bed_script
 
     output:
-    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc"),                       emit: rc
-    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc.rci"), optional: true,   emit: rci
-    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rfcount_genome_summary.tsv"), optional: true, emit: summary
-    path "versions.yml",                                                                    emit: versions
+    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc"), emit: rc
+    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rc.rci"), emit: rci, optional: true
+    tuple val(meta), path("${prefix}_rctools_extract/${prefix}.rfcount_genome_summary.tsv"), emit: summary, optional: true
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-rctools -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
 
     when:
     task.ext.when == null || task.ext.when
@@ -89,7 +88,7 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
         # Real per-transcript lengths from the GTF (spliced length = sum of exon lengths). These match
         # the RC exactly because it was built from this same GTF. 4-column BED (id 0 length id) keeps
         # the clean transcript ID instead of renaming the region to <id>_0-<end>.
-        python3 "${covered_bed_script}" "${gtf}" "${feature_name}" "${attr_name}"
+        rctools_covered_bed.py "${gtf}" "${feature_name}" "${attr_name}"
 
         if [[ ! -s covered.bed ]]; then
             echo "ERROR: covered transcripts did not match any GTF ${attr_name} for ${prefix}." >&2
@@ -117,9 +116,6 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
         { \$2 = cov; print; seen = 1 }
         END { if (!seen) print sample, cov, "", "", "", "", "", "" }' \\
         ${summary} > ${outdir}/${prefix}.rfcount_genome_summary.tsv
-
-    rnaframework_version=\$(rf-rctools -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -130,8 +126,5 @@ process RNAFRAMEWORK_RFRCTOOLS_EXTRACT {
     touch ${outdir}/${prefix}.rc
     touch ${outdir}/${prefix}.rc.rci
     cp ${summary} ${outdir}/${prefix}.rfcount_genome_summary.tsv 2>/dev/null || touch ${outdir}/${prefix}.rfcount_genome_summary.tsv
-
-    rnaframework_version=\$(rf-rctools -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

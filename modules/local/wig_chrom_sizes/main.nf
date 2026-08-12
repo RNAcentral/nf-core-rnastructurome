@@ -9,11 +9,10 @@ process WIG_CHROM_SIZES {
 
     input:
     tuple val(meta), path(wig)
-    path chrom_sizes_script
 
     output:
     tuple val(meta), path("${prefix}.chrom.sizes"), emit: sizes
-    path "versions.yml",                             emit: versions
+    tuple val("${task.process}"), val('python'), eval("python --version 2>&1 | sed 's/^Python //'"), topic: versions, emit: versions_python
 
     when:
     task.ext.when == null || task.ext.when
@@ -21,20 +20,14 @@ process WIG_CHROM_SIZES {
     script:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    python "${chrom_sizes_script}" \\
+    wig_chrom_sizes.py \\
         "${wig}" \\
         -o "${prefix}.chrom.sizes"
-
-    printf '"%s":\\n    python: %s\\n' \\
-        "${task.process}" \\
-        "\$(python --version 2>&1 | sed 's/^Python //')" \\
-        > versions.yml
     """
 
     stub:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch "${prefix}.chrom.sizes"
-    printf '"%s":\\n    python: stub\\n' "${task.process}" > versions.yml
     """
 }

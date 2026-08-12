@@ -9,39 +9,28 @@ process RNAFRAMEWORK_DOTPLOT2BP {
 
     input:
     tuple val(meta), path(fold_dir), path(gtf)
-    path dotplot2bp_script
 
     output:
-    tuple val(meta), path("${meta.id}_bp/dotplot/*.bp"),    optional: true, emit: bp
-    tuple val(meta), path("${meta.id}_bp/conversion_warnings.log"), optional: true, emit: warnings
-    path "versions.yml", emit: versions
+    tuple val(meta), path("${meta.id}_bp/dotplot/*.bp"), emit: bp, optional: true
+    tuple val(meta), path("${meta.id}_bp/conversion_warnings.log"), emit: warnings, optional: true
+    tuple val("${task.process}"), val('python'), eval("python --version 2>&1 | sed 's/^Python //'"), topic: versions, emit: versions_python
 
     script:
     def args = task.ext.args ?: ''
     // Transcript-coordinate conversion (--transcript-coords) needs no GTF; genome-coordinate does.
     def gtf_arg = gtf ? "--gtf \"${gtf}\"" : ''
     """
-    python "${dotplot2bp_script}" \
+    rnaframework_dotplot2bp.py \
         --organism "${meta.organism ?: meta.id}" \
         --prefix "${meta.id}" \
         --fold-dir "${fold_dir}" \
         ${gtf_arg} \
         ${args}
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python --version 2>&1 | sed 's/^Python //')" \
-        > versions.yml
     """
 
     stub:
     """
     mkdir -p ${meta.id}_bp/dotplot
     touch ${meta.id}_bp/dotplot/stub.bp
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python --version 2>&1 | sed 's/^Python //')" \
-        > versions.yml
     """
 }

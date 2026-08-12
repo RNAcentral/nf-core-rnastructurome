@@ -9,31 +9,20 @@ process MERGE_WIG {
 
     input:
     tuple val(meta), path(wig)
-    path merge_script
 
     output:
     tuple val(meta), path("*.merged.wig"), emit: merged_wig
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('python'), eval("python3 --version | cut -d' ' -f2"), topic: versions, emit: versions_python
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    python3 "${merge_script}" "${prefix}"
-
-    printf '"%s":\\n    python: %s\\n' \\
-        "${task.process}" \\
-        "\$(python3 --version | cut -d' ' -f2)" \\
-        > versions.yml
+    merge_wig.py "${prefix}"
     """
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.merged.wig
-
-    printf '"%s":\\n    python: %s\\n' \\
-        "${task.process}" \\
-        "\$(python3 --version | cut -d' ' -f2)" \\
-        > versions.yml
     """
 }

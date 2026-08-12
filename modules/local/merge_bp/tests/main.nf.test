@@ -14,7 +14,6 @@ nextflow_process {
         when {
             process {
                 """
-                input[1] = file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'test_group' ],
                     [
@@ -47,7 +46,7 @@ nextflow_process {
                     assert arcLines.contains('chr2\t300\t300\t400\t400\t1')
                     assert arcLines.contains('chr2\t350\t350\t450\t450\t2')
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }
@@ -57,7 +56,6 @@ nextflow_process {
         when {
             process {
                 """
-                input[1] = file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'single_group' ],
                     file("${projectDir}/modules/local/merge_bp/tests/fixtures/chr1_arcs.bp", checkIfExists: true)
@@ -79,7 +77,7 @@ nextflow_process {
                     assert arcLines.contains('chr1\t100\t100\t200\t200\t0')
                     assert arcLines.contains('chr1\t150\t150\t250\t250\t3')
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }
@@ -89,7 +87,6 @@ nextflow_process {
         when {
             process {
                 """
-                input[1] = file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'malformed_group' ],
                     file("${projectDir}/modules/local/merge_bp/tests/fixtures/chr3_malformed.bp", checkIfExists: true)
@@ -113,7 +110,7 @@ nextflow_process {
                     assert !arcLines.any { it.contains('None') }
                     assert arcLines.size() == 2
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }
@@ -125,7 +122,6 @@ nextflow_process {
         when {
             process {
                 """
-                input[1] = file("${projectDir}/bin/merge_bp.py", checkIfExists: true)
                 input[0] = Channel.of([
                     [ id:'stub_group' ],
                     file("${projectDir}/modules/local/merge_bp/tests/fixtures/chr1_arcs.bp", checkIfExists: true)
@@ -138,7 +134,7 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.bp.size() == 1 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }

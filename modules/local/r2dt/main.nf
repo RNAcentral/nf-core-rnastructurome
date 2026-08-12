@@ -7,14 +7,13 @@ process R2DT {
 
     input:
     tuple val(meta), path(fold_dir), path(xml_files, stageAs: "xml_input*/*"), path(fasta), path(gtf)
-    path colour_script
-    path extract_script
 
     output:
-    tuple val(meta), path("${prefix}_r2dt/"), optional: true, emit: diagrams
-    tuple val(meta), path("r2dt_drawn_ids.txt"),              emit: drawn_ids
-    tuple val(meta), path("${prefix}_r2dt.log"),                        emit: log
-    path "versions.yml",                                       emit: versions
+    tuple val(meta), path("${prefix}_r2dt/"), emit: diagrams, optional: true
+    tuple val(meta), path("r2dt_drawn_ids.txt"), emit: drawn_ids
+    tuple val(meta), path("${prefix}_r2dt.log"), emit: log
+    tuple val("${task.process}"), val('r2dt'), eval("r2dt.py version 2>&1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_r2dt
+    tuple val("${task.process}"), val('python'), eval("python3 --version | cut -d' ' -f2"), topic: versions, emit: versions_python
 
     when:
     task.ext.when == null || task.ext.when
@@ -28,7 +27,7 @@ process R2DT {
     def gtf_arg  = gtf ? "--gtf ${gtf} --allowed-biotypes \"${biotypes}\"" : ''
     """
     # ── 1. Extract sequences for transcripts present in fold dotbracket output ──
-    python3 ${extract_script} \\
+    r2dt_extract_sequences.py \\
         --fold-dir ${fold_dir} \\
         --fasta    ${fasta} \\
         ${gtf_arg} \\
@@ -38,10 +37,6 @@ process R2DT {
     if [[ ! -s r2dt_input.fa ]]; then
         echo "[R2DT] No sequences extracted — skipping." | tee -a ${prefix}_r2dt.log
         touch r2dt_drawn_ids.txt
-        cat <<END_VERSIONS > versions.yml
-"${task.process}":
-    r2dt: \$(r2dt.py version 2>&1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1 || echo "unknown")
-END_VERSIONS
         exit 0
     fi
 
@@ -87,7 +82,7 @@ END_VERSIONS
     # with a retry loop. r2dt_colour_svg.py globs --svg-dir itself (reliable) and no-ops
     # cleanly with "0 SVGs coloured" if nothing is there.
     mkdir -p ${prefix}_r2dt
-    python3 ${colour_script} \\
+    r2dt_colour_svg.py \\
         --svg-dir       r2dt_raw/results/svg \\
         --xml-search-dir . \\
         --out-dir       ${prefix}_r2dt \\
@@ -111,12 +106,6 @@ END_VERSIONS
     if [[ \${r2dt_status} -ne 0 && \${drew_any} -eq 0 ]]; then
         echo "[R2DT] r2dt.py draw FAILED (exit \${r2dt_status}) and produced no usable structures — falling back to ViennaRNA for this group." | tee -a ${prefix}_r2dt.log >&2
     fi
-
-    cat <<END_VERSIONS > versions.yml
-"${task.process}":
-    r2dt: \$(r2dt.py version 2>&1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1 || echo "unknown")
-    python: \$(python3 --version | cut -d' ' -f2)
-END_VERSIONS
     """
 
     stub:
@@ -127,10 +116,5 @@ END_VERSIONS
     echo "stub_URS000035F234" > r2dt_drawn_ids.txt
     echo "[R2DT] Extracted 1/1 sequences for template search" > ${prefix}_r2dt.log
     echo "[R2DT colour] 1 SVGs coloured, 0 skipped (no reactivity data or empty SVG)" >> ${prefix}_r2dt.log
-    cat <<END_VERSIONS > versions.yml
-"${task.process}":
-    r2dt: 2.2.0
-    python: 3.11.0
-END_VERSIONS
     """
 }

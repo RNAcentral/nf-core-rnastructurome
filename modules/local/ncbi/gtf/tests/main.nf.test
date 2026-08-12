@@ -19,7 +19,6 @@ nextflow_process {
                     [ id:'test_virus', organism:'test virus' ],
                     file("${projectDir}/modules/local/ncbi/gtf/tests/fixtures/test_virus.fa.gz", checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/bin/ncbi_gtf.py", checkIfExists: true)
                 """
             }
         }
@@ -39,7 +38,7 @@ nextflow_process {
                     assert gtfText.contains('transcript_id "NC_TEST2.1"')
                     assert gtfText.contains('gene_id "NC_TEST1.1"')
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }

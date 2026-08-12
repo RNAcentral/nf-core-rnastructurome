@@ -9,29 +9,23 @@ process WIG_TO_GENOME {
 
     input:
     tuple val(meta), path(wig), path(gtf)
-    path remap_script
 
     output:
-    tuple val(meta), path("${prefix}.genomic.wig"),          emit: wig
+    tuple val(meta), path("${prefix}.genomic.wig"), emit: wig
     tuple val(meta), path("${prefix}_genomic.chrom.sizes"), emit: chrom_sizes
-    path "versions.yml",                                    emit: versions
+    tuple val("${task.process}"), val('python'), eval("python --version 2>&1 | sed 's/^Python //'"), topic: versions, emit: versions_python
 
     script:
     def args = task.ext.args ?: ''
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    python "${remap_script}" \
+    remap_wig_to_genome.py \
         --wig "${wig}" \
         --gtf "${gtf}" \
         --output-wig "${prefix}.genomic.wig" \
         --chrom-sizes "${prefix}_genomic.chrom.sizes" \
         --organism "${meta.organism ?: meta.id}" \
         ${args}
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python --version 2>&1 | sed 's/^Python //')" \
-        > versions.yml
     """
 
     stub:
@@ -39,10 +33,5 @@ process WIG_TO_GENOME {
     """
     touch ${prefix}.genomic.wig
     touch ${prefix}_genomic.chrom.sizes
-
-    printf '"%s":\n    python: %s\n' \
-        "${task.process}" \
-        "\$(python --version 2>&1 | sed 's/^Python //')" \
-        > versions.yml
     """
 }

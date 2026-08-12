@@ -10,18 +10,17 @@ process RNAFRAMEWORK_RFCOUNT {
     input:
     tuple val(meta), path(bam), path(bai)
     tuple val(meta_ref), path(fasta)
-    path summary_script
 
     output:
     tuple val(meta), path("*_rfcount/*.rc"), emit: rc
-    tuple val(meta), path("*_rfcount/*.rc.rci"), optional: true, emit: rci
-    tuple val(meta), path("*_rfcount/index.rci"), optional: true, emit: index_rci
-    tuple val(meta), path("*_rfcount/error.out"), optional: true, emit: error_log
-    tuple val(meta), path("*_rfcount/samtools.log"), optional: true, emit: samtools_log
-    tuple val(meta), path("*_rfcount/*.rfcount_summary.tsv"), optional: true, emit: summary
-    tuple val(meta), path("*_rfcount/*.rfcount.log"),         optional: true, emit: log
-    tuple val(meta), path("*_rfcount/plots/*.pdf"),           optional: true, emit: plots
-    path "versions.yml"          , emit: versions
+    tuple val(meta), path("*_rfcount/*.rc.rci"), emit: rci, optional: true
+    tuple val(meta), path("*_rfcount/index.rci"), emit: index_rci, optional: true
+    tuple val(meta), path("*_rfcount/error.out"), emit: error_log, optional: true
+    tuple val(meta), path("*_rfcount/samtools.log"), emit: samtools_log, optional: true
+    tuple val(meta), path("*_rfcount/*.rfcount_summary.tsv"), emit: summary, optional: true
+    tuple val(meta), path("*_rfcount/*.rfcount.log"), emit: log, optional: true
+    tuple val(meta), path("*_rfcount/plots/*.pdf"), emit: plots, optional: true
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-count -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
 
     script:
     def args   = task.ext.args ?: ''
@@ -72,7 +71,7 @@ process RNAFRAMEWORK_RFCOUNT {
     fi
 
     summary_tsv="${outdir}/${prefix}.rfcount_summary.tsv"
-    awk -f "${summary_script}" \\
+    rfcount_parse_summary.awk \\
         -v sample="${prefix}" -v is_map="${is_map}" -v match_mode="exact" \\
         "\${cleaned_log}" > "\${summary_tsv}"
 
@@ -105,12 +104,6 @@ process RNAFRAMEWORK_RFCOUNT {
         cp "\${cleaned_log}" "${outdir}/${prefix}.rfcount.log"
     fi
     rm -f "\${cleaned_log}" "\${rfcount_log_tmp}"
-
-    rnaframework_version=\$(rf-count -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        rnaframework: \${rnaframework_version:-unknown}
-    END_VERSIONS
     """
 
     stub:
@@ -127,11 +120,5 @@ process RNAFRAMEWORK_RFCOUNT {
     sample	covered	pct_mutated	pct_a_muts	pct_c_muts	pct_g_muts	pct_u_muts
     ${prefix}	1	25.0	25.0	25.0	25.0
     END_SUMMARY
-
-    rnaframework_version=\$(rf-count -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        rnaframework: \${rnaframework_version:-unknown}
-    END_VERSIONS
     """
 }

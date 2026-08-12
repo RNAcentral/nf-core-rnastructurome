@@ -12,7 +12,7 @@ process RNAFRAMEWORK_RFWIGGLE {
 
     output:
     tuple val(meta), path("${prefix}_wiggle/*.wig"), emit: wig
-    path "versions.yml", emit: versions
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-wiggle -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1"), topic: versions, emit: versions_rnaframework
 
     script:
     def args = task.ext.args ?: ''
@@ -31,9 +31,6 @@ process RNAFRAMEWORK_RFWIGGLE {
     if [[ -n "\${produced_wig}" && "\${produced_wig}" != "${prefix}_wiggle/${prefix}.wig" ]]; then
         mv "\${produced_wig}" "${prefix}_wiggle/${prefix}.wig"
     fi
-
-    rnaframework_version=\$(rf-wiggle -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -41,8 +38,5 @@ process RNAFRAMEWORK_RFWIGGLE {
     """
     mkdir -p ${prefix}_wiggle
     touch ${prefix}_wiggle/${prefix}.wig
-
-    rnaframework_version=\$(rf-wiggle -h 2>&1 | sed -nE 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

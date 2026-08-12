@@ -24,8 +24,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/r2dt/tests/fixtures/sequences.fa",       checkIfExists: true),
                     []
                 ])
-                input[1] = file("${projectDir}/bin/r2dt_colour_svg.py",        checkIfExists: true)
-                input[2] = file("${projectDir}/bin/r2dt_extract_sequences.py", checkIfExists: true)
                 """
             }
         }
@@ -36,7 +34,7 @@ nextflow_process {
                 { assert process.out.diagrams.size() == 1 },
                 { assert path(process.out.diagrams[0][1].toString()).toFile().isDirectory() },
                 { assert path(process.out.diagrams[0][1].toString()).list().any { it.toString().endsWith('.svg') } },
-                { assert path(process.out.versions[0]).text.contains('r2dt:') }
+                { assert process.out.versions_r2dt[0][1] == 'r2dt' && process.out.versions_r2dt[0][2] }
             )
         }
     }
@@ -58,8 +56,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/r2dt/tests/fixtures/sequences.fa",       checkIfExists: true),
                     []
                 ])
-                input[1] = file("${projectDir}/bin/r2dt_colour_svg.py",        checkIfExists: true)
-                input[2] = file("${projectDir}/bin/r2dt_extract_sequences.py", checkIfExists: true)
                 """
             }
         }
@@ -68,7 +64,7 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.diagrams.size() == 1 },
-                { assert path(process.out.versions[0]).text.contains('r2dt:') }
+                { assert process.out.versions_r2dt[0][1] == 'r2dt' && process.out.versions_r2dt[0][2] }
             )
         }
     }
@@ -90,8 +86,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/r2dt/tests/fixtures/sequences.fa",       checkIfExists: true),
                     []
                 ])
-                input[1] = file("${projectDir}/bin/r2dt_colour_svg.py",        checkIfExists: true)
-                input[2] = file("${projectDir}/bin/r2dt_extract_sequences.py", checkIfExists: true)
                 """
             }
         }

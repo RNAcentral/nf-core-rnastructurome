@@ -19,10 +19,6 @@ input:
         type: file
         description: Compressed transcript FASTA file (one entry per transcript)
         pattern: "*.fa.gz"
-  - ncbi_gtf_script:
-      type: file
-      description: Python script that generates the pseudo-GTF
-      pattern: "ncbi_gtf.py"
 output:
   gtf:
     - - meta:

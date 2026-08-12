@@ -11,9 +11,9 @@ process RNAFRAMEWORK_RFNORMFACTOR {
     tuple val(meta), path(treated), path(untreated), path(denatured), path(rci_files)
 
     output:
-    tuple val(meta), path("${prefix}.norm_factors.txt"), optional: true, emit: factors
-    tuple val(meta), path("${prefix}.rfnormfactor.log"), optional: true, emit: log
-    path "versions.yml"                                , emit: versions
+    tuple val(meta), path("${prefix}.norm_factors.txt"), emit: factors, optional: true
+    tuple val(meta), path("${prefix}.rfnormfactor.log"), emit: log, optional: true
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-normfactor -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
 
     when:
     task.ext.when == null || task.ext.when
@@ -79,8 +79,6 @@ process RNAFRAMEWORK_RFNORMFACTOR {
 
     # rf-normfactor prints its version banner only under -h and exits non-zero; capture with '|| true'
     # so 'set -o pipefail' does not abort, and fall back to 'unknown' if no version is found.
-    rnaframework_version=\$(rf-normfactor -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -88,8 +86,5 @@ process RNAFRAMEWORK_RFNORMFACTOR {
     """
     touch ${prefix}.norm_factors.txt
     touch ${prefix}.rfnormfactor.log
-
-    rnaframework_version=\$(rf-normfactor -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

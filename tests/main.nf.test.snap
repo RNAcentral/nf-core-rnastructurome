@@ -26,6 +26,9 @@
                 "MERGE_BP_TRANSCRIPT": {
                     "python": "3.12.12"
                 },
+                "MERGE_SHANNON_WIG": {
+                    "python": "3.12.12"
+                },
                 "MERGE_WIG": {
                     "python": "3.12.12"
                 },
@@ -93,6 +96,12 @@
                 "VIENNARNA": {
                     "viennarna": "2.7.2"
                 },
+                "WIG_CHROM_SIZES_REACTIVITY": {
+                    "python": "3.12.12"
+                },
+                "WIG_CHROM_SIZES_SHANNON": {
+                    "python": "3.12.12"
+                },
                 "WIG_TO_GENOME_REACTIVITY": {
                     "python": "3.12.12"
                 },
@@ -104,7 +113,7 @@
                 }
             }
         ],
-        "timestamp": "2026-08-10T12:00:43.791734",
+        "timestamp": "2026-08-10T17:05:23.103893",
         "meta": {
             "nf-test": "0.9.4",
             "nextflow": "26.04.3"

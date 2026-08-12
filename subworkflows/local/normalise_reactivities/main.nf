@@ -17,7 +17,6 @@ workflow NORMALISE_REACTIVITIES {
     ch_rfcount_rci       // channel: [ val(meta), path(rci) ]
 
     main:
-    ch_versions = channel.empty()
 
     // Attach any available .rci sidecar to the RC file for the same sample.
     def ch_rc_with_rci = ch_rfcount_rc
@@ -279,7 +278,6 @@ workflow NORMALISE_REACTIVITIES {
             .map    { _ref, _enabled, nfmeta, t, u, d -> [ nfmeta, t, u, d, [] ] }
 
         RNAFRAMEWORK_RFNORMFACTOR(ch_nf_input)
-        ch_versions = ch_versions.mix(RNAFRAMEWORK_RFNORMFACTOR.out.versions.first())
 
         // Complete per-reference factor map covering EVERY candidate reference. A reference gets a factor
         // file only if enabled AND rf-normfactor produced one; otherwise it gets an empty slot and falls
@@ -303,7 +301,6 @@ workflow NORMALISE_REACTIVITIES {
     }
 
     RNAFRAMEWORK_RFNORM(ch_norm_input_final)
-    ch_versions   = ch_versions.mix(RNAFRAMEWORK_RFNORM.out.versions.first())
     def ch_xml        = RNAFRAMEWORK_RFNORM.out.xml
     def ch_plots      = RNAFRAMEWORK_RFNORM.out.plots
     def ch_rfnorm_log = RNAFRAMEWORK_RFNORM.out.log
@@ -313,5 +310,4 @@ workflow NORMALISE_REACTIVITIES {
     plots       = ch_plots        // channel: [ val(meta), path(plots) ]
     rfnorm_log  = ch_rfnorm_log   // channel: [ val(meta), path(log) ]
     norm_groups = ch_rc_by_group  // channel: [ group, condition, val(meta), path(rc), path(rci) ]
-    versions    = ch_versions     // channel: [ path(versions.yml) ]
 }

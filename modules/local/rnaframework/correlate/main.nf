@@ -11,10 +11,10 @@ process RNAFRAMEWORK_RFCORRELATE {
     tuple val(meta), path(xmls, stageAs: "input*/*")
 
     output:
-    tuple val(meta), path("${prefix}_correlate/matrix.csv"), optional: true, emit: matrix
-    tuple val(meta), path("${prefix}_correlate/"),           optional: true, emit: results
-    tuple val(meta), path("${prefix}.rfcorrelate.log"),      optional: true, emit: log
-    path "versions.yml",                                                     emit: versions
+    tuple val(meta), path("${prefix}_correlate/matrix.csv"), emit: matrix, optional: true
+    tuple val(meta), path("${prefix}_correlate/"), emit: results, optional: true
+    tuple val(meta), path("${prefix}.rfcorrelate.log"), emit: log, optional: true
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-correlate -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
 
     when:
     task.ext.when == null || task.ext.when
@@ -62,9 +62,6 @@ process RNAFRAMEWORK_RFCORRELATE {
         -ow \\
         ${args} \\
         "\${corr_args[@]}" 2>&1 | tee "${prefix}.rfcorrelate.log"
-
-    rnaframework_version=\$(rf-correlate -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -73,8 +70,5 @@ process RNAFRAMEWORK_RFCORRELATE {
     mkdir -p ${prefix}_correlate/pairwise
     printf 'Sample,repA,repB\\nrepA,1,0.9\\nrepB,0.9,1\\n' > ${prefix}_correlate/matrix.csv
     touch ${prefix}.rfcorrelate.log
-
-    rnaframework_version=\$(rf-correlate -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

@@ -9,38 +9,28 @@ process NCBI_FASTA {
 
     input:
     tuple val(meta), val(accessions)
-    path ncbi_fasta_script
 
     output:
     tuple val(meta), path("${meta.id}.transcripts.fa.gz"), emit: fasta
-    tuple val(meta), path("ncbi_source_accessions.txt"),   emit: source_accessions
-    path "versions.yml",                                   emit: versions
+    tuple val(meta), path("ncbi_source_accessions.txt"), emit: source_accessions
+    tuple val("${task.process}"), val('python'), eval("python --version 2>&1 | sed 's/^Python //'"), topic: versions, emit: versions_python
 
     script:
     // accessions may be null for unseen organisms — the script falls back to esearch
     def acc_arg = accessions ? "--accessions \"${accessions}\"" : ""
     def args = task.ext.args ?: ''
     """
-    python "${ncbi_fasta_script}" \
+    ncbi_fasta.py \
         ${acc_arg} \
         --organism "${meta.original_organism}" \
         --output "${meta.id}.transcripts.fa.gz" \
         --source-accessions "ncbi_source_accessions.txt" \
         ${args}
-
-    printf '"%s":\\n    python: %s\\n' \
-        "${task.process}" \
-        "\$(python --version 2>&1 | sed 's/^Python //')" \
-        > versions.yml
     """
 
     stub:
     """
     touch ${meta.id}.transcripts.fa.gz
     printf '%s\\n' "stub://${meta.id}" > ncbi_source_accessions.txt
-    printf '"%s":\\n    python: %s\\n' \
-        "${task.process}" \
-        "\$(python --version 2>&1 | sed 's/^Python //')" \
-        > versions.yml
     """
 }

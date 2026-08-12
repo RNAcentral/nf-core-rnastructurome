@@ -310,8 +310,7 @@ workflow ALIGN_READS {
     ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_FLAGSTAT.out.flagstat.collect { flagstat_file -> flagstat_file[1] })
     ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_IDXSTATS.out.idxstats.collect { idxstats_file -> idxstats_file[1] })
 
-    // Software versions are collected later via ch_versions (old-style emit: versions)
-    // and channel.topic("versions") (new-style topic-based modules)
+    // Software versions are collected later via channel.topic("versions")
 
     // MODULES: BEDOPS_GTF2BED + RSEQC_INFEREXPERIMENT (count_genome route only). Convert each reference
     // GTF to BED12 once, then run infer_experiment to determine strandedness automatically. Only the

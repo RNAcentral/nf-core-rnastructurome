@@ -9,13 +9,11 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
 
     input:
     tuple val(meta), path(fold_dir), path(xmls, stageAs: 'xml_input/*')
-    path xml_script
-    path colour_script
 
     output:
-    tuple val(meta), path("${prefix}_structextract/"),       optional: true, emit: motifs
-    tuple val(meta), path("${prefix}.rfstructextract.log"),  optional: true, emit: log
-    path "versions.yml",                                                     emit: versions
+    tuple val(meta), path("${prefix}_structextract/"), emit: motifs, optional: true
+    tuple val(meta), path("${prefix}.rfstructextract.log"), emit: log, optional: true
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-structextract -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
 
     when:
     task.ext.when == null || task.ext.when
@@ -56,7 +54,7 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
             [[ -e "\${db}" ]] || continue
             tid=\$(basename "\${db}" .db)
             # Full-transcript per-position reactivity (averaged across any matching replicate XMLs).
-            python3 "${xml_script}" "\${tid}" xml_input/"\${tid}".xml >| "\${tid}.full.shape" 2>/dev/null || true
+            viennarna_extract_xml.py "\${tid}" xml_input/"\${tid}".xml >| "\${tid}.full.shape" 2>/dev/null || true
             ( cd ${prefix}_structextract && "${rnaplot}" --output-format=svg < "\$(basename "\${db}")" ) || true
             for svg in ${prefix}_structextract/"\${tid}"_*_ss.svg; do
                 [[ -e "\${svg}" ]] || continue
@@ -65,7 +63,7 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
                 if [[ -s "\${tid}.full.shape" ]]; then
                     awk -v s="\${s}" -v e="\${e}" 'BEGIN{FS=OFS="\\t"} \$1>=s && \$1<=e {print \$1-s+1, \$2}' \\
                         "\${tid}.full.shape" >| motif.shape
-                    python3 "${colour_script}" motif.shape "\${svg}" || true
+                    viennarna_colour_svg.py motif.shape "\${svg}" || true
                 fi
             done
         done
@@ -80,9 +78,6 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
         mkdir -p ${prefix}_structextract/images
         find ${prefix}_structextract -maxdepth 1 -name '*.svg' -exec mv {} ${prefix}_structextract/images/ \\;
     fi
-
-    rnaframework_version=\$(rf-structextract -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -92,8 +87,5 @@ process RNAFRAMEWORK_RFSTRUCTEXTRACT {
     touch ${prefix}_structextract/dotbracket/${prefix}.db
     touch ${prefix}_structextract/images/${prefix}_1-50_ss.svg
     touch ${prefix}.rfstructextract.log
-
-    rnaframework_version=\$(rf-structextract -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    printf '"%s":\\n    rnaframework: %s\\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

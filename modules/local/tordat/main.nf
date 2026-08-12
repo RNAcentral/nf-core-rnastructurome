@@ -9,11 +9,10 @@ process RNAFRAMEWORK_TORDAT {
 
     input:
     tuple val(meta), path(xml, stageAs: "xml_inputs/rep??/*"), path(fold_dir, stageAs: "fold_dir")
-    path tordat_script
 
     output:
-    tuple val(meta), path("${prefix}_rdat/*.rdat"), optional: true, emit: rdat
-    path "versions.yml", emit: versions
+    tuple val(meta), path("${prefix}_rdat/*.rdat"), emit: rdat, optional: true
+    tuple val("${task.process}"), val('python'), eval("python --version 2>&1 | sed 's/^Python //'"), topic: versions, emit: versions_python
 
     script:
     prefix = task.ext.prefix ?: "${meta.id}"
@@ -25,7 +24,7 @@ process RNAFRAMEWORK_TORDAT {
     def extra_args = task.ext.args ?: ''
     def gtf_arg    = gtf_str ? "--gtf \"${gtf_str}\"" : ''
     """
-    python "${tordat_script}" \\
+    rnaframework_to_rdat.py \\
         --xml-dir xml_inputs \\
         --structures-dir fold_dir/dotbracket \\
         --prefix "${prefix}" \\
@@ -35,11 +34,6 @@ process RNAFRAMEWORK_TORDAT {
         --rfnorm-scoring-method "${scoring_sm}" \\
         --rfnorm-norm-method "${norm_nm}" \\
         ${extra_args}
-
-    printf '"%s":\n    python: %s\n' \\
-        "${task.process}" \\
-        "\$(python --version 2>&1 | sed 's/^Python //')" \\
-        > versions.yml
     """
 
     stub:
@@ -47,10 +41,5 @@ process RNAFRAMEWORK_TORDAT {
     """
     mkdir -p ${prefix}_rdat
     touch ${prefix}_rdat/stub.rdat
-
-    printf '"%s":\n    python: %s\n' \\
-        "${task.process}" \\
-        "\$(python --version 2>&1 | sed 's/^Python //')" \\
-        > versions.yml
     """
 }

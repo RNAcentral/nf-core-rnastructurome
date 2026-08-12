@@ -19,10 +19,6 @@ input:
         type: file
         description: One or more per-replicate WIG reactivity files
         pattern: "*.wig"
-  - average_script:
-      type: file
-      description: Python script that performs the averaging
-      pattern: "average_wig.py"
 output:
   merged_wig:
     - - meta:

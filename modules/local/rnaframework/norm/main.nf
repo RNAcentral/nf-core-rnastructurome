@@ -12,9 +12,9 @@ process RNAFRAMEWORK_RFNORM {
 
     output:
     tuple val(meta), path("${prefix}_norm/*.xml"), emit: xml
-    tuple val(meta), path("${prefix}_norm/rfnorm.log"), optional: true, emit: log
-    tuple val(meta), path("${prefix}_norm/plots/*.pdf"), optional: true, emit: plots
-    path "versions.yml"                           , emit: versions
+    tuple val(meta), path("${prefix}_norm/rfnorm.log"), emit: log, optional: true
+    tuple val(meta), path("${prefix}_norm/plots/*.pdf"), emit: plots, optional: true
+    tuple val("${task.process}"), val('rnaframework'), eval("rf-norm -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1 | grep . || echo unknown"), topic: versions, emit: versions_rnaframework
 
     script:
     def args          = task.ext.args ?: ''
@@ -80,9 +80,6 @@ process RNAFRAMEWORK_RFNORM {
             fi
         done
     fi
-
-    rnaframework_version=\$(rf-norm -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    printf '"%s":\n    rnaframework: %s\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 
     stub:
@@ -93,8 +90,5 @@ process RNAFRAMEWORK_RFNORM {
     touch ${prefix}_norm/${prefix}.xml
     touch ${prefix}_norm/plots/${prefix}.pdf
     touch ${prefix}_norm/rfnorm.log
-
-    rnaframework_version=\$(rf-norm -h 2>&1 | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | sed 's/v//' | head -1) || true
-    printf '"%s":\n    rnaframework: %s\n' "${task.process}" "\${rnaframework_version:-unknown}" > versions.yml
     """
 }

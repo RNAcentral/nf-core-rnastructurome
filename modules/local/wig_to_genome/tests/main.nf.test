@@ -23,7 +23,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/wig_to_genome/tests/fixtures/transcript.wig", checkIfExists: true),
                     file("${projectDir}/modules/local/wig_to_genome/tests/fixtures/annotation.gtf", checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/bin/remap_wig_to_genome.py", checkIfExists: true)
                 """
             }
         }
@@ -53,7 +52,7 @@ nextflow_process {
                         'chr2\t202'
                     ]
                 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }
@@ -74,7 +73,6 @@ nextflow_process {
                     file("${projectDir}/modules/local/wig_to_genome/tests/fixtures/transcript.wig", checkIfExists: true),
                     file("${projectDir}/modules/local/wig_to_genome/tests/fixtures/annotation.gtf", checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/bin/remap_wig_to_genome.py", checkIfExists: true)
                 """
             }
         }
@@ -84,7 +82,7 @@ nextflow_process {
                 { assert process.success },
                 { assert process.out.wig.size() == 1 },
                 { assert process.out.chrom_sizes.size() == 1 },
-                { assert path(process.out.versions[0]).text.contains('python:') }
+                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
             )
         }
     }

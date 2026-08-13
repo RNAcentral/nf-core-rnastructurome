@@ -439,8 +439,8 @@ Here the optimal pair is slope `4.4` / intercept `-1.4` (mFMI `0.867`). mFMI run
 
 - `eval/<group>/`
   - `<group>_rfeval.metrics.tsv`: Per-structure agreement metrics, each paired with its rotation baseline. The main result of the step.
-  - `rfeval.log`: Raw `rf-eval` console output. Two labelled blocks: the reference structures, then the rotation baseline (which reports a much larger structure count, since it scores every decoy). `rf-eval` runs with `-no`, so there is no pooled "Overall metrics" block — it is not interpretable across structures, for the reason below, and it divides by zero when every reference window is uncovered.
-  - `plots/`: Metric plots — per-structure DSCI plots under `plots/dsci/`, plus `roc.pdf` and `summary.pdf` (only with `--rfeval_img`).
+  - `rfeval.log`: Raw `rf-eval` console output, in two labelled blocks: the reference structures, then the rotation baseline (which reports a much larger structure count, since it scores every decoy).
+  - `plots/` (only with `--rfeval_img`): per-structure DSCI plots under `plots/dsci/`, plus `roc.pdf` and `summary.pdf`.
 
 </details>
 
@@ -450,23 +450,13 @@ Here the optimal pair is slope `4.4` / intercept `-1.4` (mFMI `0.867`). mFMI run
 - **DSCI**: probability that a randomly selected unpaired base has higher reactivity than a paired base
 - **AUROC**: area under the ROC curve treating reactivity as a classifier of unpaired bases
 
+Each metric is written next to its own rotation baseline (see [usage docs](usage.md#rf-eval-optional)) as `<metric>_baseline_mean` and `<metric>_baseline_sd`, with `baseline_num` giving the decoy count behind them (the structure's length minus 9, since rotations are enumerated and near-identity shifts skipped).
+
 This step only runs when `--rfeval_reference` is provided.
-
-#### Reading the scores
-
-Only AUROC has a fixed chance level. It is centred on `0.5` under no association, so it can be read directly. **DSCI and the unpaired coefficient cannot.** Both depend on each structure's paired/unpaired ratio and helix layout: in practice the DSCI baseline ranges from below `0.25` to above `0.40` across structures, and the unpaired-coefficient baseline from below `0.50` to above `0.65`. A DSCI of `0.36` may be a strong result for one element and unremarkable for another, and the two are not comparable.
-
-Every run therefore also scores each structure against circular rotations of its own reactivity profile — the same structure, the same reactivity values, but no correspondence between them. This gives a per-structure baseline, reported for all three metrics as `<metric>_baseline_mean` and `<metric>_baseline_sd`, with `baseline_num` in the last column giving the number of decoys behind them. **Read the gap between a score and its own baseline mean, in units of the baseline sd** — the same gap is weaker evidence on a structure with a wide baseline than on a tight one.
-
-There is deliberately no pooled "overall" row: structures have different baselines, so averaging them produces a number that cannot be interpreted against anything.
-
-Rotation is used rather than shuffling because reactivity is spatially autocorrelated: a plain shuffle destroys that and produces a baseline roughly 1.1-1.5x too narrow, making results look stronger than they are. Rotations are enumerated rather than sampled, capped at 200 per structure, so short structures use every distinct rotation available (a 48-nt element allows 39) and `baseline_num` varies with structure length.
 
 #### Example metrics
 
-Zika virus MR766 in vivo, scored against six Rfam reference elements with `--rfeval_windows` (baseline columns abridged):
-
-Each metric is followed by the mean and sd of its own baseline (`_baseline_mean`, `_baseline_sd`), with `baseline_num` giving the decoy count:
+Zika virus MR766 in vivo, scored against six Rfam reference elements with `--rfeval_windows` (baseline columns abridged to `mean`/`sd`):
 
 ```text
 structure       coeff_unpaired  mean    sd      dsci    mean    sd      auroc   mean    sd      baseline_num
@@ -478,7 +468,7 @@ zika_xrRNA1_PK  0.9375          0.4891  0.1363  0.6728  0.3540  0.0791  0.8002  
 zika_xrRNA2_PK  0.8235          0.4941  0.1474  0.6571  0.3362  0.0897  0.8286  0.4923  0.0888  60
 ```
 
-The baselines change how these read. `zika_CRE_3UTR` scores a modest DSCI of `0.41`, but against a baseline of `0.27 ± 0.04` that is over 3 sd out — at face value it looks like the weakest element, and it is not. Conversely `zika_cHP` scores a respectable-looking `0.57` against `0.38 ± 0.10`, under 2 sd, and its unpaired coefficient of `0.86` sits barely above a baseline of `0.66 ± 0.23`: it is the one element here not clearly supported by the data, and it is also the shortest (48 nt) and worst covered. Note too that the AUROC baselines all land within `0.01` of `0.50`, exactly where an uninformative baseline must sit — a useful check that the reference structures and reactivities are correctly aligned.
+Using AUROC, `zika_DB_3UTR` (`0.85`), `zika_xrRNA2_PK` (`0.83`) and `zika_xrRNA1_PK` (`0.80`) agree clearly with their reference structures. For the weaker scoring elements we can take into account their baselines to make a decision. `zika_cHP` (`0.73`) outscores `zika_CRE_3UTR` (`0.65`), but against their own baselines the order reverses: CRE_3UTR sits 3.5–3.7 sd above baseline on all three metrics, cHP only 2.0 on AUROC, 1.9 on DSCI and 0.9 on the unpaired coefficient. So CRE_3UTR's agreement is modest but real, while cHP's is indistinguishable from chance, however, it is the shortest element here, which gives it the highest `_baseline_sd` of the six.
 
 ## MultiQC
 

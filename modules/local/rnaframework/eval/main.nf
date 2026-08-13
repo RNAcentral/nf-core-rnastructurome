@@ -26,6 +26,10 @@ process RNAFRAMEWORK_RFEVAL {
     script:
     def args  = task.ext.args ?: ''
     def args2 = task.ext.args2 ?: ''
+    // Plot flags, main call only: the baseline scores hundreds of decoys per structure and
+    // plotting them would dominate runtime. Kept separate rather than stripped back out of
+    // args, because -R's value can be a $(command -v R) substitution that no regex survives.
+    def args3 = task.ext.args3 ?: ''
     prefix    = task.ext.prefix ?: "${meta.id}"
     // With a windows manifest, slice reactivities to each reference region first so a
     // sub-region structure is scored against a matching XML, not the full transcript.
@@ -33,9 +37,6 @@ process RNAFRAMEWORK_RFEVAL {
         ? "rnaframework_rfeval_window.py --windows \"${windows}\" --xml-glob 'rfeval_xml/*.xml' --outdir ${prefix}_rfeval_windows"
         : ''
     def reactivity_dir = windows ? "${prefix}_rfeval_windows" : 'rfeval_xml'
-    // The baseline scores hundreds of decoys per structure, so strip -g from its flags:
-    // plotting every decoy would dominate the runtime and publish nothing useful.
-    def baseline_args = args.replaceAll(/-g\s+-R\s+\S+/, '').replaceAll(/(^|\s)-g(\s|$)/, ' ').trim()
     def baseline_cmd = args2 ? """
     printf '\\n===== rf-eval: rotation baseline =====\\n' >> "\${log_tmp}"
     printf 'Decoys below are rotations of each profile, not real structures.\\n\\n' >> "\${log_tmp}"
@@ -54,7 +55,7 @@ process RNAFRAMEWORK_RFEVAL {
         -no \\
         -s ${prefix}_rfeval_baseline/decoy.db \\
         -r ${prefix}_rfeval_baseline/decoys \\
-        ${baseline_args} >> "\${log_tmp}" 2>&1
+        ${args} >> "\${log_tmp}" 2>&1
 """ : ''
     def baseline_metrics_arg = args2 ? "--baseline-metrics ${prefix}_rfeval_baseline/scores/metrics.txt" : ''
     """
@@ -81,7 +82,7 @@ process RNAFRAMEWORK_RFEVAL {
         -no \\
         -s ${structures} \\
         -r ${reactivity_dir} \\
-        ${args} 2>&1 | tee -a "\${log_tmp}"
+        ${args} ${args3} 2>&1 | tee -a "\${log_tmp}"
 ${baseline_cmd}
     rnaframework_rfeval_metrics.py \\
         --metrics ${prefix}_rfeval/metrics.txt \\

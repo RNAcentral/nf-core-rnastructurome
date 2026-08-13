@@ -61,11 +61,10 @@ All paths are relative to the top-level output directory specified with `--outdi
 │       ├── mFMI.csv
 │       └── rfjackknife.log
 ├── eval/                              (if --rfeval_reference provided)
-│   ├── <group>_rfeval_windows/        reactivity XMLs sliced to each reference region
-│   │                                  (if --rfeval_windows provided)
-│   └── <group>_rfeval/
+│   └── <group>/
 │       ├── <group>_rfeval.metrics.tsv
 │       ├── rfeval.log
+│       └── plots/                     (if --rfeval_img)
 ├── multiqc/
 └── pipeline_info/
 ```
@@ -438,9 +437,9 @@ Here the optimal pair is slope `4.4` / intercept `-1.4` (mFMI `0.867`). mFMI run
 <details markdown="1">
 <summary>Output files</summary>
 
-- `eval/<group>_rfeval/`
+- `eval/<group>/`
   - `<group>_rfeval.metrics.tsv`: Per-structure agreement metrics, each paired with its rotation baseline. The main result of the step.
-  - `rfeval.log`: Raw `rf-eval` console output. Two labelled blocks: the reference structures, then the rotation baseline (which reports a much larger structure count, since it scores every decoy). Its "Overall metrics" block pools all structures into one score; ignore it, for the reason below.
+  - `rfeval.log`: Raw `rf-eval` console output. Two labelled blocks: the reference structures, then the rotation baseline (which reports a much larger structure count, since it scores every decoy). `rf-eval` runs with `-no`, so there is no pooled "Overall metrics" block — it is not interpretable across structures, for the reason below, and it divides by zero when every reference window is uncovered.
   - `plots/`: Metric plots — per-structure DSCI plots under `plots/dsci/`, plus `roc.pdf` and `summary.pdf` (only with `--rfeval_img`).
 
 </details>

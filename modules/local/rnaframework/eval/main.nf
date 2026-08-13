@@ -72,10 +72,13 @@ process RNAFRAMEWORK_RFEVAL {
 
     printf '===== rf-eval: reference structures =====\\n' >> "\${log_tmp}"
 
+    # -no is required: the pooled "Overall" stats divide by zero when every reference
+    # window is NaN, and rnaframework_rfeval_metrics.py discards that row regardless.
     rf-eval \\
         -p ${task.cpus} \\
         -o ${prefix}_rfeval \\
         -ow \\
+        -no \\
         -s ${structures} \\
         -r ${reactivity_dir} \\
         ${args} 2>&1 | tee -a "\${log_tmp}"

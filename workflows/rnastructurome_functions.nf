@@ -700,14 +700,16 @@ def rffoldStatsMultiqc(rows) {
 
 // Summarise one group's rf-eval metrics TSV for the MultiQC table. The per-structure rows live in the
 // published TSV; here we reduce to a group-level view: how many structures were scored, and the median
-// observed score for DSCI and AUROC against the median of their rotation baselines.
+// observed score for each metric against the median of its rotation baseline.
 def parseRfevalMetrics(metricsFile) {
     def lines = metricsFile.readLines().findAll { line -> line.trim() }
     if (lines.size() < 2) {
-        return [ structures: 0, median_dsci: 0, median_dsci_baseline: 0, median_auroc: 0, median_auroc_baseline: 0 ]
+        return [ structures: 0, median_coeff: 0, median_coeff_baseline: 0, median_dsci: 0, median_dsci_baseline: 0, median_auroc: 0, median_auroc_baseline: 0 ]
     }
     def header = lines[0].split('\t').toList()
     def columns = [
+        coeff                : header.indexOf('coeff_unpaired'),
+        coeff_baseline       : header.indexOf('coeff_unpaired_baseline_mean'),
         dsci                 : header.indexOf('dsci'),
         dsci_baseline        : header.indexOf('dsci_baseline_mean'),
         auroc                : header.indexOf('auroc'),
@@ -716,20 +718,28 @@ def parseRfevalMetrics(metricsFile) {
     def values = [:]
     columns.each { name, _index -> values[name] = [] }
 
+    def structures = 0
     lines.drop(1).each { line ->
         def parts = line.split('\t').toList()
         // rf-eval's own "Overall" row would double-count against the per-structure rows
         if (parts[0] == 'Overall') {
             return
         }
+        structures += 1
         columns.each { name, index ->
             if (index >= 0 && index < parts.size() && parts[index]) {
-                values[name] << (parts[index] as Double)
+                // rf-eval writes "nan" for structures with no usable reactivity; drop those from the medians
+                def value = parts[index].isDouble() ? (parts[index] as Double) : Double.NaN
+                if (!value.isNaN()) {
+                    values[name] << value
+                }
             }
         }
     }
     [
-        structures           : values.dsci.size(),
+        structures           : structures,
+        median_coeff         : roundedMedian(values.coeff),
+        median_coeff_baseline: roundedMedian(values.coeff_baseline),
         median_dsci          : roundedMedian(values.dsci),
         median_dsci_baseline : roundedMedian(values.dsci_baseline),
         median_auroc         : roundedMedian(values.auroc),
@@ -759,10 +769,12 @@ def rfevalStatsMultiqc(rows) {
         'Agreement between measured reactivities and the reference structures given by --rfeval_reference, ' +
         'per normalisation group. Per-structure scores are in the published <code>eval/*_rfeval.metrics.tsv</code>. ' +
         'Each score is paired with its baseline: the same structure scored against rotations of its own ' +
-        'reactivity profile, which is what it would score by chance. Read the gap, not the score — DSCI in ' +
-        'particular has no fixed chance level, so its baseline differs from one structure to the next.',
+        'reactivity profile, which is what it would score by chance. Read the gap, not the score — only AUROC ' +
+        'has a fixed chance level, so the coefficient and DSCI baselines differ from one structure to the next.',
         [
             structures           : [title: 'Structures',        description: 'Reference structures scored in this group', scale: 'Blues', format: '{:,.0f}'],
+            median_coeff         : [title: 'Median Coefficient', description: 'Median per-structure unpaired coefficient — the fraction of highly-reactive bases that are unpaired in the reference', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}'],
+            median_coeff_baseline: [title: 'Coefficient Baseline', description: 'Median unpaired coefficient across rotation decoys; the raw score saturates near 1, so the gap to this baseline is what carries the signal', scale: 'Greys', min: 0, max: 1, format: '{:,.3f}'],
             median_dsci          : [title: 'Median DSCI',       description: 'Median per-structure DSCI', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}'],
             median_dsci_baseline : [title: 'DSCI Baseline',     description: 'Median DSCI across rotation decoys — what these structures score by chance', scale: 'Greys', min: 0, max: 1, format: '{:,.3f}'],
             median_auroc         : [title: 'Median AUROC',      description: 'Median per-structure AUROC', scale: 'RdYlGn', min: 0, max: 1, format: '{:,.3f}'],

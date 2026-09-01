@@ -2,6 +2,7 @@ lint:
   files_exist:
     - conf/igenomes.config
     - conf/igenomes_ignored.config
+    - .github/workflows/linting_comment.yml
   files_unchanged:
     - .gitignore
     - .github/workflows/linting_comment.yml
@@ -11,6 +12,7 @@ lint:
     - assets/nf-core-rnastructurome_logo_light.png
     - docs/images/nf-core-rnastructurome_logo_light.png
     - docs/images/nf-core-rnastructurome_logo_dark.png
+    - .github/workflows/branch.yml
   nextflow_config:
     - params.bowtie_all
     - config_defaults:
@@ -20,7 +22,7 @@ lint:
     - bin/r2dt_colour_svg.py
     - bin/viennarna_colour_svg.py
     - modules/local/r2dt/tests/test_r2dt_colour_svg.py
-nf_core_version: 4.0.3
+nf_core_version: 4.1.0
 repository_type: pipeline
 template:
   author: RNAcentral

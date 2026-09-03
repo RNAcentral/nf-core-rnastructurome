@@ -17,10 +17,10 @@ include { BOWTIE2_BUILD         } from '../../../modules/nf-core/bowtie2/build/m
 include { SAMTOOLS_FAIDX        } from '../../../modules/nf-core/samtools/faidx/main'
 include { GFFREAD               } from '../../../modules/nf-core/gffread/main'
 
-include { resolveReferenceResolution } from '../../../workflows/rnastructurome_functions.nf'
-include { uniqueReferenceResolution  } from '../../../workflows/rnastructurome_functions.nf'
-include { collectToMap               } from '../../../workflows/rnastructurome_functions.nf'
-include { resolveReferenceKey        } from '../../../workflows/rnastructurome_functions.nf'
+include { resolveReferenceResolution } from '../utils_nfcore_rnastructurome_pipeline/main'
+include { uniqueReferenceResolution  } from '../utils_nfcore_rnastructurome_pipeline/main'
+include { collectToMap               } from '../utils_nfcore_rnastructurome_pipeline/main'
+include { resolveReferenceKey        } from '../utils_nfcore_rnastructurome_pipeline/main'
 
 // Organisms known to have transcript/gene IDs (e.g. parenthesised yeast tRNA IDs like tK(UUU)K)
 // that hang RNAframework's XML parser — see GTF_SANITIZE below. Extend as new offenders are found;

@@ -8,7 +8,7 @@ include {
     resolveRfNormScoreMethod
     resolveRfNormNormMethod
     resolveReferenceKey
-} from '../../../workflows/rnastructurome_functions.nf'
+} from '../utils_nfcore_rnastructurome_pipeline/main'
 
 workflow NORMALISE_REACTIVITIES {
 

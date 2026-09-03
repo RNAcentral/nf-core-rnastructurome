@@ -9,7 +9,7 @@ include { RNAFRAMEWORK_DOTPLOT2BP                                      } from '.
 include { RNAFRAMEWORK_DOTPLOT2BP as RNAFRAMEWORK_DOTPLOT2BP_TRANSCRIPT } from '../../../modules/local/dotplot2bp/main'
 include { MERGE_BP                                                     } from '../../../modules/local/merge_bp/main'
 include { MERGE_BP as MERGE_BP_TRANSCRIPT                              } from '../../../modules/local/merge_bp/main'
-include { resolveReferenceKey } from '../../../workflows/rnastructurome_functions.nf'
+include { resolveReferenceKey } from '../utils_nfcore_rnastructurome_pipeline/main'
 
 workflow FOLD_STRUCTURES {
 

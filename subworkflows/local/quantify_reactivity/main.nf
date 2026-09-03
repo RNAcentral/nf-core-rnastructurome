@@ -7,8 +7,8 @@ include { RNAFRAMEWORK_RFCOUNT as RNAFRAMEWORK_RFCOUNT_STAR } from '../../../mod
 include { RNAFRAMEWORK_RFCOUNT_GENOME    } from '../../../modules/local/rnaframework/count_genome/main'
 include { RNAFRAMEWORK_RFRCTOOLS_EXTRACT } from '../../../modules/local/rnaframework/rctools/extract/main'
 
-include { collectToMap        } from '../../../workflows/rnastructurome_functions.nf'
-include { resolveReferenceKey } from '../../../workflows/rnastructurome_functions.nf'
+include { collectToMap        } from '../utils_nfcore_rnastructurome_pipeline/main'
+include { resolveReferenceKey } from '../utils_nfcore_rnastructurome_pipeline/main'
 
 workflow QUANTIFY_REACTIVITY {
 

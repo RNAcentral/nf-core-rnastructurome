@@ -1,7 +1,7 @@
 nextflow_function {
 
     name "rnastructurome pure helper functions"
-    script "../workflows/rnastructurome_functions.nf"
+    script "../main.nf"
 
     test("resolveReferenceKey normalises a binomial organism") {
         function "resolveReferenceKey"

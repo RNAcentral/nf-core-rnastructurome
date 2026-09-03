@@ -16,9 +16,9 @@
 */
 
 include { RNASTRUCTUROME  } from './workflows/rnastructurome'
-include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_rnastructurome_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_rnastructurome_pipeline'
-include { allReferencesUseNcbiRoute } from './workflows/rnastructurome_functions.nf'
+include { PIPELINE_INITIALISATION   } from './subworkflows/local/utils_nfcore_rnastructurome_pipeline'
+include { PIPELINE_COMPLETION       } from './subworkflows/local/utils_nfcore_rnastructurome_pipeline'
+include { allReferencesUseNcbiRoute } from './subworkflows/local/utils_nfcore_rnastructurome_pipeline'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -3,7 +3,7 @@
 
 include { R2DT                } from '../../../modules/local/r2dt/main'
 include { VIENNARNA           } from '../../../modules/local/viennarna/main'
-include { resolveReferenceKey } from '../../../workflows/rnastructurome_functions.nf'
+include { resolveReferenceKey } from '../utils_nfcore_rnastructurome_pipeline/main'
 
 workflow VISUALISE_STRUCTURES {
 

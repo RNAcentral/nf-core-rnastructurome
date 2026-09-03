@@ -25,10 +25,10 @@ include { UMITOOLS_DEDUP        } from '../../../modules/nf-core/umitools/dedup/
 include { BEDOPS_GTF2BED        } from '../../../modules/nf-core/bedops/gtf2bed/main'
 include { RSEQC_INFEREXPERIMENT } from '../../../modules/nf-core/rseqc/inferexperiment/main'
 
-include { buildStarAlignInputs } from '../../../workflows/rnastructurome_functions.nf'
-include { resolveReferenceKey  } from '../../../workflows/rnastructurome_functions.nf'
-include { collectToMap         } from '../../../workflows/rnastructurome_functions.nf'
-include { parseInferExperiment } from '../../../workflows/rnastructurome_functions.nf'
+include { buildStarAlignInputs } from '../utils_nfcore_rnastructurome_pipeline/main'
+include { resolveReferenceKey  } from '../utils_nfcore_rnastructurome_pipeline/main'
+include { collectToMap         } from '../utils_nfcore_rnastructurome_pipeline/main'
+include { parseInferExperiment } from '../utils_nfcore_rnastructurome_pipeline/main'
 
 workflow ALIGN_READS {
 

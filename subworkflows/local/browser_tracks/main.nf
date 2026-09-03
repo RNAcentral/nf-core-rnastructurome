@@ -13,7 +13,7 @@ include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_REACTIVITY            } from '../
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_SHANNON               } from '../../../modules/nf-core/ucsc/wigtobigwig/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_TRANSCRIPT_REACTIVITY } from '../../../modules/nf-core/ucsc/wigtobigwig/main'
 include { UCSC_WIGTOBIGWIG as UCSC_WIGTOBIGWIG_TRANSCRIPT_SHANNON    } from '../../../modules/nf-core/ucsc/wigtobigwig/main'
-include { resolveReferenceKey } from '../../../workflows/rnastructurome_functions.nf'
+include { resolveReferenceKey } from '../utils_nfcore_rnastructurome_pipeline/main'
 
 workflow BROWSER_TRACKS {
 

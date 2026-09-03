@@ -4,8 +4,8 @@ process MERGE_WIG {
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
-        ? 'https://depot.galaxyproject.org/singularity/python:3.12.12'
-        : 'quay.io/biocontainers/python:3.12.12'}"
+        ? 'oras://community.wave.seqera.io/library/coreutils:04a9693aaeef79aa'
+        : 'community.wave.seqera.io/library/coreutils:9a0aa1447088f229'}"
 
     input:
     tuple val(meta), path(wig)

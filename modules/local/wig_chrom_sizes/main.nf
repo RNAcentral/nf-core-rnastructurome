@@ -2,7 +2,7 @@ process WIG_CHROM_SIZES {
     tag "$meta.id"
     label 'process_single'
 
-    conda "conda-forge::python=3.12"
+    conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
         ? 'https://depot.galaxyproject.org/singularity/python:3.12.12'
         : 'quay.io/biocontainers/python:3.12.12'}"

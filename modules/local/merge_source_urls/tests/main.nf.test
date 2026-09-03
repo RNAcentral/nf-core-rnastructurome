@@ -36,7 +36,7 @@ nextflow_process {
                         'https://ftp.ensembl.org/pub/homo_sapiens/annotation.gtf.gz'
                     ]
                 },
-                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
+                { assert process.out.versions_bash[0][1] == 'bash' && process.out.versions_bash[0][2] }
             )
         }
     }
@@ -62,7 +62,7 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.urls.size() == 1 },
-                { assert process.out.versions_python[0][1] == 'python' && process.out.versions_python[0][2] }
+                { assert process.out.versions_bash[0][1] == 'bash' && process.out.versions_bash[0][2] }
             )
         }
     }

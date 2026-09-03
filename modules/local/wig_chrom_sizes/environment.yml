@@ -1,4 +1,4 @@
 channels:
   - conda-forge
 dependencies:
-  - coreutils
+  - python=3.12.12

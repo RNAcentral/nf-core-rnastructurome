@@ -1,8 +1,8 @@
 nextflow_workflow {
 
-    name "Test Workflow RNASTRUCTUROME"
-    script "../rnastructurome.nf"
-    config "./nextflow.config"
+    name "Test Workflow RNASTRUCTUROME (route selection)"
+    script "../workflows/rnastructurome.nf"
+    config "${new File('tests/nextflow.config').absolutePath}"
     workflow "RNASTRUCTUROME"
     tag "workflows"
     tag "rnastructurome"

@@ -3,7 +3,10 @@ process R2DT {
     label 'process_single'
     label 'process_long'
 
-    container params.r2dt_container
+    // Validated build is sha256:7ce2f54a7a3ff1d7fee7430209a7358ae1e971644446cfe4906dbd7b6211282c
+    // (:latest, 2026-06). Use the tag because Wave/Fusion fails when attaching
+    // containerConfig to a @sha256 reference on AWS/Seqera Platform.
+    container 'docker.io/rnacentral/r2dt:latest'
 
     input:
     tuple val(meta), path(fold_dir), path(xml_files, stageAs: "xml_input*/*"), path(fasta), path(gtf)

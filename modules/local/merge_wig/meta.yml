@@ -6,11 +6,11 @@ keywords:
   - reactivity
   - rnaframework
 tools:
-  - python:
-      description: Python runtime used for lightweight WIG post-processing
-      homepage: https://www.python.org/
-      documentation: https://docs.python.org/3/
-      licence: ["Python-2.0"]
+  - bash:
+      description: Bash shell used to concatenate per-transcript WIG files
+      homepage: https://www.gnu.org/software/bash/
+      documentation: https://www.gnu.org/software/bash/manual/
+      licence: ["GPL-3.0-or-later"]
 input:
   - - meta:
         type: map

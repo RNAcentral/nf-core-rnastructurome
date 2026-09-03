@@ -47,6 +47,27 @@ nextflow_process {
         }
     }
 
+    test("fails when no WIG files are staged") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id:'empty' ],
+                    file("${projectDir}/modules/local/merge_wig/tests/fixtures/TX1.xml", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert !process.success },
+                { assert process.exitStatus == 1 }
+            )
+        }
+    }
+
     test("merge wiggle files - stub") {
 
         options "-stub"

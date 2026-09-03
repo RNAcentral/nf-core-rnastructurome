@@ -7,10 +7,13 @@ include { ENSEMBL_GENOME        } from '../../../modules/local/ensembl/genome/ma
 include { ENSEMBL_GTF           } from '../../../modules/local/ensembl/gtf/main'
 include { NCBI_FASTA            } from '../../../modules/local/ncbi/fasta/main'
 include { NCBI_GTF              } from '../../../modules/local/ncbi/gtf/main'
+include { FASTA_SANITIZE as FASTA_SANITIZE_LOCAL   } from '../../../modules/local/fasta/sanitize/main'
+include { FASTA_SANITIZE as FASTA_SANITIZE_ENSEMBL } from '../../../modules/local/fasta/sanitize/main'
+include { FASTA_SANITIZE as FASTA_SANITIZE_NCBI    } from '../../../modules/local/fasta/sanitize/main'
+include { GTF_SANITIZE          } from '../../../modules/local/gtf/sanitize/main'
 include { FASTA_SORT as FASTA_SORT_LOCAL   } from '../../../modules/local/fasta/sort/main'
 include { FASTA_SORT as FASTA_SORT_ENSEMBL } from '../../../modules/local/fasta/sort/main'
 include { FASTA_SORT as FASTA_SORT_NCBI    } from '../../../modules/local/fasta/sort/main'
-include { GTF_SANITIZE          } from '../../../modules/local/gtf/sanitize/main'
 include { STAR_GENOMEGENERATE   } from '../../../modules/nf-core/star/genomegenerate/main'
 include { BOWTIE_BUILD          } from '../../../modules/nf-core/bowtie/build/main'
 include { BOWTIE2_BUILD         } from '../../../modules/nf-core/bowtie2/build/main'
@@ -22,10 +25,12 @@ include { uniqueReferenceResolution  } from '../utils_nfcore_rnastructurome_pipe
 include { collectToMap               } from '../utils_nfcore_rnastructurome_pipeline/main'
 include { resolveReferenceKey        } from '../utils_nfcore_rnastructurome_pipeline/main'
 
-// Organisms known to have transcript/gene IDs (e.g. parenthesised yeast tRNA IDs like tK(UUU)K)
-// that hang RNAframework's XML parser — see GTF_SANITIZE below. Extend as new offenders are found;
-// other organisms skip the process entirely rather than pay for a no-op sanitize pass.
-def gtfSanitizeOrganisms() {
+// Organisms known to have transcript/gene IDs (e.g. parenthesised yeast tRNA IDs like tK(UUU)K,
+// or yeast systematic isoform ids like YAL016C-A) that hang RNAframework's XML parser or need
+// normalizing before FASTA_SORT — see GTF_SANITIZE and FASTA_SANITIZE below. Extend as new
+// offenders are found; other organisms skip these processes entirely rather than pay for a
+// no-op sanitize pass.
+def idSanitizeOrganisms() {
     ['saccharomyces_cerevisiae']
 }
 
@@ -162,9 +167,9 @@ workflow PREPARE_REFERENCES {
 
     // Strip regex/shell-unsafe characters from transcript_id/gene_id (e.g. yeast tRNA IDs like
     // tK(UUU)K) that hang RNAframework's XML parser; single source feeding ch_reference_gtf_map.
-    // Only organisms in gtfSanitizeOrganisms() actually need this — skip it for everything else.
+    // Only organisms in idSanitizeOrganisms() actually need this — skip it for everything else.
     def gtf_sanitize_branches = ch_all_reference_gtf.branch { meta, _gtf ->
-        needs_sanitize: meta.organism in gtfSanitizeOrganisms()
+        needs_sanitize: meta.organism in idSanitizeOrganisms()
         clean:          true
     }
 
@@ -173,27 +178,59 @@ workflow PREPARE_REFERENCES {
     )
     ch_all_reference_gtf = GTF_SANITIZE.out.gtf.mix(gtf_sanitize_branches.clean)
 
+    // Same organism-gated normalization as GTF_SANITIZE above, applied to FASTA header ids
+    // (yeast isoform hyphens, unsafe characters) before FASTA_SORT — one branch per source since
+    // each keeps its own aliased FASTA_SORT/downstream channel. FASTA_SORT always decompresses
+    // regardless of input, so the "clean" branch needs no separate gzip handling.
+    def ch_reference_local_branches = ch_reference_local.branch { meta, _fasta ->
+        needs_sanitize: meta.organism in idSanitizeOrganisms()
+        clean:          true
+    }
+    FASTA_SANITIZE_LOCAL (
+        ch_reference_local_branches.needs_sanitize
+    )
     FASTA_SORT_LOCAL (
-        ch_reference_local
+        FASTA_SANITIZE_LOCAL.out.fasta.mix(ch_reference_local_branches.clean)
     )
 
     def ch_fasta_sort_ensembl_out = channel.empty()
     if (transcriptome) {
+        def ch_ensembl_fasta_branches = ENSEMBL_TRANSCRIPTOME.out.fasta.branch { meta, _fasta ->
+            needs_sanitize: meta.organism in idSanitizeOrganisms()
+            clean:          true
+        }
+        FASTA_SANITIZE_ENSEMBL (
+            ch_ensembl_fasta_branches.needs_sanitize
+        )
         FASTA_SORT_ENSEMBL (
-            ENSEMBL_TRANSCRIPTOME.out.fasta
+            FASTA_SANITIZE_ENSEMBL.out.fasta.mix(ch_ensembl_fasta_branches.clean)
         )
         ch_fasta_sort_ensembl_out = FASTA_SORT_ENSEMBL.out.fasta
     } else {
         // Genome route: sort the Ensembl genome FASTA so it is published to reference/
         // and so STAR_GENOMEGENERATE receives a chromosome-sorted FASTA.
+        def ch_ensembl_fasta_branches = ENSEMBL_GENOME.out.fasta.branch { meta, _fasta ->
+            needs_sanitize: meta.organism in idSanitizeOrganisms()
+            clean:          true
+        }
+        FASTA_SANITIZE_ENSEMBL (
+            ch_ensembl_fasta_branches.needs_sanitize
+        )
         FASTA_SORT_ENSEMBL (
-            ENSEMBL_GENOME.out.fasta
+            FASTA_SANITIZE_ENSEMBL.out.fasta.mix(ch_ensembl_fasta_branches.clean)
         )
         ch_fasta_sort_ensembl_out = FASTA_SORT_ENSEMBL.out.fasta
     }
 
+    def ch_reference_ncbi_fasta_branches = NCBI_FASTA.out.fasta.branch { meta, _fasta ->
+        needs_sanitize: meta.organism in idSanitizeOrganisms()
+        clean:          true
+    }
+    FASTA_SANITIZE_NCBI (
+        ch_reference_ncbi_fasta_branches.needs_sanitize
+    )
     FASTA_SORT_NCBI (
-        NCBI_FASTA.out.fasta
+        FASTA_SANITIZE_NCBI.out.fasta.mix(ch_reference_ncbi_fasta_branches.clean)
     )
 
     def ch_reference_fasta_keyed = FASTA_SORT_LOCAL.out.fasta

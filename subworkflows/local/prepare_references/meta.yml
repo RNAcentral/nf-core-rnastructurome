@@ -15,6 +15,7 @@ components:
   - ensembl/genome
   - ensembl/gtf
   - ensembl/transcriptome
+  - fasta/sanitize
   - fasta/sort
   - gffread
   - gtf/sanitize

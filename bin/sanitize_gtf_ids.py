@@ -7,7 +7,7 @@ containing regex/shell metacharacters — e.g. yeast tRNA names like ``tK(UUU)K`
 break both: the parser spins forever on the un-escaped parentheses.  Replace any
 character outside a conservative safe set with ``_`` in the ``transcript_id`` and
 ``gene_id`` attribute values.  ``.`` and ``-`` are preserved so version suffixes
-and the yeast ORF-isoform normalisation (see fasta_sort.py) keep working.
+and the yeast ORF-isoform normalisation (see fasta_sanitize_ids.py) keep working.
 
 Usage: sanitize_gtf_ids.py <input_gtf[.gz]> <output_gtf>
 """

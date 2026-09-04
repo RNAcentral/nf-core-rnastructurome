@@ -12,7 +12,7 @@ process MERGE_SOURCE_URLS {
 
     output:
     tuple val(meta), path("ensembl_source_url.txt"), emit: urls
-    tuple val("${task.process}"), val('bash'), eval("bash --version | head -n1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+'"), topic: versions, emit: versions_bash
+    tuple val("${task.process}"), val('cat'), eval("cat --version 2>&1 | head -n 1 | sed 's/^.*coreutils) //; s/ .*\$//'"), topic: versions, emit: versions_cat
 
     script:
     """

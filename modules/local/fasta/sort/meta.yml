@@ -5,11 +5,12 @@ keywords:
   - reference
   - sorting
 tools:
-  - python:
-      description: Python runtime used to normalize FASTA record ordering.
-      homepage: https://www.python.org/
-      documentation: https://docs.python.org/3/
-      licence: ["Python-2.0"]
+  - seqkit:
+      description: A cross-platform and efficient toolkit for FASTA/Q file manipulation
+      homepage: https://bioinf.shenwei.me/seqkit/
+      documentation: https://bioinf.shenwei.me/seqkit/usage/
+      tool_dev_url: https://github.com/shenwei356/seqkit
+      licence: ["MIT"]
 input:
   - - meta:
         type: map
@@ -30,7 +31,8 @@ output:
             e.g. [ id:'homo_sapiens', organism:'homo_sapiens' ]
       - "*.sorted.fa":
           type: file
-          description: FASTA records normalized and sorted lexicographically by sequence identifier
+          description: FASTA records sorted lexicographically by sequence identifier, always
+            decompressed regardless of input compression
           pattern: "*.{sorted.fa}"
           ontologies: []
   versions:

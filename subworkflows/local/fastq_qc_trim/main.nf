@@ -9,8 +9,8 @@ include { CUTADAPT as CUTADAPT_RTSTOP } from '../../../modules/nf-core/cutadapt/
 include { CUTADAPT as CUTADAPT_MAP    } from '../../../modules/nf-core/cutadapt/main'
 include { UMITOOLS_EXTRACT            } from '../../../modules/nf-core/umitools/extract/main'
 
-include { parseCutadaptCommandArg } from '../../../workflows/rnastructurome_functions.nf'
-include { cutadaptAdaptersMultiqc } from '../../../workflows/rnastructurome_functions.nf'
+include { parseCutadaptCommandArg } from '../utils_nfcore_rnastructurome_pipeline/main'
+include { cutadaptAdaptersMultiqc } from '../utils_nfcore_rnastructurome_pipeline/main'
 
 workflow FASTQ_QC_TRIM {
 

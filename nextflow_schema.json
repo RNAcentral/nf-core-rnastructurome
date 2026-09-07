@@ -913,11 +913,6 @@
                     "description": "Generate template-based 2D RNA structure diagrams using R2DT, coloured by normalised SHAPE/chemical-probing reactivity.",
                     "default": true
                 },
-                "r2dt_container": {
-                    "type": "string",
-                    "description": "Container image used for the local R2DT module. The default tracks the rnacentral/r2dt :latest tag, validated at digest sha256:7ce2f54a7a3ff1d7fee7430209a7358ae1e971644446cfe4906dbd7b6211282c (2026-06). A tag is used rather than that digest because Wave cannot attach its Fusion containerConfig to a @sha256 reference, which fails the run on AWS/Seqera Platform. An earlier build shipped the ribovision-ssu/lsu, rnasep and tmrna covariance models without their cmfetch SSI indexes; because the data dir is read-only under Singularity, R2DT could not build them at runtime and those templates (e.g. LSU rRNA) failed to draw.",
-                    "default": "docker.io/rnacentral/r2dt:latest"
-                },
                 "r2dt_templatable_biotypes": {
                     "type": "string",
                     "description": "Comma-separated GTF biotypes sent to R2DT. R2DT only has templates for structured ncRNA classes; transcripts of other biotypes (mRNA, lncRNA, ...) are excluded so R2DT never force-fits them to the wrong template, and are drawn by ViennaRNA instead. Matched case-insensitively against transcript/gene biotype.",

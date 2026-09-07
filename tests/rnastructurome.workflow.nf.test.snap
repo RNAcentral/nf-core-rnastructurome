@@ -43,7 +43,7 @@
                     "cutadapt": 5.2
                 },
                 "FASTA_SORT_LOCAL": {
-                    "python": "3.12.12"
+                    "seqkit": "2.9.0"
                 },
                 "FASTQC_POST": {
                     "fastqc": "0.12.1"
@@ -58,10 +58,10 @@
                     "python": "3.12.12"
                 },
                 "MERGE_SHANNON_WIG": {
-                    "python": "3.12.12"
+                    "cat": 9.11
                 },
                 "MERGE_WIG": {
-                    "python": "3.12.12"
+                    "cat": 9.11
                 },
                 "RNAFRAMEWORK_DOTPLOT2BP": {
                     "python": "3.12.12"
@@ -149,7 +149,7 @@
                 }
             }
         ],
-        "timestamp": "2026-08-10T17:09:08.85252",
+        "timestamp": "2026-09-03T16:37:08.330533",
         "meta": {
             "nf-test": "0.9.4",
             "nextflow": "26.04.3"

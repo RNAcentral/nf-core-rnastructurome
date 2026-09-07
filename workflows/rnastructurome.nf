@@ -20,7 +20,7 @@ include { CORRELATE_REPLICATES     } from '../subworkflows/local/correlate_repli
 include { VISUALISE_STRUCTURES     } from '../subworkflows/local/visualise/main'
 include { BROWSER_TRACKS           } from '../subworkflows/local/browser_tracks/main'
 
-// Pure helper functions (parsers, arg renderers, MultiQC table builders) — see rnastructurome_functions.nf
+// Pure helper functions (parsers, arg renderers, MultiQC table builders)
 include {
     resolveReferenceKey
     parseFlagstatMappedReads
@@ -34,7 +34,7 @@ include {
     rfevalStatsMultiqc
     filterSummaryParams
     addModuleOptionsSummary
-} from './rnastructurome_functions.nf'
+} from '../subworkflows/local/utils_nfcore_rnastructurome_pipeline/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

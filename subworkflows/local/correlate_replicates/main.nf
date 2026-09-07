@@ -7,7 +7,7 @@ include { RNAFRAMEWORK_RFCORRELATE as RNAFRAMEWORK_RFCORRELATE_SPEARMAN } from '
 include {
     parseRfcorrelateMatrix
     rfCorrelateMultiqc
-} from '../../../workflows/rnastructurome_functions.nf'
+} from '../utils_nfcore_rnastructurome_pipeline/main'
 
 workflow CORRELATE_REPLICATES {
 

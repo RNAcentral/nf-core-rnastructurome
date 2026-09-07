@@ -1,7 +1,7 @@
 nextflow_function {
 
     name "MultiQC table builders (row-shape normalisation)"
-    script "../rnastructurome_functions.nf"
+    script "../main.nf"
 
     // buildSimpleMultiqcTable is exercised via rffoldStatsMultiqc.
 

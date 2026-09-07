@@ -76,7 +76,7 @@
                 "enum": ["treated", "untreated", "denatured"],
                 "meta": ["condition"],
                 "description": "Sample condition for rf-norm grouping (treated / untreated / denatured). Samples are normalised only against rows with the same sample_group and replicate. Untreated requires a matching treated sample; denatured requires matching treated and untreated samples.",
-                "help_text": "TODO (rnacentral-probing-metadata-main): merge_metadata.py must be updated to populate this column from the YAML 'conditions' field. Until then, samples without a condition are treated as 'treated'."
+                "help_text": "Samples left without a condition are treated as 'treated'."
             },
             "sample_group": {
                 "type": "string",

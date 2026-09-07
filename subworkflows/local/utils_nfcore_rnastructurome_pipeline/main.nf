@@ -79,7 +79,7 @@ workflow PIPELINE_INITIALISATION {
         before_text,
         after_text,
         command,
-        null
+        false
     )
 
     // Check config provided to the pipeline
